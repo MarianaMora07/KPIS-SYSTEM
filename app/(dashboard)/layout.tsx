@@ -2,6 +2,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { listRegions, listHotels } from "@/modules/catalog";
 import { getSessionUser } from "@/lib/auth/get-session-user";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
+import { canAccessSeguridad } from "@/lib/auth/permissions";
 import { DEMO_REGIONS, DEMO_HOTELS } from "@/modules/dashboard/data/demo-data";
 
 export default async function DashboardLayout({
@@ -26,7 +27,16 @@ export default async function DashboardLayout({
   }
 
   return (
-    <DashboardShell regions={regions} hotels={hotels} user={user}>
+    <DashboardShell
+      regions={regions}
+      hotels={hotels.map((h) => ({
+        id: h.id,
+        nombre: h.nombre,
+        region_id: "region_id" in h ? (h as { region_id: string }).region_id : undefined,
+      }))}
+      user={user}
+      canAccessAdmin={canAccessSeguridad(user?.rol ?? null)}
+    >
       {children}
     </DashboardShell>
   );

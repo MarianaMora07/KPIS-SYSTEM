@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Sidebar } from "@/components/layout/sidebar";
 import { HeaderFiltersWrapper } from "@/components/layout/header-filters-wrapper";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { createClient } from "@/lib/supabase/client";
 import { UserCircle } from "lucide-react";
@@ -45,6 +46,11 @@ const PAGE_TITLES: Record<
     subtitle: "Exportación PDF, Excel y PowerPoint (HU-KPI-010)",
     showFilters: true,
   },
+  "/catalogo": {
+    title: "Catálogo organizacional",
+    subtitle: "Regiones, hoteles y jerarquía (HU-KPI-001)",
+    showFilters: false,
+  },
   "/seguridad": {
     title: "Seguridad y auditoría",
     subtitle: "Usuarios, permisos y bitácora (HU-KPI-011 / HU-KPI-012)",
@@ -62,6 +68,7 @@ interface DashboardShellProps {
   regions?: { id: string; nombre: string }[];
   hotels?: { id: string; nombre: string }[];
   user?: SessionUser | null;
+  canAccessAdmin?: boolean;
 }
 
 export function DashboardShell({
@@ -69,6 +76,7 @@ export function DashboardShell({
   regions = [],
   hotels = [],
   user,
+  canAccessAdmin = false,
 }: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -93,11 +101,12 @@ export function DashboardShell({
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         onLogout={handleLogout}
+        canAccessAdmin={canAccessAdmin}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="border-b border-slate-200/80 bg-white/90 px-6 py-3 backdrop-blur-md">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
               <h1 className="truncate text-xl font-semibold tracking-tight text-imperial-900">
                 {title}
               </h1>
@@ -106,17 +115,19 @@ export function DashboardShell({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               {showFilters && (
                 <HeaderFiltersWrapper regions={regions} hotels={hotels} />
               )}
 
+              <NotificationBell />
+
               {user && (
                 <Link
                   href="/perfil"
-                  className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3 py-1.5 transition-colors hover:border-indigo-200 hover:bg-indigo-50/50"
+                  className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/80 px-2 py-1.5 transition-colors hover:border-indigo-200 hover:bg-indigo-50/50 sm:gap-3 sm:px-3"
                 >
-                  <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 ring-2 ring-white">
+                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 ring-2 ring-white sm:h-9 sm:w-9">
                     {user.avatar_url ? (
                       <Image
                         src={user.avatar_url}
@@ -126,18 +137,24 @@ export function DashboardShell({
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center">
-                        <UserCircle className="h-6 w-6 text-white/90" />
+                        <UserCircle className="h-5 w-5 text-white/90 sm:h-6 sm:w-6" />
                       </div>
                     )}
                   </div>
-                  <div className="hidden min-w-0 sm:block">
-                    <p className="truncate text-sm font-medium text-imperial-900">
+                  <div className="hidden min-w-0 lg:block">
+                    <p className="max-w-[140px] truncate text-sm font-medium text-imperial-900">
                       {displayName}
                     </p>
-                    <p className="truncate text-xs text-slate-500">{user.email}</p>
+                    <p className="max-w-[140px] truncate text-xs text-slate-500">
+                      {user.email}
+                    </p>
                   </div>
                   {user.rol && (
-                    <RoleBadge role={user.rol} variant="light" className="hidden md:inline-flex" />
+                    <RoleBadge
+                      role={user.rol}
+                      variant="light"
+                      className="hidden xl:inline-flex"
+                    />
                   )}
                 </Link>
               )}

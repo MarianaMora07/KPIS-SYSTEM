@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
+import {
+  DEMO_DASHBOARD_DATA,
+  filterDemoData,
+} from "@/modules/dashboard/data/demo-data";
 
 export async function GET(request: Request) {
-  if (!isSupabaseConfigured()) {
-    return NextResponse.json({ error: "Supabase no configurado" }, { status: 503 });
-  }
-
   const { searchParams } = new URL(request.url);
-  const regionId = searchParams.get("region") ?? undefined;
-  const hotelId = searchParams.get("hotel") ?? undefined;
-  const fechaDesde = searchParams.get("desde") ?? undefined;
-  const fechaHasta = searchParams.get("hasta") ?? undefined;
+  const filters = {
+    regionId: searchParams.get("region") ?? undefined,
+    hotelId: searchParams.get("hotel") ?? undefined,
+    fechaDesde: searchParams.get("desde") ?? "2026-06-01",
+    fechaHasta: searchParams.get("hasta") ?? "2026-06-30",
+  };
+
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(filterDemoData(DEMO_DASHBOARD_DATA, filters));
+  }
 
   const supabase = await createClient();
   let query = supabase
@@ -20,14 +26,16 @@ export async function GET(request: Request) {
     .order("fecha", { ascending: false })
     .limit(50);
 
-  if (hotelId) query = query.eq("hotel_id", hotelId);
-  if (regionId) query = query.eq("region_id", regionId);
-  if (fechaDesde) query = query.gte("fecha", fechaDesde);
-  if (fechaHasta) query = query.lte("fecha", fechaHasta);
+  if (filters.hotelId) query = query.eq("hotel_id", filters.hotelId);
+  if (filters.regionId) query = query.eq("region_id", filters.regionId);
+  if (filters.fechaDesde) query = query.gte("fecha", filters.fechaDesde);
+  if (filters.fechaHasta) query = query.lte("fecha", filters.fechaHasta);
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      filterDemoData(DEMO_DASHBOARD_DATA, filters)
+    );
   }
 
   return NextResponse.json(data);

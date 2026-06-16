@@ -1,34 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
+import { TrendsLineChart } from "@/modules/dashboard/components/trends-line-chart";
+import { VarianceBarChart } from "@/modules/dashboard/components/variance-bar-chart";
+import { ComparativesChart } from "@/modules/dashboard/components/comparatives-chart";
+import { CriticalIndicatorsPanel } from "@/modules/dashboard/components/critical-indicators-panel";
 import {
   formatKpiValue,
   formatVariacion,
   type DashboardKpiRow,
 } from "@/modules/dashboard/types";
+import { getKpiOptions } from "@/modules/dashboard/utils/chart-data";
 import type { TrafficLightStatus } from "@/types/database";
 
 interface DashboardViewProps {
   kpiCards: DashboardKpiRow[];
-  criticalKpis: DashboardKpiRow[];
+  worstPerformers: DashboardKpiRow[];
   history: DashboardKpiRow[];
   isDemo?: boolean;
 }
 
 export function DashboardView({
   kpiCards,
-  criticalKpis,
+  worstPerformers,
   history,
   isDemo,
 }: DashboardViewProps) {
+  const kpiOptions = useMemo(() => getKpiOptions(kpiCards), [kpiCards]);
+  const [selectedKpiId, setSelectedKpiId] = useState(
+    () => kpiOptions[0]?.id ?? ""
+  );
   const [selected, setSelected] = useState<DashboardKpiRow | null>(null);
+  const [compareMode, setCompareMode] = useState<"month" | "year">("month");
+
+  const activeKpiId = selectedKpiId || kpiOptions[0]?.id || "";
+  const activeKpi =
+    kpiCards.find((k) => k.kpi_id === activeKpiId) ??
+    history.find((h) => h.kpi_id === activeKpiId);
+
   const drillHistory = selected
     ? history.filter((h) => h.kpi_id === selected.kpi_id)
     : [];
+
+  function handleKpiCardClick(kpi: DashboardKpiRow) {
+    setSelectedKpiId(kpi.kpi_id);
+    setSelected(kpi);
+  }
 
   return (
     <div className="space-y-8">
@@ -41,31 +62,6 @@ export function DashboardView({
           </a>{" "}
           para operaciones con RLS.
         </div>
-      )}
-
-      {criticalKpis.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-        >
-          <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-red-500">
-            Indicadores críticos
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            {criticalKpis.map((k) => (
-              <button
-                key={k.kpi_id}
-                type="button"
-                onClick={() => setSelected(k)}
-                className="rounded-lg border border-red-200 bg-red-50/80 px-4 py-2 text-sm backdrop-blur-sm transition-colors hover:bg-red-100"
-              >
-                {k.kpi_nombre} —{" "}
-                {formatKpiValue(Number(k.valor_real), k.unidad_medida)}
-              </button>
-            ))}
-          </div>
-        </motion.section>
       )}
 
       <motion.section
@@ -103,7 +99,7 @@ export function DashboardView({
                   (kpi.semaforo_calculado ?? "riesgo") as TrafficLightStatus
                 }
                 index={index}
-                onClick={() => setSelected(kpi)}
+                onClick={() => handleKpiCardClick(kpi)}
               />
             ))}
           </div>
@@ -113,53 +109,88 @@ export function DashboardView({
       <motion.section
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.15 }}
-        className="glass rounded-xl border border-slate-200/60 p-6"
+        transition={{ duration: 0.35, delay: 0.1 }}
+        className="grid gap-6 lg:grid-cols-3"
       >
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">
-          Tendencias recientes
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-                <th className="pb-2 pr-4">KPI</th>
-                <th className="pb-2 pr-4">Hotel</th>
-                <th className="pb-2 pr-4">Fecha</th>
-                <th className="pb-2 pr-4">Valor</th>
-                <th className="pb-2">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.slice(0, 8).map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-slate-100 cursor-pointer hover:bg-amber-500/5"
-                  onClick={() => setSelected(row)}
+        <div className="glass space-y-6 rounded-xl border border-slate-200/60 p-6 lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-slate-500">
+              Análisis visual
+            </h2>
+            {kpiOptions.length > 1 && (
+              <select
+                aria-label="KPI para gráficos"
+                value={activeKpiId}
+                onChange={(e) => setSelectedKpiId(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white/90 px-3 py-1.5 text-sm text-imperial-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              >
+                {kpiOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
+                Tendencias históricas
+              </h3>
+              {activeKpi ? (
+                <TrendsLineChart
+                  history={history}
+                  kpiId={activeKpiId}
+                  unidadMedida={activeKpi.unidad_medida}
+                  showProjection
+                />
+              ) : (
+                <EmptyChart message="Seleccione un KPI para ver tendencias" />
+              )}
+            </div>
+            <div>
+              <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
+                Meta vs. real por hotel
+              </h3>
+              {activeKpi ? (
+                <VarianceBarChart
+                  history={history}
+                  kpiId={activeKpiId}
+                  unidadMedida={activeKpi.unidad_medida}
+                />
+              ) : (
+                <EmptyChart message="Seleccione un KPI para comparar metas" />
+              )}
+            </div>
+          </div>
+
+          {activeKpi && (
+            <div className="mt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                  Comparativo
+                </h3>
+                <select
+                  value={compareMode}
+                  onChange={(e) => setCompareMode(e.target.value as "month" | "year")}
+                  className="rounded border border-slate-200 px-2 py-1 text-xs"
                 >
-                  <td className="py-2 pr-4 font-medium text-imperial-900">
-                    {row.kpi_nombre}
-                  </td>
-                  <td className="py-2 pr-4 text-slate-600">
-                    {row.hotel_nombre ?? "—"}
-                  </td>
-                  <td className="py-2 pr-4 text-slate-600">{row.fecha}</td>
-                  <td className="py-2 pr-4">
-                    {formatKpiValue(Number(row.valor_real), row.unidad_medida)}
-                  </td>
-                  <td className="py-2">
-                    {row.semaforo_calculado && (
-                      <TrafficLightGlow
-                        status={row.semaforo_calculado}
-                        showLabel={false}
-                      />
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  <option value="month">Mes vs mes</option>
+                  <option value="year">Año vs año</option>
+                </select>
+              </div>
+              <ComparativesChart
+                history={history}
+                kpiId={activeKpiId}
+                unidadMedida={activeKpi.unidad_medida}
+                mode={compareMode}
+              />
+            </div>
+          )}
         </div>
+
+        <CriticalIndicatorsPanel items={worstPerformers} />
       </motion.section>
 
       <AnimatePresence>
@@ -171,6 +202,14 @@ export function DashboardView({
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="flex h-64 items-center justify-center text-sm text-slate-500">
+      {message}
     </div>
   );
 }
@@ -238,6 +277,14 @@ function DrillDownModal({
         <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
           Histórico
         </h4>
+        <div className="mb-4 h-40">
+          <TrendsLineChart
+            history={history}
+            kpiId={kpi.kpi_id}
+            unidadMedida={kpi.unidad_medida}
+            compact
+          />
+        </div>
         <ul className="space-y-2">
           {history.map((h) => (
             <li

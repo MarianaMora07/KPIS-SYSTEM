@@ -33,3 +33,16 @@ export async function getImportJobStatus(jobId: string) {
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function listImportJobs(userId: string, limit = 20) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("import_jobs")
+    .select("id, nombre_archivo, estado, total_filas, filas_ok, filas_error, created_at")
+    .eq("usuario_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}

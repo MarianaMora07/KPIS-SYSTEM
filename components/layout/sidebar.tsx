@@ -13,6 +13,7 @@ import {
   FileBarChart,
   Shield,
   UserCircle,
+  Building2,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -26,7 +27,8 @@ const navItems = [
   { href: "/integraciones", label: "Integraciones", icon: Plug },
   { href: "/alertas", label: "Alertas", icon: Bell },
   { href: "/reportes", label: "Reportes", icon: FileBarChart },
-  { href: "/seguridad", label: "Seguridad", icon: Shield },
+  { href: "/catalogo", label: "Catálogo", icon: Building2, adminOnly: true },
+  { href: "/seguridad", label: "Seguridad", icon: Shield, adminOnly: true },
   { href: "/perfil", label: "Mi perfil", icon: UserCircle },
 ];
 
@@ -34,14 +36,16 @@ interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onLogout: () => void;
+  canAccessAdmin?: boolean;
 }
 
-export function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps) {
+export function Sidebar({
+  collapsed,
+  onToggle,
+  onLogout,
+  canAccessAdmin = false,
+}: SidebarProps) {
   const pathname = usePathname();
-
-  function handleEdgeInteraction() {
-    if (collapsed) onToggle();
-  }
 
   return (
     <motion.aside
@@ -49,7 +53,7 @@ export function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps) {
       animate={{ width: collapsed ? 72 : 260 }}
       transition={{ duration: 0.25, ease: "easeInOut" }}
       className={cn(
-        "relative flex h-full shrink-0 flex-col",
+        "group/sidebar relative flex h-full shrink-0 flex-col",
         "border-r border-white/10 bg-imperial-900 text-white"
       )}
     >
@@ -83,28 +87,30 @@ export function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps) {
       </Link>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active =
-            href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              title={collapsed ? label : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                active
-                  ? "bg-gradient-to-r from-cyan-500/15 to-purple-500/15 text-cyan-300"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white"
-              )}
-            >
-              <Icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>{label}</span>}
-            </Link>
-          );
-        })}
+        {navItems
+          .filter((item) => !item.adminOnly || canAccessAdmin)
+          .map(({ href, label, icon: Icon }) => {
+            const active =
+              href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                title={collapsed ? label : undefined}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                  active
+                    ? "bg-gradient-to-r from-cyan-500/15 to-purple-500/15 text-cyan-300"
+                    : "text-slate-300 hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{label}</span>}
+              </Link>
+            );
+          })}
       </nav>
 
       <div className="border-t border-white/10 p-3">
@@ -114,7 +120,8 @@ export function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps) {
           title={collapsed ? "Cerrar sesión" : undefined}
           className={cn(
             "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-            "text-red-300 hover:bg-red-500/10 hover:text-red-200"
+            "text-red-300 hover:bg-red-500/10 hover:text-red-200",
+            collapsed && "justify-center px-2"
           )}
         >
           <LogOut className="h-5 w-5 shrink-0" />
@@ -125,19 +132,20 @@ export function Sidebar({ collapsed, onToggle, onLogout }: SidebarProps) {
       <button
         type="button"
         onClick={onToggle}
-        onMouseEnter={handleEdgeInteraction}
         aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
         className={cn(
-          "absolute right-0 top-0 z-10 flex h-full w-4 cursor-pointer",
-          "items-center justify-center border-l border-white/15",
-          "bg-imperial-800/90 text-slate-400 transition-colors",
-          "hover:bg-imperial-700 hover:text-white"
+          "absolute -right-3 top-1/2 z-20 flex h-6 w-6 -translate-y-1/2 items-center justify-center",
+          "rounded-full border border-slate-200/80 bg-white text-imperial-900 shadow-md",
+          "opacity-0 transition-all duration-200",
+          "group-hover/sidebar:opacity-100",
+          "hover:scale-105 hover:border-amber-300 hover:shadow-lg",
+          "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
         )}
       >
         {collapsed ? (
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5" />
         ) : (
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5" />
         )}
       </button>
     </motion.aside>

@@ -1,12 +1,14 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, Suspense } from "react";
+import { ExportReportButton } from "@/modules/dashboard/components/export-report-button";
 
 interface FilterOption {
   id: string;
   nombre: string;
+  region_id?: string;
 }
 
 interface HeaderFiltersProps {
@@ -23,13 +25,21 @@ const PERIODS = [
 
 export function HeaderFilters({ regions, hotels }: HeaderFiltersProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const showExport = pathname === "/dashboard" || pathname === "/reportes";
+
+  const regionFilter = searchParams.get("region") ?? "";
+  const filteredHotels = regionFilter
+    ? hotels.filter((h) => h.region_id === regionFilter)
+    : hotels;
 
   const updateFilter = useCallback(
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString());
       if (value) params.set(key, value);
       else params.delete(key);
+      if (key === "region") params.delete("hotel");
       router.push(`?${params.toString()}`, { scroll: false });
     },
     [router, searchParams]
@@ -51,7 +61,7 @@ export function HeaderFilters({ regions, hotels }: HeaderFiltersProps) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-nowrap items-center gap-2 sm:gap-3">
       <FilterSelect
         label="Región"
         value={searchParams.get("region") ?? ""}
@@ -62,7 +72,7 @@ export function HeaderFilters({ regions, hotels }: HeaderFiltersProps) {
         label="Hotel"
         value={searchParams.get("hotel") ?? ""}
         onChange={(v) => updateFilter("hotel", v)}
-        options={[{ id: "", nombre: "Todos" }, ...hotels]}
+        options={[{ id: "", nombre: "Todos" }, ...filteredHotels]}
       />
       <FilterSelect
         label="Período"
@@ -70,6 +80,11 @@ export function HeaderFilters({ regions, hotels }: HeaderFiltersProps) {
         onChange={onPeriodChange}
         options={PERIODS.map((p) => ({ id: p.id, nombre: p.label }))}
       />
+      {showExport && (
+        <Suspense fallback={null}>
+          <ExportReportButton />
+        </Suspense>
+      )}
     </div>
   );
 }

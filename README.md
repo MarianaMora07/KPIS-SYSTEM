@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema KPIs — Hoteles Estelar
 
-## Getting Started
+Plataforma de gestión de indicadores comerciales (KPIs) para la cadena hotelera Estelar. Cubre las 12 historias de usuario del documento funcional: administración de KPIs, importación, integraciones, dashboard analítico, alertas, reportes ejecutivos y seguridad RBAC.
 
-First, run the development server:
+## Arquitectura
+
+```
+Next.js 16 (App Router)
+├── app/(dashboard)/     — UI autenticada
+├── app/api/             — REST endpoints (import, integraciones, cron, alertas)
+├── modules/             — Dominio por feature (kpis, dashboard, alertas, …)
+├── lib/
+│   ├── supabase/        — Cliente server/browser
+│   ├── auth/            — Permisos y sesión
+│   ├── activepieces/    — Webhooks automatización
+│   ├── gemini/          — Resúmenes IA
+│   └── cache/           — Cache in-memory dashboard (TTL 60s)
+└── supabase/migrations/ — PostgreSQL + RLS + triggers
+```
+
+**Stack:** Next.js, TypeScript, Tailwind, Supabase (PostgreSQL + Auth + Storage), Recharts, Activepieces, Gemini.
+
+## Setup local
+
+1. Clonar e instalar dependencias:
+
+```bash
+npm install
+```
+
+2. Copiar variables de entorno:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Configurar Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) y ejecutar migraciones:
+
+```bash
+npm run db:reset   # local con Supabase CLI
+# o: supabase db push  (remoto)
+```
+
+4. Iniciar desarrollo:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Registrarse en `/login`. El primer usuario recibe rol `analista` automáticamente.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Módulos principales
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Ruta | HU | Descripción |
+|------|-----|-------------|
+| `/dashboard` | 006/007 | Tarjetas KPI, tendencias, comparativos, proyección lineal |
+| `/kpis` | 001 | CRUD, duplicar, versionar, detalle `/kpis/[id]` |
+| `/import` | 004 | Plantilla Excel, preview, jobs async |
+| `/integraciones` | 005 | CRUD PMS/CRM, sync con reintentos, cron |
+| `/alertas` | 008/009 | Alertas, planes de acción, escalamiento auto 48h |
+| `/reportes` | 010 | PDF, Excel, PowerPoint, programación cron |
+| `/seguridad` | 011/012 | Usuarios, roles, scopes, bitácora |
+| `/catalogo` | — | Regiones, hoteles, canales, campañas |
 
-## Learn More
+## Automatización (Activepieces)
 
-To learn more about Next.js, take a look at the following resources:
+Ver [`docs/activepieces-workflows.md`](docs/activepieces-workflows.md) para configurar webhooks:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `kpi.alert.created` / `kpi.alert.escalated`
+- `integration.failed`
+- `report.scheduled`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Cron jobs (Vercel / externo)
 
-## Deploy on Vercel
+Configurar `CRON_SECRET` y llamar con `Authorization: Bearer <CRON_SECRET>`:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Endpoint | Frecuencia sugerida |
+|----------|---------------------|
+| `GET /api/cron/escalate-alerts` | Diario |
+| `POST /api/integraciones/cron` | Según integraciones |
+| `POST /api/cron/reports` | Semanal |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deploy en Vercel
+
+1. Conectar repositorio en Vercel.
+2. Añadir variables de `.env.example`.
+3. Configurar cron en `vercel.json` (opcional).
+4. Ejecutar migraciones en Supabase remoto.
+
+## Scripts útiles
+
+```bash
+npm run dev          # Desarrollo
+npm run build        # Build producción
+npm run db:reset     # Reset BD local
+npm run db:types     # Generar tipos TypeScript desde Supabase
+```
+
+## Demo
+
+Guion de presentación en [`docs/demo-script.md`](docs/demo-script.md).

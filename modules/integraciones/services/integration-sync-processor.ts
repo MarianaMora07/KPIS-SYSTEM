@@ -1,0 +1,158 @@
+import { createClient } from "@/lib/supabase/server";
+import { dispatchActivepiecesEvent } from "@/lib/activepieces/dispatch";
+
+interface IntegrationRecord {
+  id: string;
+  nombre: string;
+  sistema_tipo: string;
+  endpoint_url: string;
+  auth_config: Record<string, unknown>;
+  mapeo_campos: Record<string, string>;
+  max_reintentos: number;
+}
+
+/** Adaptador demo: simula fetch PMS y mapea campos a valores KPI */
+async function fetchExternalData(
+  integration: IntegrationRecord
+): Promise<{ kpi_codigo: string; valor: number; fecha: string }[]> {
+  const res = await fetch(integration.endpoint_url, {
+    headers: {
+      Authorization: `Bearer ${(integration.auth_config as { token?: string }).token ?? "demo"}`,
+    },
+    signal: AbortSignal.timeout(10000),
+  }).catch(() => null);
+
+  if (res?.ok) {
+    const json = await res.json();
+    if (Array.isArray(json)) return json;
+  }
+
+  // Demo fallback
+  return [
+    { kpi_codigo: "OCP-001", valor: 78 + Math.random() * 10, fecha: new Date().toISOString().slice(0, 10) },
+    { kpi_codigo: "REV-001", valor: 1200000 + Math.random() * 50000, fecha: new Date().toISOString().slice(0, 10) },
+  ];
+}
+
+export async function processIntegrationSync(
+  integrationId: string,
+  jobId: string
+): Promise<{ ok: boolean; registrosOk: number; registrosError: number; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: integration, error: intError } = await supabase
+    .from("external_integrations")
+    .select("*")
+    .eq("id", integrationId)
+    .single();
+
+  if (intError || !integration) {
+    return { ok: false, registrosOk: 0, registrosError: 0, error: "Integración no encontrada" };
+  }
+
+  const maxRetries = integration.max_reintentos ?? 3;
+  let attempt = 0;
+  let lastError: string | undefined;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    await supabase
+      .from("integration_jobs")
+      .update({ estado: "reintentando", intento: attempt, started_at: new Date().toISOString() })
+      .eq("id", jobId);
+
+    try {
+      const records = await fetchExternalData(integration as IntegrationRecord);
+      let ok = 0;
+      let err = 0;
+
+      for (const rec of records) {
+        const { data: kpi } = await supabase
+          .from("kpis")
+          .select("id, hotel_id, region_id, meta")
+          .eq("codigo", rec.kpi_codigo)
+          .eq("estado", "activo")
+          .maybeSingle();
+
+        if (!kpi) {
+          err++;
+          await supabase.from("integration_logs").insert({
+            integration_job_id: jobId,
+            nivel: "warn",
+            mensaje: `KPI no encontrado: ${rec.kpi_codigo}`,
+          });
+          continue;
+        }
+
+        const { error: upsertError } = await supabase.from("kpi_values").upsert(
+          {
+            kpi_id: kpi.id,
+            hotel_id: kpi.hotel_id,
+            region_id: kpi.region_id,
+            fecha: rec.fecha,
+            valor_real: rec.valor,
+            valor_meta: kpi.meta,
+            fuente: "integracion",
+          },
+          { onConflict: "kpi_id,hotel_id,fecha" }
+        );
+
+        if (upsertError) {
+          err++;
+          await supabase.from("integration_logs").insert({
+            integration_job_id: jobId,
+            nivel: "error",
+            mensaje: upsertError.message,
+            payload: rec,
+          });
+        } else {
+          ok++;
+        }
+      }
+
+      await supabase
+        .from("integration_jobs")
+        .update({
+          estado: err > 0 && ok === 0 ? "fallido" : err > 0 ? "parcial" : "completado",
+          registros_ok: ok,
+          registros_error: err,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", jobId);
+
+      await supabase.from("integration_logs").insert({
+        integration_job_id: jobId,
+        nivel: "info",
+        mensaje: `Sync completado: ${ok} ok, ${err} errores`,
+      });
+
+      return { ok: ok > 0, registrosOk: ok, registrosError: err };
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : "Error de sync";
+      await supabase.from("integration_logs").insert({
+        integration_job_id: jobId,
+        nivel: "error",
+        mensaje: `Intento ${attempt}: ${lastError}`,
+      });
+    }
+  }
+
+  await supabase
+    .from("integration_jobs")
+    .update({
+      estado: "fallido",
+      intento: maxRetries,
+      error_mensaje: lastError,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", jobId);
+
+  await dispatchActivepiecesEvent("integration.failed", {
+    jobId,
+    integrationId,
+    integrationNombre: integration.nombre,
+    error: lastError,
+  });
+
+  return { ok: false, registrosOk: 0, registrosError: 0, error: lastError };
+}

@@ -30,6 +30,10 @@ export const kpiCreateSchema = z.object({
   tipo_indicador: z.enum(["estrategico", "tactico", "operativo"]),
   hotel_id: z.string().uuid().optional().nullable(),
   region_id: z.string().uuid().optional().nullable(),
+  business_unit_id: z.string().uuid().optional().nullable(),
+  sales_channel_id: z.string().uuid().optional().nullable(),
+  marketing_campaign_id: z.string().uuid().optional().nullable(),
+  commercial_team_id: z.string().uuid().optional().nullable(),
 });
 
 export const kpiTargetSchema = z.object({
@@ -68,3 +72,20 @@ export type KpiCreateInput = z.infer<typeof kpiCreateSchema>;
 export type KpiTargetInput = z.infer<typeof kpiTargetSchema>;
 export type ImportFileInput = z.infer<typeof importFileSchema>;
 export type KpiValueInput = z.infer<typeof kpiValueSchema>;
+
+export const actionPlanItemSchema = z.object({
+  descripcion: z.string().min(1).max(500),
+  fecha_compromiso: z.string().date().optional().nullable(),
+});
+
+export const actionPlanSchema = z.object({
+  kpi_id: z.string().uuid(),
+  alert_id: z.string().uuid().optional().nullable(),
+  titulo: z.string().min(1).max(200),
+  descripcion: z.string().max(2000).optional().nullable(),
+  fecha_compromiso: z.string().date(),
+  responsable_id: z.string().uuid().optional().nullable(),
+  items: z.array(actionPlanItemSchema).optional(),
+});
+
+export type ActionPlanInput = z.infer<typeof actionPlanSchema>;

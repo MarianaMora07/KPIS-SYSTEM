@@ -32,9 +32,10 @@ export function KpiCard({
       whileHover={{ y: -2, transition: { duration: 0.2 } }}
       onClick={onClick}
       className={cn(
-        "group cursor-pointer rounded-xl border border-slate-200/60",
-        "bg-white/70 p-5 backdrop-blur-md transition-shadow",
-        "hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5"
+        "group cursor-pointer rounded-xl border border-slate-200/70",
+        "bg-white/80 p-5 backdrop-blur-md transition-shadow",
+        "shadow-md shadow-slate-300/50",
+        "hover:border-amber-500/35 hover:shadow-lg hover:shadow-slate-400/40"
       )}
     >
       <div className="mb-3 flex items-start justify-between gap-2">

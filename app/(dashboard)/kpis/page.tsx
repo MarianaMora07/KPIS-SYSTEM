@@ -1,5 +1,14 @@
 import { listKpis } from "@/modules/kpis/services/kpi-service";
-import { listKpiCategories, listRegions, listHotels } from "@/modules/catalog";
+import {
+  listKpiCategories,
+  listRegions,
+  listHotels,
+  listBusinessUnits,
+  listSalesChannels,
+  listMarketingCampaigns,
+  listCommercialTeams,
+} from "@/modules/catalog";
+import { listUsers } from "@/modules/seguridad/services/security-service";
 import { KpiList } from "@/modules/kpis/components/kpi-list";
 import { KpiCreateForm } from "@/modules/kpis/components/kpi-create-form";
 import { RegisterValueForm } from "@/modules/kpis/components/register-value-form";
@@ -21,11 +30,26 @@ export default async function KpisPage() {
     );
   }
 
-  const [kpis, categories, regions, hotels] = await Promise.all([
+  const [
+    kpis,
+    categories,
+    regions,
+    hotels,
+    users,
+    businessUnits,
+    salesChannels,
+    campaigns,
+    teams,
+  ] = await Promise.all([
     listKpis(),
     listKpiCategories(),
     listRegions(),
     listHotels(),
+    listUsers().catch(() => []),
+    listBusinessUnits(),
+    listSalesChannels(),
+    listMarketingCampaigns(),
+    listCommercialTeams(),
   ]);
 
   return (
@@ -35,6 +59,14 @@ export default async function KpisPage() {
           categories={categories}
           regions={regions}
           hotels={hotels}
+          users={users.map((u) => ({
+            id: u.id,
+            nombre: [u.nombre, u.apellido].filter(Boolean).join(" ") || u.email,
+          }))}
+          businessUnits={businessUnits}
+          salesChannels={salesChannels}
+          campaigns={campaigns}
+          teams={teams}
         />
         <RegisterValueForm
           kpis={kpis.map((k) => ({

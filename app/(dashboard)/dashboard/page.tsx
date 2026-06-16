@@ -1,12 +1,16 @@
 import {
   getLatestKpiCards,
   getDashboardKpis,
-  getCriticalKpis,
+  getWorstPerformers,
 } from "@/modules/dashboard/services/dashboard-service";
 import { DashboardView } from "@/modules/dashboard/components/dashboard-view";
 import { DashboardSkeleton } from "@/components/ui/skeleton";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { DEMO_DASHBOARD_DATA } from "@/modules/dashboard/data/demo-data";
+import {
+  DEMO_DASHBOARD_DATA,
+  filterDemoData,
+} from "@/modules/dashboard/data/demo-data";
+import { getWorstPerformers as getWorstFromCards } from "@/modules/dashboard/utils/chart-data";
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import { Suspense } from "react";
 
@@ -30,37 +34,35 @@ async function DashboardData({ searchParams }: PageProps) {
 
   let kpiCards: DashboardKpiRow[] = [];
   let history: DashboardKpiRow[] = [];
-  let criticalKpis: DashboardKpiRow[] = [];
+  let worstPerformers: DashboardKpiRow[] = [];
   let isDemo = false;
 
   if (isSupabaseConfigured()) {
     try {
-      [kpiCards, history, criticalKpis] = await Promise.all([
+      [kpiCards, history, worstPerformers] = await Promise.all([
         getLatestKpiCards(filters),
         getDashboardKpis(filters),
-        getCriticalKpis(filters),
+        getWorstPerformers(filters),
       ]);
     } catch {
       isDemo = true;
-      kpiCards = getLatestFromDemo(DEMO_DASHBOARD_DATA);
-      history = DEMO_DASHBOARD_DATA;
-      criticalKpis = kpiCards.filter(
-        (k) => k.semaforo_calculado === "incumplimiento"
-      );
+      const demo = filterDemoData(DEMO_DASHBOARD_DATA, filters);
+      kpiCards = getLatestFromDemo(demo);
+      history = demo;
+      worstPerformers = getWorstFromCards(demo);
     }
   } else {
     isDemo = true;
-    kpiCards = getLatestFromDemo(DEMO_DASHBOARD_DATA);
-    history = DEMO_DASHBOARD_DATA;
-    criticalKpis = kpiCards.filter(
-      (k) => k.semaforo_calculado === "incumplimiento"
-    );
+    const demo = filterDemoData(DEMO_DASHBOARD_DATA, filters);
+    kpiCards = getLatestFromDemo(demo);
+    history = demo;
+    worstPerformers = getWorstFromCards(demo);
   }
 
   return (
     <DashboardView
       kpiCards={kpiCards}
-      criticalKpis={criticalKpis}
+      worstPerformers={worstPerformers}
       history={history}
       isDemo={isDemo}
     />
@@ -70,7 +72,10 @@ async function DashboardData({ searchParams }: PageProps) {
 function getLatestFromDemo(data: DashboardKpiRow[]) {
   const map = new Map<string, DashboardKpiRow>();
   for (const row of data) {
-    if (!map.has(row.kpi_id)) map.set(row.kpi_id, row);
+    const existing = map.get(row.kpi_id);
+    if (!existing || row.fecha > existing.fecha) {
+      map.set(row.kpi_id, row);
+    }
   }
   return Array.from(map.values());
 }

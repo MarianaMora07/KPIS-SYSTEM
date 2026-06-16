@@ -6,6 +6,7 @@ import { HeaderFilters } from "./header-filters";
 interface FilterOption {
   id: string;
   nombre: string;
+  region_id?: string;
 }
 
 interface HeaderFiltersWrapperProps {
