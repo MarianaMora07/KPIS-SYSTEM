@@ -12,7 +12,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("id, email, nombre, apellido, avatar_url, user_roles(rol)")
+    .select("id, email, nombre, apellido, avatar_url, user_roles!user_roles_user_id_fkey(rol)")
     .eq("id", user.id)
     .single();
 

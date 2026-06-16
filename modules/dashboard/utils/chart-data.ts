@@ -17,6 +17,26 @@ export function getKpiOptions(rows: DashboardKpiRow[]) {
   return Array.from(seen, ([id, nombre]) => ({ id, nombre }));
 }
 
+export function getValueOptionsForKpi(
+  history: DashboardKpiRow[],
+  kpiId: string
+) {
+  return history
+    .filter((r) => r.kpi_id === kpiId)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha) || (a.hotel_nombre ?? "").localeCompare(b.hotel_nombre ?? ""))
+    .map((r) => ({
+      id: r.id,
+      fecha: r.fecha,
+      hotel: r.hotel_nombre ?? "General",
+      label: `${r.fecha} · ${r.hotel_nombre ?? "General"}`,
+      row: r,
+    }));
+}
+
+export function formatChartDateLabel(iso: string): string {
+  return formatChartDate(iso);
+}
+
 /** Agrupa histórico por fecha con una serie por hotel para el KPI seleccionado */
 export function buildTrendSeries(
   history: DashboardKpiRow[],
@@ -44,6 +64,50 @@ export function buildTrendSeries(
   }));
 
   return { data, series };
+}
+
+/** Meta vs. real para una fecha concreta (por hotel) */
+export function buildVarianceDataForFecha(
+  history: DashboardKpiRow[],
+  kpiId: string,
+  fecha: string
+): { hotel: string; real: number; meta: number | null }[] {
+  return history
+    .filter((r) => r.kpi_id === kpiId && r.fecha === fecha)
+    .map((r) => ({
+      hotel: r.hotel_nombre ?? "General",
+      real: Number(r.valor_real),
+      meta: r.valor_meta != null ? Number(r.valor_meta) : null,
+    }))
+    .sort((a, b) => a.hotel.localeCompare(b.hotel));
+}
+
+/** Comparativo del registro seleccionado vs el anterior (mismo KPI y hotel) */
+export function buildComparativeForRow(
+  history: DashboardKpiRow[],
+  rowId: string
+): { label: string; actual: number; anterior: number }[] {
+  const row = history.find((r) => r.id === rowId);
+  if (!row) return [];
+
+  const previous = history
+    .filter(
+      (r) =>
+        r.kpi_id === row.kpi_id &&
+        (r.hotel_id ?? r.hotel_nombre) === (row.hotel_id ?? row.hotel_nombre) &&
+        r.fecha < row.fecha
+    )
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+
+  return [
+    {
+      label: previous
+        ? `${formatChartDate(previous.fecha)} → ${formatChartDate(row.fecha)}`
+        : formatChartDate(row.fecha),
+      actual: Number(row.valor_real),
+      anterior: previous ? Number(previous.valor_real) : 0,
+    },
+  ];
 }
 
 /** Último valor por hotel para comparar Real vs Meta */

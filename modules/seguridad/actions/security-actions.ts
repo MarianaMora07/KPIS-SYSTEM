@@ -73,6 +73,10 @@ export async function setScopesAction(
     throw new Error("Solo un administrador puede asignar alcances");
   }
 
+  if (userId === user.id) {
+    throw new Error("No puede modificar su propio alcance");
+  }
+
   await setUserHotelScopes(userId, hotelIds);
   await setUserRegionScopes(userId, regionIds);
   revalidatePath("/seguridad");

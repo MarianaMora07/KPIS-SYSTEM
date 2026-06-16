@@ -12,13 +12,14 @@ import {
 } from "recharts";
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import { formatKpiValue } from "@/modules/dashboard/types";
-import { buildComparativeSeries } from "@/modules/dashboard/utils/chart-data";
+import { buildComparativeSeries, buildComparativeForRow } from "@/modules/dashboard/utils/chart-data";
 
 interface ComparativesChartProps {
   history: DashboardKpiRow[];
   kpiId: string;
   unidadMedida: string;
   mode?: "month" | "year";
+  focusRowId?: string;
 }
 
 export function ComparativesChart({
@@ -26,8 +27,11 @@ export function ComparativesChart({
   kpiId,
   unidadMedida,
   mode = "month",
+  focusRowId,
 }: ComparativesChartProps) {
-  const data = buildComparativeSeries(history, kpiId, mode);
+  const data = focusRowId
+    ? buildComparativeForRow(history, focusRowId)
+    : buildComparativeSeries(history, kpiId, mode);
 
   if (data.length === 0 || (data[0].actual === 0 && data[0].anterior === 0)) {
     return (

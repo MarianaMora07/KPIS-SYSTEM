@@ -9,10 +9,15 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import { formatKpiValue } from "@/modules/dashboard/types";
-import { buildTrendSeries, buildProjectionSeries } from "@/modules/dashboard/utils/chart-data";
+import {
+  buildTrendSeries,
+  buildProjectionSeries,
+  formatChartDateLabel,
+} from "@/modules/dashboard/utils/chart-data";
 
 interface TrendsLineChartProps {
   history: DashboardKpiRow[];
@@ -20,6 +25,10 @@ interface TrendsLineChartProps {
   unidadMedida: string;
   showProjection?: boolean;
   compact?: boolean;
+  /** ISO fecha (YYYY-MM-DD) del registro enfocado */
+  highlightFecha?: string;
+  /** Serie/hotel a resaltar cuando hay varios */
+  highlightHotel?: string;
 }
 
 export function TrendsLineChart({
@@ -28,10 +37,32 @@ export function TrendsLineChart({
   unidadMedida,
   showProjection = false,
   compact = false,
+  highlightFecha,
+  highlightHotel,
 }: TrendsLineChartProps) {
-  const { data, series } = showProjection
-    ? { data: buildProjectionSeries(history, kpiId).data, series: [{ key: "real", label: "Real", color: "#d4af37" }, { key: "proyeccion", label: "Proyección (est.)", color: "#94a3b8" }] }
-    : buildTrendSeries(history, kpiId);
+  const focusMode = Boolean(highlightFecha);
+  const highlightLabel = highlightFecha
+    ? formatChartDateLabel(highlightFecha)
+    : undefined;
+
+  const filteredHistory =
+    focusMode && highlightFecha
+      ? history.filter(
+          (r) =>
+            r.kpi_id === kpiId &&
+            r.fecha <= highlightFecha
+        )
+      : history;
+
+  const { data, series } = showProjection && !focusMode
+    ? {
+        data: buildProjectionSeries(filteredHistory, kpiId).data,
+        series: [
+          { key: "real", label: "Real", color: "#d4af37" },
+          { key: "proyeccion", label: "Proyección (est.)", color: "#94a3b8" },
+        ],
+      }
+    : buildTrendSeries(filteredHistory, kpiId);
 
   const height = compact ? 160 : 280;
 
@@ -72,20 +103,60 @@ export function TrendsLineChart({
           iconType="circle"
           iconSize={8}
         />
-        {series.map((s) => (
-          <Line
-            key={s.key}
-            type="monotone"
-            dataKey={s.key}
-            name={s.label}
-            stroke={s.color}
+        {highlightLabel && (
+          <ReferenceLine
+            x={highlightLabel}
+            stroke="#f59e0b"
             strokeWidth={2}
-            strokeDasharray={s.key === "proyeccion" ? "5 5" : undefined}
-            dot={{ r: 3, fill: s.color }}
-            activeDot={{ r: 5 }}
-            connectNulls={s.key === "proyeccion"}
+            strokeDasharray="4 4"
+            label={{
+              value: "Registro seleccionado",
+              position: "top",
+              fill: "#b45309",
+              fontSize: 10,
+            }}
           />
-        ))}
+        )}
+        {series.map((s) => {
+          const isFocusedSeries =
+            !focusMode ||
+            !highlightHotel ||
+            s.key === highlightHotel ||
+            series.length === 1;
+
+          return (
+            <Line
+              key={s.key}
+              type="monotone"
+              dataKey={s.key}
+              name={s.label}
+              stroke={s.color}
+              strokeWidth={isFocusedSeries ? (focusMode ? 3 : 2) : 1}
+              strokeOpacity={isFocusedSeries ? 1 : 0.25}
+              strokeDasharray={s.key === "proyeccion" ? "5 5" : undefined}
+              dot={(props) => {
+                const { cx, cy, payload } = props;
+                if (cx == null || cy == null) return <g />;
+                const isHighlightPoint =
+                  highlightLabel &&
+                  payload.fecha === highlightLabel &&
+                  (!highlightHotel || s.key === highlightHotel);
+                return (
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={isHighlightPoint ? 8 : isFocusedSeries ? 4 : 2}
+                    fill={isHighlightPoint ? "#f59e0b" : s.color}
+                    stroke={isHighlightPoint ? "#fff" : "none"}
+                    strokeWidth={isHighlightPoint ? 2 : 0}
+                  />
+                );
+              }}
+              activeDot={{ r: focusMode ? 8 : 5 }}
+              connectNulls={s.key === "proyeccion"}
+            />
+          );
+        })}
       </LineChart>
     </ResponsiveContainer>
   );

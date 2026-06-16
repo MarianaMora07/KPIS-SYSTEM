@@ -3,15 +3,22 @@ import {
   getDashboardKpis,
   getWorstPerformers,
 } from "@/modules/dashboard/services/dashboard-service";
-import { DashboardView } from "@/modules/dashboard/components/dashboard-view";
+import {
+  DashboardTabsView,
+  type DashboardTab,
+} from "@/modules/dashboard/components/dashboard-tabs-view";
 import { DashboardSkeleton } from "@/components/ui/skeleton";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import {
   DEMO_DASHBOARD_DATA,
+  DEMO_METAS_DATA,
   filterDemoData,
+  filterDemoMetas,
 } from "@/modules/dashboard/data/demo-data";
 import { getWorstPerformers as getWorstFromCards } from "@/modules/dashboard/utils/chart-data";
+import { listTargetsForDashboard } from "@/modules/metas/services/targets-service";
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
+import type { MetasDashboardRow } from "@/modules/metas/types";
 import { Suspense } from "react";
 
 interface PageProps {
@@ -20,6 +27,7 @@ interface PageProps {
     hotel?: string;
     desde?: string;
     hasta?: string;
+    tab?: string;
   }>;
 }
 
@@ -31,18 +39,21 @@ async function DashboardData({ searchParams }: PageProps) {
     fechaDesde: params.desde ?? "2026-06-01",
     fechaHasta: params.hasta ?? "2026-06-30",
   };
+  const initialTab: DashboardTab = params.tab === "metas" ? "metas" : "ejecutivo";
 
   let kpiCards: DashboardKpiRow[] = [];
   let history: DashboardKpiRow[] = [];
   let worstPerformers: DashboardKpiRow[] = [];
+  let metas: MetasDashboardRow[] = [];
   let isDemo = false;
 
   if (isSupabaseConfigured()) {
     try {
-      [kpiCards, history, worstPerformers] = await Promise.all([
+      [kpiCards, history, worstPerformers, metas] = await Promise.all([
         getLatestKpiCards(filters),
         getDashboardKpis(filters),
         getWorstPerformers(filters),
+        listTargetsForDashboard(filters),
       ]);
     } catch {
       isDemo = true;
@@ -50,6 +61,7 @@ async function DashboardData({ searchParams }: PageProps) {
       kpiCards = getLatestFromDemo(demo);
       history = demo;
       worstPerformers = getWorstFromCards(demo);
+      metas = filterDemoMetas(DEMO_METAS_DATA, filters);
     }
   } else {
     isDemo = true;
@@ -57,14 +69,17 @@ async function DashboardData({ searchParams }: PageProps) {
     kpiCards = getLatestFromDemo(demo);
     history = demo;
     worstPerformers = getWorstFromCards(demo);
+    metas = filterDemoMetas(DEMO_METAS_DATA, filters);
   }
 
   return (
-    <DashboardView
+    <DashboardTabsView
       kpiCards={kpiCards}
       worstPerformers={worstPerformers}
       history={history}
+      metas={metas}
       isDemo={isDemo}
+      initialTab={initialTab}
     />
   );
 }

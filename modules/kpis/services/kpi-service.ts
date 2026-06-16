@@ -158,11 +158,11 @@ export async function listKpiVersions(kpiId: string) {
   return data ?? [];
 }
 
-export async function listKpiValues(kpiId: string, limit = 12) {
+export async function listKpiValues(kpiId: string, limit = 100) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("kpi_values")
-    .select("*")
+    .select("id, fecha, valor_real, valor_meta, cumplimiento_pct, semaforo")
     .eq("kpi_id", kpiId)
     .order("fecha", { ascending: false })
     .limit(limit);

@@ -12,20 +12,24 @@ import {
 } from "recharts";
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import { formatKpiValue } from "@/modules/dashboard/types";
-import { buildVarianceData } from "@/modules/dashboard/utils/chart-data";
+import { buildVarianceData, buildVarianceDataForFecha } from "@/modules/dashboard/utils/chart-data";
 
 interface VarianceBarChartProps {
   history: DashboardKpiRow[];
   kpiId: string;
   unidadMedida: string;
+  focusFecha?: string;
 }
 
 export function VarianceBarChart({
   history,
   kpiId,
   unidadMedida,
+  focusFecha,
 }: VarianceBarChartProps) {
-  const raw = buildVarianceData(history, kpiId);
+  const raw = focusFecha
+    ? buildVarianceDataForFecha(history, kpiId, focusFecha)
+    : buildVarianceData(history, kpiId);
   const data = raw.map((d) => ({
     hotel: shortenHotel(d.hotel),
     Real: d.real,

@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { requireSeguridadUi } from "@/lib/auth/require-permission";
+import { getSessionUser } from "@/lib/auth/get-session-user";
 import {
   listUsers,
   listAuditLogs,
@@ -22,6 +23,8 @@ export default async function SeguridadPage() {
 
   await requireSeguridadUi();
 
+  const sessionUser = await getSessionUser();
+
   const [users, auditLogs, permissions, regions, hotels] = await Promise.all([
     listUsers(),
     listAuditLogs(),
@@ -37,6 +40,7 @@ export default async function SeguridadPage() {
       permissions={permissions}
       regions={regions.map((r) => ({ id: r.id, nombre: r.nombre }))}
       hotels={hotels.map((h) => ({ id: h.id, nombre: h.nombre }))}
+      currentUserId={sessionUser?.id}
     />
   );
 }

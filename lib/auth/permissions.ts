@@ -3,6 +3,7 @@ import type { AppRole } from "@/types/database";
 import {
   canAccessSeguridadUi,
   canManageKpisFromList,
+  getPermissionsForRole,
   hasPermissionInList,
 } from "./role-matrix";
 
@@ -17,18 +18,26 @@ export async function getUserPermissions(): Promise<{
 
   if (!user) return { rol: null, permissions: [] };
 
-  const { data: roles } = await supabase
+  const { data: roles, error: rolesError } = await supabase
     .from("user_roles")
     .select("rol")
     .eq("user_id", user.id);
 
+  if (rolesError) {
+    console.error("[getUserPermissions] user_roles:", rolesError.message);
+  }
+
   const rol = (roles?.[0]?.rol as AppRole) ?? null;
   if (!rol) return { rol: null, permissions: [] };
 
-  const { data: perms } = await supabase
+  const { data: perms, error: permsError } = await supabase
     .from("role_permissions")
     .select("permissions(codigo)")
     .eq("rol", rol);
+
+  if (permsError) {
+    console.error("[getUserPermissions] role_permissions:", permsError.message);
+  }
 
   const permissions = (perms ?? [])
     .map((p) => {
@@ -37,6 +46,10 @@ export async function getUserPermissions(): Promise<{
       return perm?.codigo;
     })
     .filter(Boolean) as string[];
+
+  if (permissions.length === 0) {
+    return { rol, permissions: getPermissionsForRole(rol) };
+  }
 
   return { rol, permissions };
 }

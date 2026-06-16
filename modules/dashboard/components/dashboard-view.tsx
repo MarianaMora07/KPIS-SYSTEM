@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -14,7 +14,10 @@ import {
   formatVariacion,
   type DashboardKpiRow,
 } from "@/modules/dashboard/types";
-import { getKpiOptions } from "@/modules/dashboard/utils/chart-data";
+import {
+  getKpiOptions,
+  getValueOptionsForKpi,
+} from "@/modules/dashboard/utils/chart-data";
 import type { TrafficLightStatus } from "@/types/database";
 
 interface DashboardViewProps {
@@ -34,10 +37,25 @@ export function DashboardView({
   const [selectedKpiId, setSelectedKpiId] = useState(
     () => kpiOptions[0]?.id ?? ""
   );
+  const [selectedValueKey, setSelectedValueKey] = useState("all");
   const [selected, setSelected] = useState<DashboardKpiRow | null>(null);
   const [compareMode, setCompareMode] = useState<"month" | "year">("month");
 
   const activeKpiId = selectedKpiId || kpiOptions[0]?.id || "";
+  const valueOptions = useMemo(
+    () => getValueOptionsForKpi(history, activeKpiId),
+    [history, activeKpiId]
+  );
+
+  useEffect(() => {
+    setSelectedValueKey("all");
+  }, [activeKpiId]);
+
+  const focusedRow =
+    selectedValueKey === "all"
+      ? null
+      : valueOptions.find((v) => v.id === selectedValueKey)?.row ?? null;
+
   const activeKpi =
     kpiCards.find((k) => k.kpi_id === activeKpiId) ??
     history.find((h) => h.kpi_id === activeKpiId);
@@ -48,6 +66,7 @@ export function DashboardView({
 
   function handleKpiCardClick(kpi: DashboardKpiRow) {
     setSelectedKpiId(kpi.kpi_id);
+    setSelectedValueKey(kpi.id);
     setSelected(kpi);
   }
 
@@ -117,33 +136,126 @@ export function DashboardView({
             <h2 className="text-sm font-medium uppercase tracking-wider text-slate-500">
               Análisis visual
             </h2>
-            {kpiOptions.length > 1 && (
-              <select
-                aria-label="KPI para gráficos"
-                value={activeKpiId}
-                onChange={(e) => setSelectedKpiId(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white/90 px-3 py-1.5 text-sm text-imperial-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-              >
-                {kpiOptions.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.nombre}
-                  </option>
-                ))}
-              </select>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {kpiOptions.length > 0 && (
+                <select
+                  aria-label="KPI para gráficos"
+                  value={activeKpiId}
+                  onChange={(e) => setSelectedKpiId(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white/90 px-3 py-1.5 text-sm text-imperial-900 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                >
+                  {kpiOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.nombre}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {valueOptions.length > 0 && (
+                <select
+                  aria-label="Registro para gráficos"
+                  value={selectedValueKey}
+                  onChange={(e) => setSelectedValueKey(e.target.value)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 ${
+                    selectedValueKey !== "all"
+                      ? "border-amber-400 bg-amber-50 text-amber-900"
+                      : "border-slate-200 bg-white/90 text-imperial-900"
+                  }`}
+                >
+                  <option value="all">Todos los registros</option>
+                  {valueOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label} —{" "}
+                      {formatKpiValue(
+                        Number(opt.row.valor_real),
+                        opt.row.unidad_medida
+                      )}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
+
+          {focusedRow && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+                Registro en foco
+              </p>
+              <p className="mt-1 text-sm text-amber-950">
+                {focusedRow.fecha} · {focusedRow.hotel_nombre ?? "General"} —{" "}
+                <strong>
+                  {formatKpiValue(
+                    Number(focusedRow.valor_real),
+                    focusedRow.unidad_medida
+                  )}
+                </strong>
+                {focusedRow.cumplimiento_pct != null &&
+                  ` · Cumplimiento ${focusedRow.cumplimiento_pct}%`}
+              </p>
+            </div>
+          )}
+
+          {focusedRow && (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <FocusStat
+                label="Valor"
+                value={formatKpiValue(
+                  Number(focusedRow.valor_real),
+                  focusedRow.unidad_medida
+                )}
+              />
+              <FocusStat
+                label="Meta"
+                value={
+                  focusedRow.valor_meta != null
+                    ? formatKpiValue(
+                        Number(focusedRow.valor_meta),
+                        focusedRow.unidad_medida
+                      )
+                    : "—"
+                }
+              />
+              <FocusStat
+                label="Cumplimiento"
+                value={
+                  focusedRow.cumplimiento_pct != null
+                    ? `${focusedRow.cumplimiento_pct}%`
+                    : "—"
+                }
+              />
+              <div className="rounded-lg border border-amber-200 bg-white/80 px-4 py-3">
+                <p className="text-xs text-slate-500">Semáforo</p>
+                {focusedRow.semaforo_calculado ? (
+                  <TrafficLightGlow
+                    status={focusedRow.semaforo_calculado}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p className="mt-1 text-sm text-slate-400">—</p>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-6 md:grid-cols-2">
             <div>
               <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
                 Tendencias históricas
+                {focusedRow && (
+                  <span className="ml-2 normal-case text-amber-600">
+                    (hasta {focusedRow.fecha})
+                  </span>
+                )}
               </h3>
               {activeKpi ? (
                 <TrendsLineChart
                   history={history}
                   kpiId={activeKpiId}
                   unidadMedida={activeKpi.unidad_medida}
-                  showProjection
+                  showProjection={selectedValueKey === "all"}
+                  highlightFecha={focusedRow?.fecha}
+                  highlightHotel={focusedRow?.hotel_nombre ?? undefined}
                 />
               ) : (
                 <EmptyChart message="Seleccione un KPI para ver tendencias" />
@@ -151,13 +263,16 @@ export function DashboardView({
             </div>
             <div>
               <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
-                Meta vs. real por hotel
+                {focusedRow
+                  ? `Meta vs. real · ${focusedRow.fecha}`
+                  : "Meta vs. real por hotel"}
               </h3>
               {activeKpi ? (
                 <VarianceBarChart
                   history={history}
                   kpiId={activeKpiId}
                   unidadMedida={activeKpi.unidad_medida}
+                  focusFecha={focusedRow?.fecha}
                 />
               ) : (
                 <EmptyChart message="Seleccione un KPI para comparar metas" />
@@ -169,22 +284,27 @@ export function DashboardView({
             <div className="mt-6">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                  Comparativo
+                  {focusedRow ? "Comparativo vs. registro anterior" : "Comparativo"}
                 </h3>
-                <select
-                  value={compareMode}
-                  onChange={(e) => setCompareMode(e.target.value as "month" | "year")}
-                  className="rounded border border-slate-200 px-2 py-1 text-xs"
-                >
-                  <option value="month">Mes vs mes</option>
-                  <option value="year">Año vs año</option>
-                </select>
+                {!focusedRow && (
+                  <select
+                    value={compareMode}
+                    onChange={(e) =>
+                      setCompareMode(e.target.value as "month" | "year")
+                    }
+                    className="rounded border border-slate-200 px-2 py-1 text-xs"
+                  >
+                    <option value="month">Mes vs mes</option>
+                    <option value="year">Año vs año</option>
+                  </select>
+                )}
               </div>
               <ComparativesChart
                 history={history}
                 kpiId={activeKpiId}
                 unidadMedida={activeKpi.unidad_medida}
                 mode={compareMode}
+                focusRowId={focusedRow?.id}
               />
             </div>
           )}
@@ -210,6 +330,15 @@ function EmptyChart({ message }: { message: string }) {
   return (
     <div className="flex h-64 items-center justify-center text-sm text-slate-500">
       {message}
+    </div>
+  );
+}
+
+function FocusStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-amber-200 bg-white/80 px-4 py-3">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-imperial-900">{value}</p>
     </div>
   );
 }

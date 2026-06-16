@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth/get-session-user";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { canAccessSeguridad, getUserPermissions } from "@/lib/auth/permissions";
 import { DEMO_REGIONS, DEMO_HOTELS } from "@/modules/dashboard/data/demo-data";
+import type { AppRole } from "@/types/database";
 
 export default async function DashboardLayout({
   children,
@@ -16,28 +17,27 @@ export default async function DashboardLayout({
   let hotels = DEMO_HOTELS;
   let user = null;
   let permissions: string[] = [];
-  let rol = null;
+  let rol: AppRole | null = null;
 
   if (!isDemoMode) {
+    const [u, perms] = await Promise.all([getSessionUser(), getUserPermissions()]);
+    user = u;
+    permissions = perms.permissions;
+    rol = perms.rol ?? u?.rol ?? null;
+
     try {
-      const [r, h, u, perms] = await Promise.all([
-        listRegions(),
-        listHotels(),
-        getSessionUser(),
-        getUserPermissions(),
-      ]);
+      const [r, h] = await Promise.all([listRegions(), listHotels()]);
       regions = r;
       hotels = h;
-      user = u;
-      permissions = perms.permissions;
-      rol = perms.rol;
-    } catch {
-      // fallback demo catalog
+    } catch (err) {
+      console.error("[DashboardLayout] catalog load failed:", err);
     }
   }
 
+  const effectiveRol = rol ?? user?.rol ?? null;
+
   return (
-    <PermissionsProvider permissions={permissions} rol={rol} isDemoMode={isDemoMode}>
+    <PermissionsProvider permissions={permissions} rol={effectiveRol} isDemoMode={isDemoMode}>
       <DashboardShell
         regions={regions}
         hotels={hotels.map((h) => ({
@@ -47,7 +47,7 @@ export default async function DashboardLayout({
         }))}
         user={user}
         permissions={permissions}
-        canAccessAdmin={canAccessSeguridad(user?.rol ?? null)}
+        canAccessAdmin={canAccessSeguridad(effectiveRol)}
         isDemoMode={isDemoMode}
       >
         {children}

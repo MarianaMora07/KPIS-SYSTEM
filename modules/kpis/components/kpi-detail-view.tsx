@@ -10,12 +10,18 @@ import { TargetsPanel } from "@/modules/metas/components/targets-panel";
 import { TrafficLightPanel } from "@/modules/metas/components/traffic-light-panel";
 import { FormulaPanel } from "@/modules/formulas/components/formula-panel";
 import { VariablesPanel } from "@/modules/formulas/components/variables-panel";
+import { RegisterValueForm } from "@/modules/kpis/components/register-value-form";
+import {
+  KpiValuesAnalyticsPanel,
+  type KpiValueRow,
+} from "@/modules/kpis/components/kpi-values-analytics-panel";
 import { usePermissions } from "@/components/layout/permissions-context";
+import { formatKpiValue } from "@/modules/dashboard/types";
 
 interface KpiDetailViewProps {
   kpi: Record<string, unknown>;
   versions: { version: number; created_at: string }[];
-  values: { fecha: string; valor_real: number; cumplimiento_pct: number | null }[];
+  values: KpiValueRow[];
   targets: Record<string, unknown>[];
   regions?: { id: string; nombre: string }[];
   hotels?: { id: string; nombre: string }[];
@@ -27,6 +33,7 @@ interface KpiDetailViewProps {
   } | null;
   variables?: { id: string; codigo: string; nombre: string; tipo: string }[];
   initialFormula?: string;
+  initialSelectedFecha?: string;
 }
 
 export function KpiDetailView({
@@ -39,6 +46,7 @@ export function KpiDetailView({
   trafficLightRanges = null,
   variables = [],
   initialFormula = "",
+  initialSelectedFecha,
 }: KpiDetailViewProps) {
   const { can } = usePermissions();
   const canEdit = can("kpis.editar");
@@ -73,6 +81,16 @@ export function KpiDetailView({
           Volver a KPIs
         </Link>
         <div className="flex gap-2">
+          <RegisterValueForm
+            kpis={[
+              {
+                id,
+                codigo: kpi.codigo as string,
+                nombre: kpi.nombre as string,
+              },
+            ]}
+            defaultKpiId={id}
+          />
           {canEdit && (
             <Link
               href={`/kpis/${id}/editar`}
@@ -105,6 +123,15 @@ export function KpiDetailView({
         </p>
       </div>
 
+      <KpiValuesAnalyticsPanel
+        kpiId={id}
+        kpiCodigo={kpi.codigo as string}
+        kpiNombre={kpi.nombre as string}
+        unidadMedida={(kpi.unidad_medida as string) ?? ""}
+        values={values}
+        initialSelectedFecha={initialSelectedFecha}
+      />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <TargetsPanel kpiId={id} targets={targets} regions={regions} hotels={hotels} />
         <TrafficLightPanel kpiId={id} initialRanges={trafficLightRanges} />
@@ -122,16 +149,24 @@ export function KpiDetailView({
 
       <section className="glass rounded-xl border border-slate-200/60 p-6">
         <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">
-          Últimos valores
+          Valores registrados
         </h2>
         <ul className="space-y-2 text-sm">
-          {values.map((v, i) => (
-            <li key={i} className="flex justify-between rounded bg-slate-50 px-3 py-2">
-              <span>{v.fecha}</span>
-              <span className="font-medium">{v.valor_real}</span>
+          {values.map((v) => (
+            <li
+              key={v.id}
+              className="flex items-center justify-between rounded bg-slate-50 px-3 py-2"
+            >
+              <span className="text-slate-600">{v.fecha}</span>
+              <span className="font-medium">
+                {formatKpiValue(Number(v.valor_real), (kpi.unidad_medida as string) ?? "")}
+              </span>
               <span className="text-slate-500">{v.cumplimiento_pct ?? "—"}%</span>
             </li>
           ))}
+          {values.length === 0 && (
+            <li className="text-slate-500">Sin valores registrados.</li>
+          )}
         </ul>
       </section>
 

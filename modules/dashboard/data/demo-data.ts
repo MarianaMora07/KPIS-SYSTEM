@@ -1,4 +1,5 @@
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
+import type { MetasDashboardRow } from "@/modules/metas/types";
 
 const HOTELS = [
   { id: "h1", nombre: "Estelar Bogotá", region: "Región Andina", regionId: "r1" },
@@ -137,6 +138,62 @@ function buildDemoRows(): DashboardKpiRow[] {
 
 export const DEMO_DASHBOARD_DATA: DashboardKpiRow[] = buildDemoRows();
 
+function buildDemoMetasRows(): MetasDashboardRow[] {
+  const rows: MetasDashboardRow[] = [];
+  let id = 1;
+
+  for (const kpi of KPI_DEFS) {
+    const juneEntry = kpi.values[3];
+    for (let h = 0; h < HOTELS.length; h++) {
+      const hotel = HOTELS[h];
+      const real = juneEntry.real[h];
+      const meta = juneEntry.meta;
+      const cumplimiento = meta > 0 ? Number(((real / meta) * 100).toFixed(2)) : null;
+      const semaforo = kpi.semaforos[3][h];
+      rows.push({
+        id: `demo-meta-${id++}`,
+        kpi_id: kpi.kpi_id,
+        kpi_codigo: kpi.kpi_codigo,
+        kpi_nombre: kpi.kpi_nombre,
+        unidad_medida: kpi.unidad_medida,
+        periodo_tipo: "mensual",
+        fecha_inicio: "2026-06-01",
+        fecha_fin: "2026-06-30",
+        valor_meta: meta,
+        hotel_id: hotel.id,
+        hotel_nombre: hotel.nombre,
+        region_id: hotel.regionId,
+        region_nombre: hotel.region,
+        valor_real: real,
+        cumplimiento_pct: cumplimiento,
+        semaforo,
+      });
+    }
+    rows.push({
+      id: `demo-meta-${id++}`,
+      kpi_id: kpi.kpi_id,
+      kpi_codigo: kpi.kpi_codigo,
+      kpi_nombre: kpi.kpi_nombre,
+      unidad_medida: kpi.unidad_medida,
+      periodo_tipo: "trimestral",
+      fecha_inicio: "2026-04-01",
+      fecha_fin: "2026-06-30",
+      valor_meta: juneEntry.meta,
+      hotel_id: null,
+      hotel_nombre: null,
+      region_id: null,
+      region_nombre: null,
+      valor_real: null,
+      cumplimiento_pct: null,
+      semaforo: null,
+    });
+  }
+
+  return rows;
+}
+
+export const DEMO_METAS_DATA: MetasDashboardRow[] = buildDemoMetasRows();
+
 export const DEMO_REGIONS = [
   { id: "r1", nombre: "Región Andina" },
   { id: "r2", nombre: "Región Caribe" },
@@ -160,6 +217,25 @@ export function filterDemoData(
     if (filters.hotelId && row.hotel_id !== filters.hotelId) return false;
     if (filters.fechaDesde && row.fecha < filters.fechaDesde) return false;
     if (filters.fechaHasta && row.fecha > filters.fechaHasta) return false;
+    return true;
+  });
+}
+
+/** Filtra metas demo según los mismos criterios del dashboard */
+export function filterDemoMetas(
+  data: MetasDashboardRow[],
+  filters: {
+    regionId?: string;
+    hotelId?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
+  }
+): MetasDashboardRow[] {
+  return data.filter((row) => {
+    if (filters.hotelId && row.hotel_id && row.hotel_id !== filters.hotelId) return false;
+    if (filters.regionId && row.region_id && row.region_id !== filters.regionId) return false;
+    if (filters.fechaHasta && row.fecha_inicio > filters.fechaHasta) return false;
+    if (filters.fechaDesde && row.fecha_fin < filters.fechaDesde) return false;
     return true;
   });
 }

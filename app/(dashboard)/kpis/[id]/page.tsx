@@ -9,15 +9,19 @@ import { listTargets, listTrafficLightRanges } from "@/modules/metas/services/ta
 import { listVariables, getKpiFormula } from "@/modules/formulas/services/formula-service";
 import { listRegions, listHotels } from "@/modules/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
+import type { TrafficLightStatus } from "@/types/database";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ valor?: string }>;
 }
 
-export default async function KpiDetailPage({ params }: PageProps) {
+export default async function KpiDetailPage({ params, searchParams }: PageProps) {
   if (!isSupabaseConfigured()) notFound();
 
   const { id } = await params;
+  const { valor: initialSelectedFecha } = await searchParams;
+
   try {
     const [kpi, versions, values, targets, trafficRanges, variables, formula, regions, hotels] =
       await Promise.all([
@@ -38,7 +42,14 @@ export default async function KpiDetailPage({ params }: PageProps) {
       <KpiDetailView
         kpi={kpi}
         versions={versions}
-        values={values}
+        values={values.map((v) => ({
+          id: v.id,
+          fecha: v.fecha,
+          valor_real: Number(v.valor_real),
+          valor_meta: v.valor_meta != null ? Number(v.valor_meta) : null,
+          cumplimiento_pct: v.cumplimiento_pct != null ? Number(v.cumplimiento_pct) : null,
+          semaforo: (v.semaforo as TrafficLightStatus | null) ?? null,
+        }))}
         targets={targets}
         regions={regions.map((r) => ({ id: r.id, nombre: r.nombre }))}
         hotels={hotels.map((h) => ({ id: h.id, nombre: h.nombre }))}
@@ -59,6 +70,7 @@ export default async function KpiDetailPage({ params }: PageProps) {
           tipo: v.tipo,
         }))}
         initialFormula={formula?.expresion ?? ""}
+        initialSelectedFecha={initialSelectedFecha}
       />
     );
   } catch {

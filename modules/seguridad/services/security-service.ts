@@ -12,7 +12,7 @@ export async function getCurrentUserProfile() {
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("*, user_roles(rol)")
+    .select("*, user_roles!user_roles_user_id_fkey(rol)")
     .eq("id", user.id)
     .single();
 
@@ -27,7 +27,7 @@ export async function listUsers(): Promise<UserWithScopes[]> {
     .select(
       `
       id, email, nombre, apellido, activo,
-      user_roles(rol),
+      user_roles!user_roles_user_id_fkey(rol),
       user_hotel_scopes(hotel_id),
       user_region_scopes(region_id)
     `

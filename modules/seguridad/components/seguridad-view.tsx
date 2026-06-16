@@ -34,6 +34,7 @@ interface SeguridadViewProps {
   permissions: PermissionRow[];
   hotels: { id: string; nombre: string }[];
   regions: { id: string; nombre: string }[];
+  currentUserId?: string;
 }
 
 export function SeguridadView({
@@ -42,6 +43,7 @@ export function SeguridadView({
   permissions,
   hotels,
   regions,
+  currentUserId,
 }: SeguridadViewProps) {
   const [tab, setTab] = useState<Tab>("usuarios");
   const { canManageUsers } = usePermissions();
@@ -72,6 +74,7 @@ export function SeguridadView({
           hotels={hotels}
           regions={regions}
           canManageUsers={canManageUsers}
+          currentUserId={currentUserId}
         />
       )}
       {tab === "roles" && <RolesTab permissions={permissions} />}
@@ -112,11 +115,13 @@ function UsersTab({
   hotels,
   regions,
   canManageUsers,
+  currentUserId,
 }: {
   users: UserWithScopes[];
   hotels: { id: string; nombre: string }[];
   regions: { id: string; nombre: string }[];
   canManageUsers: boolean;
+  currentUserId?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [editingScopes, setEditingScopes] = useState<string | null>(null);
@@ -136,7 +141,11 @@ function UsersTab({
           </tr>
         </thead>
         <tbody>
-          {users.map((u) => (
+          {users.map((u) => {
+            const isSelf = currentUserId != null && u.id === currentUserId;
+            const canEditScopes = canManageUsers && !isSelf;
+
+            return (
             <tr key={u.id} className="border-b border-slate-100">
               <td className="px-4 py-3">
                 <p className="font-medium text-imperial-900">
@@ -164,6 +173,9 @@ function UsersTab({
               </td>
               <td className="px-4 py-3 text-xs text-slate-600">
                 {u.hotel_ids.length} hoteles · {u.region_ids.length} regiones
+                {isSelf && canManageUsers && (
+                  <span className="mt-0.5 block text-slate-400">Acceso total (no editable)</span>
+                )}
               </td>
               {canManageUsers && (
                 <td className="px-4 py-3">
@@ -197,22 +209,27 @@ function UsersTab({
                     >
                       {u.activo ? "Desactivar" : "Activar"}
                     </button>
-                    <button
-                      type="button"
-                      className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800"
-                      onClick={() => {
-                        setEditingScopes(u.id);
-                        setSelectedHotels(u.hotel_ids);
-                        setSelectedRegions(u.region_ids);
-                      }}
-                    >
-                      Alcance
-                    </button>
+                    {canEditScopes ? (
+                      <button
+                        type="button"
+                        className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800"
+                        onClick={() => {
+                          setEditingScopes(u.id);
+                          setSelectedHotels(u.hotel_ids);
+                          setSelectedRegions(u.region_ids);
+                        }}
+                      >
+                        Alcance
+                      </button>
+                    ) : isSelf ? null : (
+                      <span className="self-center text-xs text-slate-400">—</span>
+                    )}
                   </div>
                 </td>
               )}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
 

@@ -132,5 +132,6 @@ export async function registerKpiValueAction(input: KpiValueInput) {
 
   revalidatePath("/dashboard");
   revalidatePath("/kpis");
+  revalidatePath(`/kpis/${parsed.kpi_id}`);
   return data;
 }
