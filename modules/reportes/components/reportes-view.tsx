@@ -10,8 +10,19 @@ import {
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import type { TrafficLightStatus } from "@/types/database";
 import { DEMO_DASHBOARD_DATA, filterDemoData } from "@/modules/dashboard/data/demo-data";
+import { ScheduledReportsPanel } from "./scheduled-reports-panel";
+import type { ScheduledReportRow } from "../services/scheduled-reports-service";
+import { usePermissions } from "@/components/layout/permissions-context";
 
-export function ReportesView({ isDemo }: { isDemo?: boolean }) {
+export function ReportesView({
+  isDemo,
+  schedules = [],
+}: {
+  isDemo?: boolean;
+  schedules?: ScheduledReportRow[];
+}) {
+  const { can } = usePermissions();
+  const canExport = can("reportes.exportar");
   const searchParams = useSearchParams();
   const [rows, setRows] = useState<DashboardKpiRow[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -51,8 +62,16 @@ export function ReportesView({ isDemo }: { isDemo?: boolean }) {
         >
           {loading ? "Cargando…" : "Vista previa"}
         </button>
-        <ExportReportButton />
+        <ExportReportButton disabled={!canExport} />
       </div>
+
+      {!canExport && (
+        <p className="text-sm text-amber-700">
+          No tiene permiso para exportar reportes.
+        </p>
+      )}
+
+      {!isDemo && <ScheduledReportsPanel schedules={schedules} />}
 
       {isDemo && (
         <p className="text-sm text-amber-700">

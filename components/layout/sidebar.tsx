@@ -21,12 +21,12 @@ import {
 import { cn } from "@/lib/utils/cn";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/kpis", label: "KPIs", icon: Target },
-  { href: "/import", label: "Importar", icon: Upload },
-  { href: "/integraciones", label: "Integraciones", icon: Plug },
-  { href: "/alertas", label: "Alertas", icon: Bell },
-  { href: "/reportes", label: "Reportes", icon: FileBarChart },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "dashboard.ver" },
+  { href: "/kpis", label: "KPIs", icon: Target, perm: "dashboard.ver" },
+  { href: "/import", label: "Importar", icon: Upload, perm: "import.cargar" },
+  { href: "/integraciones", label: "Integraciones", icon: Plug, perm: "integraciones.gestionar" },
+  { href: "/alertas", label: "Alertas", icon: Bell, perm: "dashboard.ver" },
+  { href: "/reportes", label: "Reportes", icon: FileBarChart, perm: "reportes.exportar" },
   { href: "/catalogo", label: "Catálogo", icon: Building2, adminOnly: true },
   { href: "/seguridad", label: "Seguridad", icon: Shield, adminOnly: true },
   { href: "/perfil", label: "Mi perfil", icon: UserCircle },
@@ -37,6 +37,8 @@ interface SidebarProps {
   onToggle: () => void;
   onLogout: () => void;
   canAccessAdmin?: boolean;
+  permissions?: string[];
+  isDemoMode?: boolean;
 }
 
 export function Sidebar({
@@ -44,6 +46,8 @@ export function Sidebar({
   onToggle,
   onLogout,
   canAccessAdmin = false,
+  permissions = [],
+  isDemoMode = false,
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -88,7 +92,17 @@ export function Sidebar({
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {navItems
-          .filter((item) => !item.adminOnly || canAccessAdmin)
+          .filter((item) => {
+            if (item.adminOnly && !canAccessAdmin) return false;
+            if (
+              item.perm &&
+              !isDemoMode &&
+              !permissions.includes(item.perm)
+            ) {
+              return false;
+            }
+            return true;
+          })
           .map(({ href, label, icon: Icon }) => {
             const active =
               href === "/dashboard"

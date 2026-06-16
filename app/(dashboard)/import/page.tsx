@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { createClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { listImportJobs } from "@/modules/import/services/import-service";
 import { ImportUploadView } from "@/modules/import/components/import-upload-view";
 
@@ -14,6 +15,8 @@ export default async function ImportPage() {
       </div>
     );
   }
+
+  await requirePermission("import.cargar");
 
   const supabase = await createClient();
   const {
@@ -33,8 +36,12 @@ export default async function ImportPage() {
         </a>
       </div>
       <p className="text-sm text-slate-600">
-        Carga masiva de valores KPI con validación previa y procesamiento en
-        segundo plano.
+        Carga masiva de <strong>valores KPI</strong> (<code>kpi_values</code>) para KPIs ya
+        existentes. No crea ni modifica la definición del indicador; use el formulario en{" "}
+        <a href="/kpis" className="text-amber-700 underline">
+          KPIs
+        </a>{" "}
+        para altas individuales.
       </p>
       <ImportUploadView />
 

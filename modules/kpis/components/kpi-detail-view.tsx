@@ -9,12 +9,24 @@ import { duplicateKpiAction } from "@/modules/kpis/actions/kpi-actions";
 import { TargetsPanel } from "@/modules/metas/components/targets-panel";
 import { TrafficLightPanel } from "@/modules/metas/components/traffic-light-panel";
 import { FormulaPanel } from "@/modules/formulas/components/formula-panel";
+import { VariablesPanel } from "@/modules/formulas/components/variables-panel";
+import { usePermissions } from "@/components/layout/permissions-context";
 
 interface KpiDetailViewProps {
   kpi: Record<string, unknown>;
   versions: { version: number; created_at: string }[];
   values: { fecha: string; valor_real: number; cumplimiento_pct: number | null }[];
   targets: Record<string, unknown>[];
+  regions?: { id: string; nombre: string }[];
+  hotels?: { id: string; nombre: string }[];
+  trafficLightRanges?: {
+    cumplimiento_min_pct: number;
+    riesgo_min_pct: number;
+    riesgo_max_pct: number;
+    incumplimiento_max_pct: number;
+  } | null;
+  variables?: { id: string; codigo: string; nombre: string; tipo: string }[];
+  initialFormula?: string;
 }
 
 export function KpiDetailView({
@@ -22,7 +34,15 @@ export function KpiDetailView({
   versions,
   values,
   targets,
+  regions = [],
+  hotels = [],
+  trafficLightRanges = null,
+  variables = [],
+  initialFormula = "",
 }: KpiDetailViewProps) {
+  const { can } = usePermissions();
+  const canEdit = can("kpis.editar");
+  const canCreate = can("kpis.crear");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
@@ -53,22 +73,26 @@ export function KpiDetailView({
           Volver a KPIs
         </Link>
         <div className="flex gap-2">
-          <Link
-            href={`/kpis/${id}/editar`}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
-          >
-            <Pencil className="h-4 w-4" />
-            Editar
-          </Link>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => setShowDuplicateConfirm(true)}
-            className="flex items-center gap-1 rounded-lg bg-imperial-900 px-3 py-1.5 text-sm text-white"
-          >
-            <Copy className="h-4 w-4" />
-            Duplicar
-          </button>
+          {canEdit && (
+            <Link
+              href={`/kpis/${id}/editar`}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+            >
+              <Pencil className="h-4 w-4" />
+              Editar
+            </Link>
+          )}
+          {canCreate && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setShowDuplicateConfirm(true)}
+              className="flex items-center gap-1 rounded-lg bg-imperial-900 px-3 py-1.5 text-sm text-white"
+            >
+              <Copy className="h-4 w-4" />
+              Duplicar
+            </button>
+          )}
         </div>
       </div>
 
@@ -82,11 +106,19 @@ export function KpiDetailView({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <TargetsPanel kpiId={id} targets={targets} />
-        <TrafficLightPanel kpiId={id} />
+        <TargetsPanel kpiId={id} targets={targets} regions={regions} hotels={hotels} />
+        <TrafficLightPanel kpiId={id} initialRanges={trafficLightRanges} />
       </div>
 
-      <FormulaPanel kpiId={id} kpiNombre={kpi.nombre as string} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <VariablesPanel variables={variables} />
+        <FormulaPanel
+          kpiId={id}
+          kpiNombre={kpi.nombre as string}
+          variableCodes={variables.map((v) => v.codigo)}
+          initialExpresion={initialFormula}
+        />
+      </div>
 
       <section className="glass rounded-xl border border-slate-200/60 p-6">
         <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">

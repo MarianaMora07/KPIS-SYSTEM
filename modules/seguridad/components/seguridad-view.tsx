@@ -12,8 +12,10 @@ import {
   assignRoleAction,
   toggleUserActiveAction,
   setScopesAction,
+  filterAuditLogsAction,
 } from "@/modules/seguridad/actions/security-actions";
 import { RoleBadge } from "@/components/ui/role-badge";
+import { usePermissions } from "@/components/layout/permissions-context";
 
 const ROLES: AppRole[] = [
   "administrador",
@@ -42,9 +44,16 @@ export function SeguridadView({
   regions,
 }: SeguridadViewProps) {
   const [tab, setTab] = useState<Tab>("usuarios");
+  const { canManageUsers } = usePermissions();
 
   return (
     <div className="space-y-6">
+      {!canManageUsers && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Modo consulta: puede ver usuarios, roles y bitácora. Solo un administrador
+          puede asignar roles y alcances.
+        </p>
+      )}
       <div className="flex gap-2 border-b border-slate-200">
         <TabButton active={tab === "usuarios"} onClick={() => setTab("usuarios")} icon={Users}>
           Usuarios
@@ -58,7 +67,12 @@ export function SeguridadView({
       </div>
 
       {tab === "usuarios" && (
-        <UsersTab users={users} hotels={hotels} regions={regions} />
+        <UsersTab
+          users={users}
+          hotels={hotels}
+          regions={regions}
+          canManageUsers={canManageUsers}
+        />
       )}
       {tab === "roles" && <RolesTab permissions={permissions} />}
       {tab === "bitacora" && <AuditTab logs={auditLogs} />}
@@ -97,10 +111,12 @@ function UsersTab({
   users,
   hotels,
   regions,
+  canManageUsers,
 }: {
   users: UserWithScopes[];
   hotels: { id: string; nombre: string }[];
   regions: { id: string; nombre: string }[];
+  canManageUsers: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [editingScopes, setEditingScopes] = useState<string | null>(null);
@@ -116,7 +132,7 @@ function UsersTab({
             <th className="px-4 py-3">Rol</th>
             <th className="px-4 py-3">Estado</th>
             <th className="px-4 py-3">Alcance</th>
-            <th className="px-4 py-3">Acciones</th>
+            {canManageUsers && <th className="px-4 py-3">Acciones</th>}
           </tr>
         </thead>
         <tbody>
@@ -149,56 +165,58 @@ function UsersTab({
               <td className="px-4 py-3 text-xs text-slate-600">
                 {u.hotel_ids.length} hoteles · {u.region_ids.length} regiones
               </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap gap-2">
-                  <select
-                    className="rounded border border-slate-200 px-2 py-1 text-xs"
-                    value={u.roles[0] ?? ""}
-                    disabled={pending}
-                    onChange={(e) =>
-                      startTransition(() =>
-                        assignRoleAction(u.id, e.target.value as AppRole)
-                      )
-                    }
-                  >
-                    <option value="">Sin rol</option>
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      startTransition(() =>
-                        toggleUserActiveAction(u.id, !u.activo)
-                      )
-                    }
-                    className="rounded border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50"
-                  >
-                    {u.activo ? "Desactivar" : "Activar"}
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800"
-                    onClick={() => {
-                      setEditingScopes(u.id);
-                      setSelectedHotels(u.hotel_ids);
-                      setSelectedRegions(u.region_ids);
-                    }}
-                  >
-                    Alcance
-                  </button>
-                </div>
-              </td>
+              {canManageUsers && (
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      className="rounded border border-slate-200 px-2 py-1 text-xs"
+                      value={u.roles[0] ?? ""}
+                      disabled={pending}
+                      onChange={(e) =>
+                        startTransition(() =>
+                          assignRoleAction(u.id, e.target.value as AppRole)
+                        )
+                      }
+                    >
+                      <option value="">Sin rol</option>
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        startTransition(() =>
+                          toggleUserActiveAction(u.id, !u.activo)
+                        )
+                      }
+                      className="rounded border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50"
+                    >
+                      {u.activo ? "Desactivar" : "Activar"}
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800"
+                      onClick={() => {
+                        setEditingScopes(u.id);
+                        setSelectedHotels(u.hotel_ids);
+                        setSelectedRegions(u.region_ids);
+                      }}
+                    >
+                      Alcance
+                    </button>
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
       </table>
 
-      {editingScopes && (
+      {editingScopes && canManageUsers && (
         <div className="border-t border-slate-200 bg-slate-50 p-4">
           <p className="mb-3 text-sm font-medium">Asignar alcance geográfico</p>
           <div className="grid gap-4 md:grid-cols-2">
@@ -312,9 +330,67 @@ function RolesTab({ permissions }: { permissions: PermissionRow[] }) {
   );
 }
 
-function AuditTab({ logs }: { logs: AuditLogRow[] }) {
+function AuditTab({ logs: initialLogs }: { logs: AuditLogRow[] }) {
+  const [logs, setLogs] = useState(initialLogs);
+  const [entidad, setEntidad] = useState("");
+  const [usuarioEmail, setUsuarioEmail] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function handleFilter(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const filtered = await filterAuditLogsAction({
+        entidad: entidad || undefined,
+        usuarioEmail: usuarioEmail || undefined,
+        fechaDesde: fechaDesde || undefined,
+        fechaHasta: fechaHasta || undefined,
+      });
+      setLogs(filtered);
+    });
+  }
+
   return (
-    <div className="glass overflow-x-auto rounded-xl border border-slate-200/60">
+    <div className="space-y-4">
+      <form
+        onSubmit={handleFilter}
+        className="glass grid gap-2 rounded-xl border border-slate-200/60 p-4 sm:grid-cols-4"
+      >
+        <input
+          value={entidad}
+          onChange={(e) => setEntidad(e.target.value)}
+          placeholder="Entidad (kpis, metas…)"
+          className="rounded border px-2 py-1 text-sm"
+        />
+        <input
+          value={usuarioEmail}
+          onChange={(e) => setUsuarioEmail(e.target.value)}
+          placeholder="Usuario (email)"
+          className="rounded border px-2 py-1 text-sm"
+        />
+        <input
+          type="date"
+          value={fechaDesde}
+          onChange={(e) => setFechaDesde(e.target.value)}
+          className="rounded border px-2 py-1 text-sm"
+        />
+        <input
+          type="date"
+          value={fechaHasta}
+          onChange={(e) => setFechaHasta(e.target.value)}
+          className="rounded border px-2 py-1 text-sm"
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded bg-imperial-900 px-3 py-1 text-sm text-white sm:col-span-4"
+        >
+          {pending ? "Filtrando…" : "Filtrar bitácora"}
+        </button>
+      </form>
+
+      <div className="glass overflow-x-auto rounded-xl border border-slate-200/60">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50/80 text-left text-xs uppercase text-slate-500">
@@ -344,6 +420,7 @@ function AuditTab({ logs }: { logs: AuditLogRow[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

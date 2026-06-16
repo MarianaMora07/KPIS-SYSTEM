@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
+import { requireKpiEditAccess } from "@/lib/auth/require-permission";
 import { getKpiById } from "@/modules/kpis/services/kpi-service";
 import { KpiEditForm } from "@/modules/kpis/components/kpi-edit-form";
 import {
@@ -11,7 +13,6 @@ import {
   listCommercialTeams,
 } from "@/modules/catalog";
 import { listUsers } from "@/modules/seguridad/services/security-service";
-import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import type { KpiCreateInput } from "@/lib/validations/schemas";
 
 interface PageProps {
@@ -23,8 +24,10 @@ export default async function KpiEditPage({ params }: PageProps) {
 
   const { id } = await params;
   try {
+    const kpi = await getKpiById(id);
+    await requireKpiEditAccess(kpi.hotel_id);
+
     const [
-      kpi,
       categories,
       regions,
       hotels,
@@ -34,7 +37,6 @@ export default async function KpiEditPage({ params }: PageProps) {
       campaigns,
       teams,
     ] = await Promise.all([
-      getKpiById(id),
       listKpiCategories(),
       listRegions(),
       listHotels(),
@@ -63,6 +65,7 @@ export default async function KpiEditPage({ params }: PageProps) {
       sales_channel_id: kpi.sales_channel_id,
       marketing_campaign_id: kpi.marketing_campaign_id,
       commercial_team_id: kpi.commercial_team_id,
+      estado: (kpi.estado as "activo" | "inactivo") ?? "activo",
     };
 
     return (

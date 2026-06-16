@@ -6,12 +6,18 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { createActionPlanAction } from "@/modules/alertas/actions/alert-actions";
 import { FormField, FormActions } from "@/components/ui/form-modal";
 
+interface UserOption {
+  id: string;
+  nombre: string;
+}
+
 interface ActionPlanFormProps {
   kpiId: string;
   kpiNombre: string;
   hotelNombre?: string;
   alertId?: string;
   defaultTitulo?: string;
+  users?: UserOption[];
 }
 
 interface SuggestedPlan {
@@ -26,6 +32,7 @@ export function ActionPlanForm({
   hotelNombre,
   alertId,
   defaultTitulo,
+  users = [],
 }: ActionPlanFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -38,6 +45,7 @@ export function ActionPlanForm({
   const [fechaCompromiso, setFechaCompromiso] = useState(
     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   );
+  const [responsableId, setResponsableId] = useState(users[0]?.id ?? "");
   const [items, setItems] = useState("");
 
   async function handleSuggest() {
@@ -84,6 +92,7 @@ export function ActionPlanForm({
           titulo,
           descripcion: descripcion || null,
           fecha_compromiso: fechaCompromiso,
+          responsable_id: responsableId || null,
           items: itemLines.map((descripcion) => ({ descripcion })),
         });
         router.push("/alertas");
@@ -140,6 +149,25 @@ export function ActionPlanForm({
           placeholder="Revisar campaña digital&#10;Capacitar equipo de ventas&#10;..."
           className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
         />
+      </FormField>
+
+      <FormField label="Responsable" required>
+        {users.length > 0 ? (
+          <select
+            value={responsableId}
+            onChange={(e) => setResponsableId(e.target.value)}
+            required
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          >
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nombre}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-sm text-slate-500">Se asignará al usuario actual.</p>
+        )}
       </FormField>
 
       <FormField label="Fecha compromiso" required>

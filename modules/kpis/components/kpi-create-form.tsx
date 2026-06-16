@@ -9,10 +9,14 @@ import {
   FormPrimaryButton,
 } from "@/components/ui/form-modal";
 import { KpiFormFields, type KpiFormCatalogs } from "./kpi-form-fields";
+import { usePermissions } from "@/components/layout/permissions-context";
+import { formatZodError } from "@/lib/validations/format-zod-error";
 
 interface KpiCreateFormProps extends KpiFormCatalogs {}
 
 export function KpiCreateForm(catalogs: KpiCreateFormProps) {
+  const { can } = usePermissions();
+  const canCreate = can("kpis.crear");
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -24,9 +28,13 @@ export function KpiCreateForm(catalogs: KpiCreateFormProps) {
         await createKpiAction(input);
         setOpen(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Error al crear KPI");
+        setError(formatZodError(err));
       }
     });
+  }
+
+  if (!canCreate) {
+    return null;
   }
 
   return (

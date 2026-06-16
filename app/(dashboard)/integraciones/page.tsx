@@ -1,4 +1,5 @@
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { listIntegrations } from "@/modules/integraciones/services/integration-service";
 import { IntegracionesView } from "@/modules/integraciones/components/integraciones-view";
 
@@ -14,14 +15,24 @@ const DEMO_INTEGRATIONS = [
 ];
 
 export default async function IntegracionesPage() {
-  let integrations = DEMO_INTEGRATIONS;
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          Integraciones con PMS, CRM, ERP y fuentes externas (modo demo).
+        </p>
+        <IntegracionesView integrations={DEMO_INTEGRATIONS} />
+      </div>
+    );
+  }
 
-  if (isSupabaseConfigured()) {
-    try {
-      integrations = await listIntegrations();
-    } catch {
-      integrations = DEMO_INTEGRATIONS;
-    }
+  await requirePermission("integraciones.gestionar");
+
+  let integrations = DEMO_INTEGRATIONS;
+  try {
+    integrations = await listIntegrations();
+  } catch {
+    integrations = DEMO_INTEGRATIONS;
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Plug, RefreshCw, CheckCircle, XCircle, Plus, ChevronDown } from "lucide-react";
+import { usePermissions } from "@/components/layout/permissions-context";
 
 interface Integration {
   id: string;
@@ -19,19 +20,23 @@ interface IntegracionesViewProps {
 export function IntegracionesView({ integrations: initial }: IntegracionesViewProps) {
   const [integrations, setIntegrations] = useState(initial);
   const [showForm, setShowForm] = useState(false);
+  const { can } = usePermissions();
+  const canManage = can("integraciones.gestionar");
 
   return (
     <div className="space-y-4">
-      <button
-        type="button"
-        onClick={() => setShowForm(!showForm)}
-        className="flex items-center gap-1 rounded-lg bg-imperial-900 px-4 py-2 text-sm text-white"
-      >
-        <Plus className="h-4 w-4" />
-        Nueva integración
-      </button>
+      {canManage && (
+        <button
+          type="button"
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-1 rounded-lg bg-imperial-900 px-4 py-2 text-sm text-white"
+        >
+          <Plus className="h-4 w-4" />
+          Nueva integración
+        </button>
+      )}
 
-      {showForm && (
+      {showForm && canManage && (
         <CreateIntegrationForm
           onCreated={(integration) => {
             setIntegrations((prev) => [...prev, integration]);
@@ -49,7 +54,11 @@ export function IntegracionesView({ integrations: initial }: IntegracionesViewPr
       ) : (
         <ul className="space-y-4">
           {integrations.map((integration) => (
-            <IntegrationCard key={integration.id} integration={integration} />
+            <IntegrationCard
+              key={integration.id}
+              integration={integration}
+              canManage={canManage}
+            />
           ))}
         </ul>
       )}
@@ -109,10 +118,28 @@ function CreateIntegrationForm({
   );
 }
 
-function IntegrationCard({ integration }: { integration: Integration }) {
+function IntegrationCard({
+  integration,
+  canManage,
+}: {
+  integration: Integration;
+  canManage: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState(false);
-  const [jobs, setJobs] = useState<{ id: string; estado: string; registros_ok: number | null; registros_error: number | null; created_at: string }[]>([]);
+  const [jobs, setJobs] = useState<
+    {
+      id: string;
+      estado: string;
+      registros_ok: number | null;
+      registros_error: number | null;
+      created_at: string;
+    }[]
+  >([]);
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [jobLogs, setJobLogs] = useState<
+    { id: string; nivel: string; mensaje: string; created_at: string }[]
+  >([]);
   const [lastResult, setLastResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   function handleSync() {
@@ -137,10 +164,20 @@ function IntegrationCard({ integration }: { integration: Integration }) {
     });
   }
 
+  async function loadJobLogs(jobId: string) {
+    const res = await fetch(`/api/integraciones/${integration.id}/jobs/${jobId}/logs`);
+    if (res.ok) {
+      setJobLogs(await res.json());
+      setExpandedJobId(jobId);
+    }
+  }
+
   async function loadJobs() {
     const res = await fetch(`/api/integraciones/${integration.id}/jobs`);
     if (res.ok) setJobs(await res.json());
     setExpanded(true);
+    setExpandedJobId(null);
+    setJobLogs([]);
   }
 
   return (
@@ -184,15 +221,17 @@ function IntegrationCard({ integration }: { integration: Integration }) {
           >
             Jobs <ChevronDown className="h-3 w-3" />
           </button>
-          <button
-            type="button"
-            onClick={handleSync}
-            disabled={pending || !integration.activa}
-            className="flex items-center gap-1.5 rounded-lg bg-imperial-900 px-4 py-2 text-sm font-medium text-white hover:bg-imperial-800 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} />
-            Sincronizar
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={pending || !integration.activa}
+              className="flex items-center gap-1.5 rounded-lg bg-imperial-900 px-4 py-2 text-sm font-medium text-white hover:bg-imperial-800 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} />
+              Sincronizar
+            </button>
+          )}
         </div>
       </div>
 
@@ -203,12 +242,32 @@ function IntegrationCard({ integration }: { integration: Integration }) {
       )}
 
       {expanded && jobs.length > 0 && (
-        <ul className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-600">
+        <ul className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
           {jobs.map((j) => (
-            <li key={j.id} className="flex justify-between">
-              <span>{j.estado}</span>
-              <span>{j.registros_ok ?? 0} ok / {j.registros_error ?? 0} err</span>
-              <span>{new Date(j.created_at).toLocaleString("es-CO")}</span>
+            <li key={j.id}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{j.estado}</span>
+                <span>
+                  {j.registros_ok ?? 0} ok / {j.registros_error ?? 0} err
+                </span>
+                <span>{new Date(j.created_at).toLocaleString("es-CO")}</span>
+                <button
+                  type="button"
+                  onClick={() => loadJobLogs(j.id)}
+                  className="text-amber-700 hover:underline"
+                >
+                  Ver logs
+                </button>
+              </div>
+              {expandedJobId === j.id && jobLogs.length > 0 && (
+                <ul className="mt-1 space-y-0.5 rounded bg-slate-50 p-2 font-mono">
+                  {jobLogs.map((log) => (
+                    <li key={log.id}>
+                      [{log.nivel}] {log.mensaje}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>

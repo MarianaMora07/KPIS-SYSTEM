@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updateKpiAction } from "@/modules/kpis/actions/kpi-actions";
 import type { KpiCreateInput } from "@/lib/validations/schemas";
 import { KpiFormFields, type KpiFormCatalogs } from "./kpi-form-fields";
+import { usePermissions } from "@/components/layout/permissions-context";
 
 interface KpiEditFormProps {
   kpiId: string;
@@ -13,9 +14,18 @@ interface KpiEditFormProps {
 }
 
 export function KpiEditForm({ kpiId, defaultValues, catalogs }: KpiEditFormProps) {
+  const { can } = usePermissions();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  if (!can("kpis.editar")) {
+    return (
+      <div className="glass rounded-xl border border-amber-200 bg-amber-50 p-8 text-sm text-amber-800">
+        No tiene permiso para editar KPIs.
+      </div>
+    );
+  }
 
   function handleSubmit(input: KpiCreateInput) {
     setError(null);
@@ -38,6 +48,7 @@ export function KpiEditForm({ kpiId, defaultValues, catalogs }: KpiEditFormProps
         defaultValues={defaultValues}
         error={error}
         pending={pending}
+        showEstado
         onCancel={() => router.push(`/kpis/${kpiId}`)}
         submitLabel="Guardar cambios"
         onSubmit={handleSubmit}

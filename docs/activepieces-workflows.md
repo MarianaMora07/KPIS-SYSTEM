@@ -32,6 +32,7 @@ La app envía **POST JSON** a la URL configurada. El campo `event` identifica el
 | `import.completed` | `jobId`, `estado`, `totalFilas`, `filasOk`, `filasError`, `nombreArchivo` | Importación finaliza | HU-KPI-004 |
 | `import.failed` | `jobId`, `error` | Importación falla por completo | HU-KPI-004 |
 | `integration.failed` | `jobId`, `integrationId`, `integrationNombre`, `error` | Job de integración agota reintentos | HU-KPI-005 |
+| `report.scheduled` | `scheduleId`, `nombre`, `formato`, `emails`, `rowCount` | Cron ejecuta reportes programados (`POST /api/cron/reports`) | HU-KPI-010 |
 
 Todos los payloads incluyen `event` y `timestamp` (ISO 8601).
 

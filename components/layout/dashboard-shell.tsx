@@ -68,7 +68,9 @@ interface DashboardShellProps {
   regions?: { id: string; nombre: string }[];
   hotels?: { id: string; nombre: string }[];
   user?: SessionUser | null;
+  permissions?: string[];
   canAccessAdmin?: boolean;
+  isDemoMode?: boolean;
 }
 
 export function DashboardShell({
@@ -76,7 +78,9 @@ export function DashboardShell({
   regions = [],
   hotels = [],
   user,
+  permissions = [],
   canAccessAdmin = false,
+  isDemoMode = false,
 }: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -102,6 +106,8 @@ export function DashboardShell({
         onToggle={() => setCollapsed((c) => !c)}
         onLogout={handleLogout}
         canAccessAdmin={canAccessAdmin}
+        permissions={permissions}
+        isDemoMode={isDemoMode}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="border-b border-slate-200/80 bg-white/90 px-6 py-3 backdrop-blur-md">

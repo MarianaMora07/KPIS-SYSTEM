@@ -11,6 +11,7 @@ import type { AlertRow } from "../types";
 interface AlertasTabsViewProps {
   alerts: AlertRow[];
   plans: ActionPlanRow[];
+  users?: { id: string; nombre: string }[];
   isDemo?: boolean;
   planFormParams?: {
     kpiId: string;
@@ -24,6 +25,7 @@ interface AlertasTabsViewProps {
 export function AlertasTabsView({
   alerts,
   plans,
+  users = [],
   isDemo,
   planFormParams,
   initialTab = "alertas",
@@ -71,6 +73,7 @@ export function AlertasTabsView({
               kpiNombre={planFormParams.kpiNombre}
               hotelNombre={planFormParams.hotelNombre}
               alertId={planFormParams.alertId}
+              users={users}
             />
           )}
         </div>

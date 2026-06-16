@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { canAccessSeguridad } from "@/lib/auth/permissions";
-import { getSessionUser } from "@/lib/auth/get-session-user";
+import { requireSeguridadUi } from "@/lib/auth/require-permission";
 import { listRegions, listHotels } from "@/modules/catalog";
 import { CatalogView } from "@/modules/catalog/components/catalog-view";
 
@@ -14,10 +12,7 @@ export default async function CatalogoPage() {
     );
   }
 
-  const user = await getSessionUser();
-  if (!canAccessSeguridad(user?.rol ?? null)) {
-    redirect("/dashboard");
-  }
+  await requireSeguridadUi();
 
   const [regions, hotels] = await Promise.all([listRegions(), listHotels()]);
 

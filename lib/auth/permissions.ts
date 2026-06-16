@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/types/database";
-
-const ADMIN_ROLES: AppRole[] = ["administrador", "analista"];
+import {
+  canAccessSeguridadUi,
+  canManageKpisFromList,
+  hasPermissionInList,
+} from "./role-matrix";
 
 export async function getUserPermissions(): Promise<{
   rol: AppRole | null;
@@ -42,15 +45,13 @@ export function hasPermission(
   permissions: string[],
   codigo: string
 ): boolean {
-  return permissions.includes(codigo);
+  return hasPermissionInList(permissions, codigo);
 }
 
 export function canAccessSeguridad(rol: AppRole | null): boolean {
-  return rol !== null && ADMIN_ROLES.includes(rol);
+  return canAccessSeguridadUi(rol);
 }
 
 export function canManageKpis(permissions: string[]): boolean {
-  return (
-    permissions.includes("kpis.crear") || permissions.includes("kpis.editar")
-  );
+  return canManageKpisFromList(permissions);
 }

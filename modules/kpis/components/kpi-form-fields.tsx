@@ -35,6 +35,7 @@ interface KpiFormFieldsProps {
   defaultValues?: Partial<KpiCreateInput>;
   error?: string | null;
   pending?: boolean;
+  showEstado?: boolean;
   onCancel: () => void;
   submitLabel: string;
   onSubmit: (input: KpiCreateInput) => void;
@@ -47,6 +48,7 @@ export function KpiFormFields({
   defaultValues,
   error,
   pending,
+  showEstado = false,
   onCancel,
   submitLabel,
   onSubmit,
@@ -66,6 +68,9 @@ export function KpiFormFields({
       tipo_indicador: fd.get("tipo_indicador") as KpiCreateInput["tipo_indicador"],
       meta: fd.get("meta") ? Number(fd.get("meta")) : null,
       formula: (fd.get("formula") as string) || null,
+      estado: showEstado
+        ? (fd.get("estado") as "activo" | "inactivo")
+        : undefined,
       region_id: (fd.get("region_id") as string) || null,
       hotel_id: (fd.get("hotel_id") as string) || null,
       business_unit_id: (fd.get("business_unit_id") as string) || null,
@@ -162,6 +167,17 @@ export function KpiFormFields({
           name="commercial_team_id"
           options={[emptyOption, ...catalogs.teams]}
           defaultValue={dv.commercial_team_id ?? ""}
+        />
+      )}
+      {showEstado && (
+        <FormSelect
+          label="Estado"
+          name="estado"
+          options={[
+            { id: "activo", nombre: "Activo" },
+            { id: "inactivo", nombre: "Inactivo" },
+          ]}
+          defaultValue={dv.estado ?? "activo"}
         />
       )}
       {error && <FormError message={error} />}

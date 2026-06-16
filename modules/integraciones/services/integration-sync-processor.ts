@@ -1,38 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { dispatchActivepiecesEvent } from "@/lib/activepieces/dispatch";
-
-interface IntegrationRecord {
-  id: string;
-  nombre: string;
-  sistema_tipo: string;
-  endpoint_url: string;
-  auth_config: Record<string, unknown>;
-  mapeo_campos: Record<string, string>;
-  max_reintentos: number;
-}
-
-/** Adaptador demo: simula fetch PMS y mapea campos a valores KPI */
-async function fetchExternalData(
-  integration: IntegrationRecord
-): Promise<{ kpi_codigo: string; valor: number; fecha: string }[]> {
-  const res = await fetch(integration.endpoint_url, {
-    headers: {
-      Authorization: `Bearer ${(integration.auth_config as { token?: string }).token ?? "demo"}`,
-    },
-    signal: AbortSignal.timeout(10000),
-  }).catch(() => null);
-
-  if (res?.ok) {
-    const json = await res.json();
-    if (Array.isArray(json)) return json;
-  }
-
-  // Demo fallback
-  return [
-    { kpi_codigo: "OCP-001", valor: 78 + Math.random() * 10, fecha: new Date().toISOString().slice(0, 10) },
-    { kpi_codigo: "REV-001", valor: 1200000 + Math.random() * 50000, fecha: new Date().toISOString().slice(0, 10) },
-  ];
-}
+import { getAdapterFor } from "../adapters/pms-demo-adapter";
+import type { IntegrationRecord } from "../adapters/types";
+import { computeKpiValueReal } from "@/lib/kpis/compute-formula-value";
 
 export async function processIntegrationSync(
   integrationId: string,
@@ -50,6 +20,7 @@ export async function processIntegrationSync(
     return { ok: false, registrosOk: 0, registrosError: 0, error: "Integración no encontrada" };
   }
 
+  const adapter = getAdapterFor(integration.sistema_tipo);
   const maxRetries = integration.max_reintentos ?? 3;
   let attempt = 0;
   let lastError: string | undefined;
@@ -62,7 +33,7 @@ export async function processIntegrationSync(
       .eq("id", jobId);
 
     try {
-      const records = await fetchExternalData(integration as IntegrationRecord);
+      const records = await adapter.fetchRecords(integration as IntegrationRecord);
       let ok = 0;
       let err = 0;
 
@@ -84,13 +55,15 @@ export async function processIntegrationSync(
           continue;
         }
 
+        const valorReal = await computeKpiValueReal(kpi.id, rec.valor);
+
         const { error: upsertError } = await supabase.from("kpi_values").upsert(
           {
             kpi_id: kpi.id,
             hotel_id: kpi.hotel_id,
             region_id: kpi.region_id,
             fecha: rec.fecha,
-            valor_real: rec.valor,
+            valor_real: valorReal,
             valor_meta: kpi.meta,
             fuente: "integracion",
           },

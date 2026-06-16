@@ -6,6 +6,7 @@ import { Eye } from "lucide-react";
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { inactivateKpiAction } from "@/modules/kpis/actions/kpi-actions";
+import { usePermissions } from "@/components/layout/permissions-context";
 import type { TrafficLightStatus } from "@/types/database";
 
 interface KpiRow {
@@ -28,6 +29,8 @@ interface KpiListProps {
 export function KpiList({ kpis }: KpiListProps) {
   const [pending, startTransition] = useTransition();
   const [toInactivate, setToInactivate] = useState<KpiRow | null>(null);
+  const { can } = usePermissions();
+  const canInactivate = can("kpis.inactivar");
 
   function handleConfirmInactivate() {
     if (!toInactivate) return;
@@ -97,14 +100,16 @@ export function KpiList({ kpis }: KpiListProps) {
                       <Eye className="h-3.5 w-3.5" />
                       Ver
                     </Link>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => setToInactivate(kpi)}
-                      className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
-                    >
-                      Inactivar
-                    </button>
+                    {canInactivate && (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => setToInactivate(kpi)}
+                        className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                      >
+                        Inactivar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

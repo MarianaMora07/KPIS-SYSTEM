@@ -54,6 +54,9 @@ export async function listUsers(): Promise<UserWithScopes[]> {
 
 export async function listAuditLogs(filters?: {
   entidad?: string;
+  usuarioEmail?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
   limit?: number;
 }): Promise<AuditLogRow[]> {
   const supabase = await createClient();
@@ -64,6 +67,9 @@ export async function listAuditLogs(filters?: {
     .limit(filters?.limit ?? 100);
 
   if (filters?.entidad) query = query.eq("entidad", filters.entidad);
+  if (filters?.usuarioEmail) query = query.ilike("usuario_email", `%${filters.usuarioEmail}%`);
+  if (filters?.fechaDesde) query = query.gte("fecha", filters.fechaDesde);
+  if (filters?.fechaHasta) query = query.lte("fecha", filters.fechaHasta);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);

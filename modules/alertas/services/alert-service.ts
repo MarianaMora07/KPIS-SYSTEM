@@ -85,7 +85,7 @@ export async function notifyAlertForKpiValue(kpiValueId: string) {
     .from("alerts")
     .select("*")
     .eq("kpi_value_id", kpiValueId)
-    .eq("estado", "activa")
+    .in("estado", ["activa", "escalada"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -99,6 +99,15 @@ export async function notifyAlertForKpiValue(kpiValueId: string) {
     severidad: data.severidad,
     mensaje: data.mensaje,
   });
+
+  if (data.estado === "escalada" || data.escalada) {
+    await dispatchActivepiecesEvent("kpi.alert.escalated", {
+      alertId: data.id,
+      kpiId: data.kpi_id,
+      mensaje: data.mensaje,
+      severidad: data.severidad,
+    });
+  }
 
   return data;
 }

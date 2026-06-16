@@ -34,6 +34,7 @@ export const kpiCreateSchema = z.object({
   sales_channel_id: z.string().uuid().optional().nullable(),
   marketing_campaign_id: z.string().uuid().optional().nullable(),
   commercial_team_id: z.string().uuid().optional().nullable(),
+  estado: z.enum(["activo", "inactivo"]).optional(),
 });
 
 export const kpiTargetSchema = z.object({

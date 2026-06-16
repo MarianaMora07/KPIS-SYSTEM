@@ -7,7 +7,7 @@ import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import { exportToExcel, exportToPdf, exportToPptx } from "@/modules/dashboard/utils/export-report";
 import { DEMO_DASHBOARD_DATA, filterDemoData } from "@/modules/dashboard/data/demo-data";
 
-export function ExportReportButton() {
+export function ExportReportButton({ disabled }: { disabled?: boolean }) {
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -92,7 +92,7 @@ export function ExportReportButton() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        disabled={loading}
+        disabled={loading || disabled}
         className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-sm font-medium text-imperial-900 backdrop-blur-sm transition-colors hover:border-amber-500/40 hover:bg-amber-50/50 disabled:opacity-60"
       >
         <Download className="h-4 w-4 text-amber-600" />

@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reports",
+      "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/integraciones/cron",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/escalate-alerts",
+      "schedule": "0 7 * * *"
+    }
+  ]
+}

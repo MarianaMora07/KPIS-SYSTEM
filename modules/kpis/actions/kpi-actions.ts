@@ -8,9 +8,15 @@ import {
   type KpiCreateInput,
   type KpiValueInput,
 } from "@/lib/validations/schemas";
+import { formatZodError } from "@/lib/validations/format-zod-error";
 
 export async function createKpiAction(input: KpiCreateInput) {
-  const parsed = kpiCreateSchema.parse(input);
+  let parsed: KpiCreateInput;
+  try {
+    parsed = kpiCreateSchema.parse(input);
+  } catch (e) {
+    throw new Error(formatZodError(e));
+  }
   const supabase = await createClient();
 
   const {
@@ -18,9 +24,11 @@ export async function createKpiAction(input: KpiCreateInput) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
+  const { estado: _e, ...rest } = parsed;
+
   const { data, error } = await supabase
     .from("kpis")
-    .insert({ ...parsed, created_by: user.id, updated_by: user.id })
+    .insert({ ...rest, estado: "activo", created_by: user.id, updated_by: user.id })
     .select()
     .single();
 
@@ -49,7 +57,12 @@ export async function inactivateKpiAction(id: string) {
 }
 
 export async function updateKpiAction(id: string, input: KpiCreateInput) {
-  const parsed = kpiCreateSchema.parse(input);
+  let parsed: KpiCreateInput;
+  try {
+    parsed = kpiCreateSchema.parse(input);
+  } catch (e) {
+    throw new Error(formatZodError(e));
+  }
   const supabase = await createClient();
   const {
     data: { user },
@@ -93,25 +106,8 @@ export async function registerKpiValueAction(input: KpiValueInput) {
 
   let valorReal = parsed.valor_real;
 
-  if (kpi?.formula) {
-    const { getKpiFormula, listVariables } = await import(
-      "@/modules/formulas/services/formula-service"
-    );
-    const { evaluateFormula } = await import(
-      "@/modules/formulas/utils/formula-engine"
-    );
-    const formula = await getKpiFormula(parsed.kpi_id);
-    if (formula?.es_valida && formula.expresion) {
-      const variables = await listVariables();
-      const scope: Record<string, number> = {};
-      for (const v of variables) scope[v.codigo] = parsed.valor_real;
-      try {
-        valorReal = evaluateFormula(formula.expresion, scope);
-      } catch {
-        /* keep manual value */
-      }
-    }
-  }
+  const { computeKpiValueReal } = await import("@/lib/kpis/compute-formula-value");
+  valorReal = await computeKpiValueReal(parsed.kpi_id, parsed.valor_real);
 
   const { data, error } = await supabase
     .from("kpi_values")

@@ -1,60 +1,76 @@
 # Guion de demo — Sistema KPIs Estelar
 
-Duración estimada: 15–20 minutos.
+Duración estimada: 20–25 minutos. Un paso por HU del PDF.
 
-## 1. Login y contexto (2 min)
+## HU-KPI-006 / HU-KPI-007 — Dashboard y tendencias (2 min)
 
-- Abrir `/login` e iniciar sesión como administrador o analista.
-- Mencionar RBAC: 6 roles, scopes por hotel/región.
+- `/dashboard` con filtros región/hotel.
+- Tarjetas con semáforo, comparativos mes/año, top críticos.
+- Gráfico de tendencias con proyección lineal etiquetada como **estimación**.
+- Drill-down al hacer clic en una tarjeta.
 
-## 2. Dashboard ejecutivo (3 min)
+## HU-KPI-001 — Crear indicador comercial (3 min)
 
-- Ir a `/dashboard`.
-- Mostrar filtros región/hotel en el header.
-- Tarjetas KPI con semáforo (cumplimiento / riesgo / incumplimiento).
-- Gráficos: tendencias con línea de proyección (estimación lineal).
-- Comparativo mes vs mes / año vs año.
-- Click en tarjeta → drill-down con mini gráfico.
-- Campana de notificaciones (alertas activas).
+- `/kpis` → Crear KPI con catálogo completo (hotel, región, canal, campaña, equipo).
+- Validación de campos obligatorios en español.
+- Detalle `/kpis/[id]`: badge estado activo/inactivo.
+- Editar (genera versión en historial), duplicar (`-COPY`), inactivar con modal de confirmación.
 
-## 3. Administración KPIs (3 min)
+## HU-KPI-002 — Metas y cumplimiento (2 min)
 
-- `/kpis` → Crear KPI con catálogo completo (hotel, canal, campaña).
-- Ver detalle `/kpis/[id]`: metas, semáforo, fórmula, versiones.
-- Editar y duplicar KPI.
-- Registrar valor manual (dispara alerta si incumple).
+- En detalle KPI: metas por periodo (mensual, trimestral, semestral, anual, especial).
+- Meta opcional por hotel/región.
+- Configurar rangos semáforo (carga rangos existentes).
+- Registrar valor → clasificación automática cumplimiento/riesgo/incumplimiento.
 
-## 4. Importación (2 min)
+## HU-KPI-003 — Fórmulas y variables (2 min)
 
-- `/import` → Descargar plantilla Excel.
-- Subir archivo → preview primeras filas → job async con errores por fila.
-- Historial de importaciones del usuario.
+- Panel variables: crear simple/compuesta; error claro si código duplicado.
+- Editor de fórmula con autocompletado de variables.
+- Importar Excel o sincronizar integración → `valor_real` calculado si hay fórmula válida.
 
-## 5. Integraciones (2 min)
+## HU-KPI-004 — Importar Excel (2 min)
 
-- `/integraciones` → Crear integración PMS demo.
-- Sincronizar ahora → ver jobs y logs.
-- Mencionar cron automático y notificación Activepieces en fallo.
+- `/import` → plantilla carga **valores** (`kpi_values`), no definición de KPIs.
+- Validación de columnas obligatorias antes de subir.
+- Job async con errores detallados por fila.
 
-## 6. Alertas y planes (3 min)
+## HU-KPI-005 — Integraciones externas (2 min)
 
-- `/alertas` → pestaña alertas activas.
-- Crear plan de acción desde alerta.
-- Pestaña planes: progreso ítems, cambio de estado.
-- Escalamiento automático tras 48h sin plan (cron).
+- `/integraciones` → crear PMS demo, sincronizar.
+- Ver jobs y logs por job.
+- Fallo de conexión: reintentos + webhook `integration.failed` (Activepieces).
 
-## 7. Reportes (2 min)
+## HU-KPI-008 — Alertas automáticas (2 min)
 
-- `/reportes` → Vista previa tabla.
-- Exportar PDF (con resumen Gemini), Excel, PowerPoint.
-- Programación semanal vía `scheduled_reports` + cron.
+- Valor en riesgo → alerta activa + campana in-app.
+- Incumplimiento crítico → escalamiento automático + evento `kpi.alert.escalated`.
+- Correo vía workflow Activepieces (`kpi.alert.created` / `kpi.alert.escalated`).
 
-## 8. Seguridad y catálogo (2 min)
+## HU-KPI-009 — Planes de acción (2 min)
 
-- `/seguridad` → usuarios, roles, bitácora auditoría.
-- `/catalogo` → jerarquía organizacional.
+- `/alertas` → crear plan desde alerta con responsable y fecha compromiso.
+- Seguimiento de ítems y estados en pestaña Planes.
+
+## HU-KPI-010 — Reportes ejecutivos (2 min)
+
+- `/reportes` → vista previa, exportar PDF/Excel/PowerPoint.
+- Programar reporte semanal desde UI (`scheduled_reports`).
+- Cron `POST /api/cron/reports` → evento `report.scheduled`.
+
+## HU-KPI-011 — Usuarios y permisos (2 min)
+
+- `/seguridad` → roles, scopes hotel/región.
+- Sidebar y acciones ocultas según permiso (`kpis.crear`, `reportes.exportar`, etc.).
+- Gerente hotel solo ve datos de su hotel (RLS).
+
+## HU-KPI-012 — Auditoría (1 min)
+
+- Editar KPI / integración / plan → fila en bitácora.
+- Filtros por entidad, usuario y fecha en `/seguridad`.
 
 ## Cierre
 
-- Resumen: datos en Supabase, automatización Activepieces, IA Gemini opcional.
-- Deploy Vercel + variables en `.env.example`.
+- `npm run build` limpio.
+- Supabase + migraciones aplicadas.
+- Activepieces configurado en `.env.local`.

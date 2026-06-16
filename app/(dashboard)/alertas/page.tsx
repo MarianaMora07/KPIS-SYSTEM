@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { listAlerts, listActionPlans } from "@/modules/alertas/services/alert-service";
+import { listUsers } from "@/modules/seguridad/services/security-service";
 import { DEMO_ALERTS } from "@/modules/alertas/data/demo-alerts";
 import { AlertasTabsView } from "@/modules/alertas/components/alertas-tabs-view";
 
@@ -21,11 +22,21 @@ export default async function AlertasPage({ searchParams }: AlertasPageProps) {
 
   let alerts = DEMO_ALERTS;
   let plans: Awaited<ReturnType<typeof listActionPlans>> = [];
+  let users: { id: string; nombre: string }[] = [];
 
   if (!isDemo) {
     try {
-      alerts = await listAlerts("activa");
-      plans = await listActionPlans();
+      const [alertsData, plansData, usersData] = await Promise.all([
+        listAlerts("activa"),
+        listActionPlans(),
+        listUsers(),
+      ]);
+      alerts = alertsData;
+      plans = plansData;
+      users = usersData.map((u) => ({
+        id: u.id,
+        nombre: [u.nombre, u.apellido].filter(Boolean).join(" ") || u.email,
+      }));
     } catch {
       alerts = DEMO_ALERTS;
     }
@@ -35,6 +46,7 @@ export default async function AlertasPage({ searchParams }: AlertasPageProps) {
     <AlertasTabsView
       alerts={alerts}
       plans={plans}
+      users={users}
       isDemo={isDemo}
       planFormParams={
         params.accion === "plan" && params.kpi_id && params.kpi

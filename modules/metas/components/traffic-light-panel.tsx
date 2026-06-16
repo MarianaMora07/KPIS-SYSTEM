@@ -1,18 +1,31 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { usePermissions } from "@/components/layout/permissions-context";
 import { saveTrafficLightAction } from "../actions/targets-actions";
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import type { TrafficLightStatus } from "@/types/database";
 
-export function TrafficLightPanel({ kpiId }: { kpiId: string }) {
+interface TrafficLightPanelProps {
+  kpiId: string;
+  initialRanges?: {
+    cumplimiento_min_pct: number;
+    riesgo_min_pct: number;
+    riesgo_max_pct: number;
+    incumplimiento_max_pct: number;
+  } | null;
+}
+
+export function TrafficLightPanel({ kpiId, initialRanges }: TrafficLightPanelProps) {
+  const { can } = usePermissions();
+  const canConfigure = can("metas.configurar");
   const [pending, startTransition] = useTransition();
   const [preview, setPreview] = useState(85);
   const [ranges, setRanges] = useState({
-    cumplimiento_min_pct: 100,
-    riesgo_min_pct: 80,
-    riesgo_max_pct: 99.99,
-    incumplimiento_max_pct: 79.99,
+    cumplimiento_min_pct: initialRanges?.cumplimiento_min_pct ?? 100,
+    riesgo_min_pct: initialRanges?.riesgo_min_pct ?? 80,
+    riesgo_max_pct: initialRanges?.riesgo_max_pct ?? 99.99,
+    incumplimiento_max_pct: initialRanges?.incumplimiento_max_pct ?? 79.99,
   });
 
   const status: TrafficLightStatus =
@@ -35,6 +48,7 @@ export function TrafficLightPanel({ kpiId }: { kpiId: string }) {
               type="number"
               step="0.01"
               value={val}
+              disabled={!canConfigure}
               onChange={(e) =>
                 setRanges((r) => ({ ...r, [key]: Number(e.target.value) }))
               }
@@ -55,14 +69,16 @@ export function TrafficLightPanel({ kpiId }: { kpiId: string }) {
         </label>
         <TrafficLightGlow status={status} />
       </div>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => startTransition(() => saveTrafficLightAction(kpiId, ranges))}
-        className="mt-4 rounded-lg bg-imperial-900 px-4 py-2 text-sm text-white"
-      >
-        Guardar rangos
-      </button>
+      {canConfigure && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => startTransition(() => saveTrafficLightAction(kpiId, ranges))}
+          className="mt-4 rounded-lg bg-imperial-900 px-4 py-2 text-sm text-white"
+        >
+          Guardar rangos
+        </button>
+      )}
     </section>
   );
 }

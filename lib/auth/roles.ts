@@ -1,4 +1,5 @@
 import type { AppRole } from "@/types/database";
+import { canCreateKpis, canEditKpis, canManageUsers } from "./role-matrix";
 
 const ROLE_LABELS: Record<AppRole, string> = {
   administrador: "Administrador",
@@ -24,10 +25,8 @@ export function hasFullAccess(role: AppRole | null | undefined): boolean {
   return role != null && FULL_ACCESS_ROLES.includes(role);
 }
 
-export function canManageUsers(role: AppRole | null | undefined): boolean {
-  return role === "administrador";
-}
+export { canManageUsers };
 
 export function canWriteKpis(role: AppRole | null | undefined): boolean {
-  return role != null && role !== "consulta" && role !== "gerente_hotel";
+  return canCreateKpis(role) || canEditKpis(role);
 }

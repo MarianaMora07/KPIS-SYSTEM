@@ -3,7 +3,33 @@
 import { useState, useCallback, useRef } from "react";
 import { Upload, CheckCircle, XCircle, Loader2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
+import { usePermissions } from "@/components/layout/permissions-context";
 import { EXPECTED_COLUMNS } from "@/modules/import/constants";
+
+const REQUIRED_COLUMNS = ["kpi_codigo", "fecha", "valor_real"] as const;
+
+function validateFileHeaders(headers: string[]): string | null {
+  const normalized = headers.map((h) => h.toLowerCase().trim());
+  const missing = REQUIRED_COLUMNS.filter((col) => !normalized.includes(col));
+  if (missing.length > 0) {
+    return `Faltan columnas obligatorias: ${missing.join(", ")}. Se esperan: ${EXPECTED_COLUMNS.join(", ")}`;
+  }
+  return null;
+}
+
+async function readFileHeaders(file: File): Promise<string[]> {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  const buffer = await file.arrayBuffer();
+  if (ext === "csv") {
+    const text = new TextDecoder().decode(buffer);
+    const firstLine = text.split("\n").find((l) => l.trim()) ?? "";
+    return firstLine.split(",").map((h) => h.trim());
+  }
+  const wb = XLSX.read(buffer);
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 });
+  return (rows[0] ?? []).map((h) => String(h).trim());
+}
 
 type JobStatus = "pendiente" | "procesando" | "completado" | "fallido" | "parcial";
 
@@ -18,6 +44,8 @@ interface JobResult {
 }
 
 export function ImportUploadView() {
+  const { can } = usePermissions();
+  const canImport = can("import.cargar");
   const [job, setJob] = useState<JobResult | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +92,7 @@ export function ImportUploadView() {
 
   const uploadFile = useCallback(
     async (file: File) => {
+      if (!canImport) return;
       setError(null);
       setJob(null);
       setUploading(true);
@@ -79,6 +108,14 @@ export function ImportUploadView() {
 
       if (file.size > 5 * 1024 * 1024) {
         setError("El archivo no puede superar 5 MB");
+        setUploading(false);
+        return;
+      }
+
+      const headers = await readFileHeaders(file);
+      const headerError = validateFileHeaders(headers);
+      if (headerError) {
+        setError(headerError);
         setUploading(false);
         return;
       }
@@ -108,7 +145,7 @@ export function ImportUploadView() {
         setUploading(false);
       }
     },
-    [pollJob, parsePreview]
+    [pollJob, parsePreview, canImport]
   );
 
   function handleDrop(e: React.DragEvent) {
@@ -120,6 +157,11 @@ export function ImportUploadView() {
 
   return (
     <div className="space-y-6">
+      {!canImport && (
+        <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          No tiene permiso para importar archivos.
+        </p>
+      )}
       <div className="flex justify-end">
         <a
           href="/api/import/template"
@@ -131,16 +173,19 @@ export function ImportUploadView() {
       </div>
       <div
         onDragOver={(e) => {
+          if (!canImport) return;
           e.preventDefault();
           setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className={`glass cursor-pointer rounded-xl border-2 border-dashed p-12 text-center transition-colors ${
-          dragOver
-            ? "border-amber-400 bg-amber-50/50"
-            : "border-slate-200 hover:border-amber-300"
+        onClick={() => canImport && inputRef.current?.click()}
+        className={`glass rounded-xl border-2 border-dashed p-12 text-center transition-colors ${
+          !canImport
+            ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+            : dragOver
+              ? "cursor-pointer border-amber-400 bg-amber-50/50"
+              : "cursor-pointer border-slate-200 hover:border-amber-300"
         }`}
       >
         <input
@@ -148,6 +193,7 @@ export function ImportUploadView() {
           type="file"
           accept=".xlsx,.csv"
           className="hidden"
+          disabled={!canImport}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) uploadFile(file);

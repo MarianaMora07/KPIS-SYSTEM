@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchActivepiecesEvent } from "@/lib/activepieces/dispatch";
+import { computeKpiValueReal } from "@/lib/kpis/compute-formula-value";
 
 interface ImportRow {
   kpi_codigo: string;
@@ -90,12 +91,14 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
         regionId = hotel.region_id;
       }
 
+      const valorReal = await computeKpiValueReal(kpi.id, row.valor_real);
+
       const { error: insertError } = await supabase.from("kpi_values").insert({
         kpi_id: kpi.id,
         hotel_id: hotelId,
         region_id: regionId,
         fecha: row.fecha,
-        valor_real: row.valor_real,
+        valor_real: valorReal,
         valor_meta: row.valor_meta ?? kpi.meta ?? null,
         fuente: "import",
       });

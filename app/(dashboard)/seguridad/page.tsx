@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { canAccessSeguridad } from "@/lib/auth/permissions";
-import { getSessionUser } from "@/lib/auth/get-session-user";
+import { requireSeguridadUi } from "@/lib/auth/require-permission";
 import {
   listUsers,
   listAuditLogs,
@@ -22,10 +20,7 @@ export default async function SeguridadPage() {
     );
   }
 
-  const user = await getSessionUser();
-  if (!canAccessSeguridad(user?.rol ?? null)) {
-    redirect("/dashboard");
-  }
+  await requireSeguridadUi();
 
   const [users, auditLogs, permissions, regions, hotels] = await Promise.all([
     listUsers(),
