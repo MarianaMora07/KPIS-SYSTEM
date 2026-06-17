@@ -8,6 +8,7 @@ import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import { formatKpiValue } from "@/modules/dashboard/types";
 import type { MetasDashboardRow } from "@/modules/metas/types";
 import type { TrafficLightStatus } from "@/types/database";
+import { TargetExpiredBadge } from "./target-expired-badge";
 
 interface MetasDashboardPanelProps {
   rows: MetasDashboardRow[];
@@ -36,16 +37,18 @@ export function MetasDashboardPanel({ rows }: MetasDashboardPanelProps) {
     const cumplimiento = rows.filter((r) => r.semaforo === "cumplimiento").length;
     const riesgo = rows.filter((r) => r.semaforo === "riesgo").length;
     const sinDatos = rows.filter((r) => r.valor_real == null).length;
-    return { total, cumplimiento, riesgo, sinDatos };
+    const vencidas = rows.filter((r) => r.vencida).length;
+    return { total, cumplimiento, riesgo, sinDatos, vencidas };
   }, [rows]);
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <SummaryCard label="Metas en filtro" value={summary.total} />
         <SummaryCard label="En cumplimiento" value={summary.cumplimiento} accent="green" />
         <SummaryCard label="En riesgo" value={summary.riesgo} accent="amber" />
         <SummaryCard label="Sin datos aún" value={summary.sinDatos} accent="slate" />
+        <SummaryCard label="Vencidas" value={summary.vencidas} accent="slate" />
       </div>
 
       <section className="glass overflow-hidden rounded-xl border border-slate-200/60">
@@ -79,8 +82,11 @@ export function MetasDashboardPanel({ rows }: MetasDashboardPanelProps) {
                     <span className="block capitalize">
                       {PERIODO_LABELS[row.periodo_tipo] ?? row.periodo_tipo}
                     </span>
-                    <span className="text-xs text-slate-400">
-                      {row.fecha_inicio} — {row.fecha_fin}
+                    <span className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                      <span>
+                        {row.fecha_inicio} — {row.fecha_fin}
+                      </span>
+                      <TargetExpiredBadge fechaFin={row.fecha_fin} />
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{scopeLabel(row)}</td>

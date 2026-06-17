@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { requireSeguridadUi } from "@/lib/auth/require-permission";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { listRegions, listHotels } from "@/modules/catalog";
 import { CatalogView } from "@/modules/catalog/components/catalog-view";
 
@@ -12,7 +12,7 @@ export default async function CatalogoPage() {
     );
   }
 
-  await requireSeguridadUi();
+  await requirePermission("catalogo.ver");
 
   const [regions, hotels] = await Promise.all([listRegions(), listHotels()]);
 

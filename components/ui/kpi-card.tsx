@@ -35,7 +35,7 @@ export function KpiCard({
         "group cursor-pointer rounded-xl border border-slate-200/70",
         "bg-white/80 p-5 backdrop-blur-md transition-shadow",
         "shadow-md shadow-slate-300/50",
-        "hover:border-amber-500/35 hover:shadow-lg hover:shadow-slate-400/40"
+        "hover:border-imperial-700/30 hover:shadow-lg hover:shadow-slate-400/40"
       )}
     >
       <div className="mb-3 flex items-start justify-between gap-2">

@@ -97,10 +97,10 @@ export function ProfileView({ user }: ProfileViewProps) {
       )}
 
       {/* Avatar card */}
-      <section className="overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/40 to-purple-50/30 p-6 shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
           <div className="relative">
-            <div className="relative h-28 w-28 overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 ring-4 ring-white shadow-lg">
+            <div className="relative h-28 w-28 overflow-hidden rounded-full bg-imperial-900 ring-4 ring-white shadow-lg">
               {avatarUrl ? (
                 <Image src={avatarUrl} alt={displayName} fill className="object-cover" />
               ) : (
@@ -113,7 +113,7 @@ export function ProfileView({ user }: ProfileViewProps) {
               type="button"
               disabled={avatarPending}
               onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-indigo-600 text-white shadow-md transition-transform hover:scale-105 disabled:opacity-50"
+              className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-imperial-900 text-white shadow-md transition-transform hover:scale-105 disabled:opacity-50"
             >
               <Camera className="h-4 w-4" />
             </button>
@@ -134,7 +134,7 @@ export function ProfileView({ user }: ProfileViewProps) {
               </div>
             )}
             {avatarPending && (
-              <p className="mt-2 text-xs text-indigo-600">Subiendo imagen...</p>
+              <p className="mt-2 text-xs text-imperial-700">Subiendo imagen...</p>
             )}
             {avatarError && <p className="mt-2 text-xs text-red-600">{avatarError}</p>}
           </div>
@@ -142,9 +142,9 @@ export function ProfileView({ user }: ProfileViewProps) {
       </section>
 
       {/* Profile info */}
-      <section className="rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
-          <User className="h-5 w-5 text-indigo-600" />
+          <User className="h-5 w-5 text-imperial-900" />
           <h3 className="font-semibold text-imperial-900">Información personal</h3>
         </div>
         <form onSubmit={handleProfileSubmit} className="space-y-4">
@@ -187,9 +187,9 @@ export function ProfileView({ user }: ProfileViewProps) {
       </section>
 
       {/* Password */}
-      <section className="rounded-2xl border border-indigo-100 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
-          <Lock className="h-5 w-5 text-indigo-600" />
+          <Lock className="h-5 w-5 text-imperial-900" />
           <h3 className="font-semibold text-imperial-900">Cambiar contraseña</h3>
         </div>
         <form onSubmit={handlePasswordSubmit} className="space-y-4">

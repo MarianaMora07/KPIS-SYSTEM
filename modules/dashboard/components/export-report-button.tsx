@@ -49,8 +49,8 @@ export function ExportReportButton({ disabled }: { disabled?: boolean }) {
       const hotel = searchParams.get("hotel") ?? "";
       const timestamp = new Date().toISOString().slice(0, 10);
 
-      if (type === "pdf") {
-        let summary: string | null = null;
+      let summary: string | null = null;
+      if (type === "pdf" || type === "pptx") {
         try {
           const summaryRes = await fetch("/api/reportes/summary", {
             method: "POST",
@@ -65,8 +65,11 @@ export function ExportReportButton({ disabled }: { disabled?: boolean }) {
             summary = data.summary ?? null;
           }
         } catch {
-          // PDF sin resumen IA si falla
+          // Sin resumen IA si falla
         }
+      }
+
+      if (type === "pdf") {
         exportToPdf(
           rows,
           { periodo, region, hotel },
@@ -77,7 +80,8 @@ export function ExportReportButton({ disabled }: { disabled?: boolean }) {
         await exportToPptx(
           rows,
           { periodo, region, hotel },
-          `reporte-ejecutivo-${timestamp}`
+          `reporte-ejecutivo-${timestamp}`,
+          summary
         );
       } else {
         exportToExcel(rows, `reporte-kpis-${timestamp}`);
@@ -93,7 +97,7 @@ export function ExportReportButton({ disabled }: { disabled?: boolean }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         disabled={loading || disabled}
-        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-sm font-medium text-imperial-900 backdrop-blur-sm transition-colors hover:border-amber-500/40 hover:bg-amber-50/50 disabled:opacity-60"
+        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-sm font-medium text-imperial-900 backdrop-blur-sm transition-colors hover:border-imperial-700/30 hover:bg-imperial-900/5 disabled:opacity-60"
       >
         <Download className="h-4 w-4 text-amber-600" />
         {loading ? "Exportando…" : "Exportar reporte"}

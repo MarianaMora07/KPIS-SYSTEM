@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { registerKpiValueAction } from "@/modules/kpis/actions/kpi-actions";
+import { usePermissions } from "@/components/layout/permissions-context";
 import {
   FormModal,
   FormSelect,
@@ -21,12 +22,13 @@ export function RegisterValueForm({
   kpis,
   defaultKpiId,
 }: RegisterValueFormProps) {
+  const { can } = usePermissions();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  if (kpis.length === 0) return null;
+  if (!can("metas.configurar") || kpis.length === 0) return null;
 
   const singleKpi = kpis.length === 1;
 

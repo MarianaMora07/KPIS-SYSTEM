@@ -65,6 +65,10 @@ export function TrendsLineChart({
     : buildTrendSeries(filteredHistory, kpiId);
 
   const height = compact ? 160 : 280;
+  const referenceLabel = highlightHotel
+    ? highlightHotel
+    : "Registro seleccionado";
+  const topMargin = highlightLabel ? 36 : 8;
 
   if (data.length === 0) {
     return (
@@ -76,7 +80,10 @@ export function TrendsLineChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <LineChart
+        data={data}
+        margin={{ top: topMargin, right: 12, left: 0, bottom: 0 }}
+      >
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis
           dataKey="fecha"
@@ -110,8 +117,9 @@ export function TrendsLineChart({
             strokeWidth={2}
             strokeDasharray="4 4"
             label={{
-              value: "Registro seleccionado",
+              value: referenceLabel,
               position: "top",
+              offset: 6,
               fill: "#b45309",
               fontSize: 10,
             }}

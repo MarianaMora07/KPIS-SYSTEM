@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/types/database";
 import {
   canAccessSeguridadUi,
+  canAccessCatalogoUi,
   canManageKpisFromList,
   getPermissionsForRole,
   hasPermissionInList,
@@ -63,6 +64,10 @@ export function hasPermission(
 
 export function canAccessSeguridad(rol: AppRole | null): boolean {
   return canAccessSeguridadUi(rol);
+}
+
+export function canAccessCatalogo(rol: AppRole | null): boolean {
+  return canAccessCatalogoUi(rol);
 }
 
 export function canManageKpis(permissions: string[]): boolean {

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Building2, Plus } from "lucide-react";
+import { usePermissions } from "@/components/layout/permissions-context";
 import { createRegionAction, createHotelAction } from "../actions/catalog-actions";
 
 interface CatalogViewProps {
@@ -10,6 +11,8 @@ interface CatalogViewProps {
 }
 
 export function CatalogView({ regions, hotels }: CatalogViewProps) {
+  const { can } = usePermissions();
+  const canManage = can("catalogo.gestionar");
   const [pending, startTransition] = useTransition();
   const [showRegion, setShowRegion] = useState(false);
   const [showHotel, setShowHotel] = useState(false);
@@ -22,14 +25,16 @@ export function CatalogView({ regions, hotels }: CatalogViewProps) {
             <Building2 className="h-4 w-4" />
             Regiones
           </h2>
-          <button
-            type="button"
-            onClick={() => setShowRegion(!showRegion)}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nueva región
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => setShowRegion(!showRegion)}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nueva región
+            </button>
+          )}
         </div>
         {showRegion && (
           <form
@@ -65,14 +70,16 @@ export function CatalogView({ regions, hotels }: CatalogViewProps) {
       <section className="glass rounded-xl border border-slate-200/60 p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-medium uppercase tracking-wider text-slate-500">Hoteles</h2>
-          <button
-            type="button"
-            onClick={() => setShowHotel(!showHotel)}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nuevo hotel
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => setShowHotel(!showHotel)}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nuevo hotel
+            </button>
+          )}
         </div>
         {showHotel && (
           <form

@@ -22,13 +22,13 @@ import { cn } from "@/lib/utils/cn";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, perm: "dashboard.ver" },
-  { href: "/kpis", label: "KPIs", icon: Target, perm: "dashboard.ver" },
+  { href: "/kpis", label: "KPIs", icon: Target, perm: "kpis.ver" },
   { href: "/import", label: "Importar", icon: Upload, perm: "import.cargar" },
   { href: "/integraciones", label: "Integraciones", icon: Plug, perm: "integraciones.gestionar" },
-  { href: "/alertas", label: "Alertas", icon: Bell, perm: "dashboard.ver" },
+  { href: "/alertas", label: "Alertas", icon: Bell, perm: "alertas.ver" },
   { href: "/reportes", label: "Reportes", icon: FileBarChart, perm: "reportes.exportar" },
-  { href: "/catalogo", label: "Catálogo", icon: Building2, adminOnly: true },
-  { href: "/seguridad", label: "Seguridad", icon: Shield, adminOnly: true },
+  { href: "/catalogo", label: "Catálogo", icon: Building2, perm: "catalogo.ver" },
+  { href: "/seguridad", label: "Seguridad", icon: Shield, perm: "usuarios.gestionar" },
   { href: "/perfil", label: "Mi perfil", icon: UserCircle },
 ];
 
@@ -36,7 +36,6 @@ interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onLogout: () => void;
-  canAccessAdmin?: boolean;
   permissions?: string[];
   isDemoMode?: boolean;
 }
@@ -45,7 +44,6 @@ export function Sidebar({
   collapsed,
   onToggle,
   onLogout,
-  canAccessAdmin = false,
   permissions = [],
   isDemoMode = false,
 }: SidebarProps) {
@@ -93,7 +91,6 @@ export function Sidebar({
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {navItems
           .filter((item) => {
-            if (item.adminOnly && !canAccessAdmin) return false;
             if (
               item.perm &&
               !isDemoMode &&
@@ -116,7 +113,7 @@ export function Sidebar({
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                   active
-                    ? "bg-gradient-to-r from-cyan-500/15 to-purple-500/15 text-cyan-300"
+                    ? "border-l-2 border-white bg-white/10 text-white"
                     : "text-slate-300 hover:bg-white/5 hover:text-white"
                 )}
               >
@@ -152,8 +149,8 @@ export function Sidebar({
           "rounded-full border border-slate-200/80 bg-white text-imperial-900 shadow-md",
           "opacity-0 transition-all duration-200",
           "group-hover/sidebar:opacity-100",
-          "hover:scale-105 hover:border-amber-300 hover:shadow-lg",
-          "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
+          "hover:scale-105 hover:border-imperial-700/30 hover:shadow-lg",
+          "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-imperial-700/40"
         )}
       >
         {collapsed ? (

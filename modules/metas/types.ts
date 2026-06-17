@@ -17,4 +17,5 @@ export interface MetasDashboardRow {
   valor_real: number | null;
   cumplimiento_pct: number | null;
   semaforo: TrafficLightStatus | null;
+  vencida: boolean;
 }

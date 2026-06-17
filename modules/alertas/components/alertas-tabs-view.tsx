@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ClipboardList } from "lucide-react";
+import { usePermissions } from "@/components/layout/permissions-context";
 import { AlertsList } from "./alerts-list";
 import { ActionPlanForm } from "./action-plan-form";
 import { ActionPlansPanel, type ActionPlanRow } from "./action-plans-panel";
@@ -30,7 +31,11 @@ export function AlertasTabsView({
   planFormParams,
   initialTab = "alertas",
 }: AlertasTabsViewProps) {
-  const [tab, setTab] = useState<"alertas" | "planes">(initialTab);
+  const { can } = usePermissions();
+  const canManagePlans = can("planes.gestionar");
+  const [tab, setTab] = useState<"alertas" | "planes">(
+    initialTab === "planes" && canManagePlans ? "planes" : "alertas"
+  );
 
   return (
     <div className="space-y-6">
@@ -38,12 +43,14 @@ export function AlertasTabsView({
         <TabButton active={tab === "alertas"} onClick={() => setTab("alertas")}>
           Alertas activas ({alerts.length})
         </TabButton>
-        <TabButton active={tab === "planes"} onClick={() => setTab("planes")}>
-          Planes de acción ({plans.length})
-        </TabButton>
+        {canManagePlans && (
+          <TabButton active={tab === "planes"} onClick={() => setTab("planes")}>
+            Planes de acción ({plans.length})
+          </TabButton>
+        )}
       </div>
 
-      {planFormParams && (
+      {planFormParams && canManagePlans && (
         <div className="glass rounded-xl border border-amber-200/60 bg-amber-50/30 p-6">
           <div className="mb-4 flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-amber-600" />
@@ -79,7 +86,7 @@ export function AlertasTabsView({
         </div>
       )}
 
-      {tab === "alertas" ? (
+      {tab === "alertas" || !canManagePlans ? (
         <AlertsList alerts={alerts} isDemo={isDemo} />
       ) : (
         <ActionPlansPanel plans={plans} />

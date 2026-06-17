@@ -1,5 +1,6 @@
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import type { MetasDashboardRow } from "@/modules/metas/types";
+import { isTargetExpired } from "@/lib/metas/target-status";
 
 const HOTELS = [
   { id: "h1", nombre: "Estelar Bogotá", region: "Región Andina", regionId: "r1" },
@@ -167,6 +168,7 @@ function buildDemoMetasRows(): MetasDashboardRow[] {
         valor_real: real,
         cumplimiento_pct: cumplimiento,
         semaforo,
+        vencida: isTargetExpired("2026-06-30"),
       });
     }
     rows.push({
@@ -186,6 +188,7 @@ function buildDemoMetasRows(): MetasDashboardRow[] {
       valor_real: null,
       cumplimiento_pct: null,
       semaforo: null,
+      vencida: isTargetExpired("2026-06-30"),
     });
   }
 

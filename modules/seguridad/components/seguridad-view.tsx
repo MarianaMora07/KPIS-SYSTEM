@@ -16,6 +16,7 @@ import {
 } from "@/modules/seguridad/actions/security-actions";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { usePermissions } from "@/components/layout/permissions-context";
+import { ScopeSelectorPanel } from "./scope-selector-panel";
 
 const ROLES: AppRole[] = [
   "administrador",
@@ -236,46 +237,24 @@ function UsersTab({
       {editingScopes && canManageUsers && (
         <div className="border-t border-slate-200 bg-slate-50 p-4">
           <p className="mb-3 text-sm font-medium">Asignar alcance geográfico</p>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <p className="mb-1 text-xs text-slate-500">Hoteles</p>
-              <select
-                multiple
-                className="h-24 w-full rounded border border-slate-200 text-sm"
-                value={selectedHotels}
-                onChange={(e) =>
-                  setSelectedHotels(
-                    Array.from(e.target.selectedOptions, (o) => o.value)
-                  )
-                }
-              >
-                {hotels.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <p className="mb-1 text-xs text-slate-500">Regiones</p>
-              <select
-                multiple
-                className="h-24 w-full rounded border border-slate-200 text-sm"
-                value={selectedRegions}
-                onChange={(e) =>
-                  setSelectedRegions(
-                    Array.from(e.target.selectedOptions, (o) => o.value)
-                  )
-                }
-              >
-                {regions.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <ScopeSelectorPanel
+            hotels={hotels}
+            regions={regions}
+            selectedHotels={selectedHotels}
+            selectedRegions={selectedRegions}
+            onToggleHotel={(id) =>
+              setSelectedHotels((prev) =>
+                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+              )
+            }
+            onToggleRegion={(id) =>
+              setSelectedRegions((prev) =>
+                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+              )
+            }
+            onClearHotels={() => setSelectedHotels([])}
+            onClearRegions={() => setSelectedRegions([])}
+          />
           <div className="mt-3 flex gap-2">
             <button
               type="button"
@@ -292,7 +271,7 @@ function UsersTab({
               }
               className="rounded-lg bg-imperial-900 px-4 py-2 text-sm text-white"
             >
-              Guardar alcance
+              Confirmar alcance
             </button>
             <button
               type="button"

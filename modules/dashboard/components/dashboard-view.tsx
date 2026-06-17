@@ -176,6 +176,13 @@ export function DashboardView({
               )}
             </div>
           </div>
+          {selectedValueKey === "all" && valueOptions.length > 0 && (
+            <p className="text-xs text-slate-500">
+              Con &quot;Todos los registros&quot;: gráficas con histórico completo del KPI
+              (proyección en tendencias, meta vs. real por hotel en la última fecha, comparativo
+              mes/año). Use un registro concreto para enfocar un día y hotel.
+            </p>
+          )}
 
           {focusedRow && (
             <div className="rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3">
@@ -244,7 +251,11 @@ export function DashboardView({
                 Tendencias históricas
                 {focusedRow && (
                   <span className="ml-2 normal-case text-amber-600">
-                    (hasta {focusedRow.fecha})
+                    (hasta {focusedRow.fecha}
+                    {focusedRow.hotel_nombre
+                      ? ` · ${focusedRow.hotel_nombre}`
+                      : ""}
+                    )
                   </span>
                 )}
               </h3>

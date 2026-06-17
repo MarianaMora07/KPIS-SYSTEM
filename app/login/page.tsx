@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { CheckCircle2 } from "lucide-react";
+import { AuthPageShell } from "@/components/auth/auth-page-shell";
 
 function LoginForm() {
   const router = useRouter();
@@ -58,65 +59,78 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-landing-bg px-4">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="glow-orb animate-pulse-glow absolute -left-20 top-1/4 h-72 w-72 rounded-full" />
-        <div className="glow-orb animate-pulse-glow absolute -right-20 bottom-1/4 h-64 w-64 rounded-full" />
+    <AuthPageShell>
+      <div className="mb-6 flex flex-col items-center gap-3 text-center">
+        <Image
+          src="/logo.svg"
+          alt="Estelar KPI"
+          width={56}
+          height={56}
+          className="rounded-xl shadow-md ring-2 ring-imperial-900/10"
+        />
+        <h1 className="text-2xl font-bold text-imperial-900">Sistema de KPIs</h1>
+        <p className="text-sm font-medium text-imperial-700/80">Hoteles Estelar</p>
       </div>
 
-      <div className="relative z-10 w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <Image src="/logo.svg" alt="Estelar KPI" width={56} height={56} className="rounded-xl" />
-          <h1 className="text-2xl font-semibold text-white">Sistema de KPIs</h1>
-          <p className="text-sm text-slate-400">Hoteles Estelar</p>
+      {confirmed && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-800 backdrop-blur-sm">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Correo confirmado. Ya puede iniciar sesión.
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        className="overflow-hidden rounded-2xl border-2 border-imperial-900/15 bg-white/90 shadow-xl shadow-imperial-900/10 backdrop-blur-md"
+      >
+        <div className="border-b border-imperial-800 bg-imperial-900 px-6 py-4 text-center">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+            {isSignUp ? "Crear cuenta" : "Iniciar sesión"}
+          </h2>
+          <p className="mt-1 text-xs text-white/70">
+            Acceso al panel de indicadores
+          </p>
         </div>
 
-        {confirmed && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            Correo confirmado. Ya puede iniciar sesión.
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="glass-dark rounded-2xl p-8">
+        <div className="space-y-0 p-6">
           {isSignUp && (
             <div className="mb-4">
-              <label className="form-label form-label-dark">Nombre</label>
+              <label className="form-label">Nombre</label>
               <input
                 type="text"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 required
-                className="form-input form-input-dark"
+                className="form-input"
               />
             </div>
           )}
 
           <div className="mb-4">
-            <label className="form-label form-label-dark">Correo electrónico</label>
+            <label className="form-label">Correo electrónico</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="form-input form-input-dark"
+              className="form-input"
             />
           </div>
 
           <div className="mb-6">
-            <label className="form-label form-label-dark">Contraseña</label>
+            <label className="form-label">Contraseña</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="form-input form-input-dark"
+              className="form-input"
             />
           </div>
 
           {error && (
-            <p className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </p>
           )}
@@ -124,7 +138,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-gradient w-full rounded-xl py-3 text-sm font-semibold disabled:opacity-50"
+            className="btn-primary w-full rounded-xl py-3 text-sm font-semibold uppercase tracking-wide disabled:opacity-50"
           >
             {loading
               ? "Procesando..."
@@ -136,7 +150,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => setIsSignUp(!isSignUp)}
-            className="mt-4 w-full text-center text-sm text-slate-400 hover:text-white"
+            className="mt-4 w-full text-center text-sm text-slate-600 hover:text-imperial-900"
           >
             {isSignUp
               ? "¿Ya tiene cuenta? Inicie sesión"
@@ -145,13 +159,13 @@ function LoginForm() {
 
           <Link
             href="/"
-            className="mt-3 block w-full text-center text-xs text-slate-500 hover:text-slate-300"
+            className="mt-3 block w-full text-center text-xs text-slate-500 hover:text-imperial-900"
           >
             ← Volver al inicio
           </Link>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </AuthPageShell>
   );
 }
 
@@ -159,7 +173,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-landing-bg text-slate-400">
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#dce6f2] to-white text-slate-500">
           Cargando...
         </div>
       }

@@ -69,7 +69,6 @@ interface DashboardShellProps {
   hotels?: { id: string; nombre: string }[];
   user?: SessionUser | null;
   permissions?: string[];
-  canAccessAdmin?: boolean;
   isDemoMode?: boolean;
 }
 
@@ -79,7 +78,6 @@ export function DashboardShell({
   hotels = [],
   user,
   permissions = [],
-  canAccessAdmin = false,
   isDemoMode = false,
 }: DashboardShellProps) {
   const pathname = usePathname();
@@ -105,35 +103,32 @@ export function DashboardShell({
         collapsed={collapsed}
         onToggle={() => setCollapsed((c) => !c)}
         onLogout={handleLogout}
-        canAccessAdmin={canAccessAdmin}
         permissions={permissions}
         isDemoMode={isDemoMode}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="border-b border-slate-200/80 bg-white/90 px-6 py-3 backdrop-blur-md">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-xl font-semibold tracking-tight text-imperial-900">
+              <h1 className="text-xl font-semibold leading-snug tracking-tight text-imperial-900">
                 {title}
               </h1>
               {subtitle && (
-                <p className="mt-0.5 truncate text-sm text-slate-500">{subtitle}</p>
+                <p className="mt-0.5 text-sm leading-snug text-slate-500">
+                  {subtitle}
+                </p>
               )}
             </div>
 
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-              {showFilters && (
-                <HeaderFiltersWrapper regions={regions} hotels={hotels} />
-              )}
-
               <NotificationBell />
 
               {user && (
                 <Link
                   href="/perfil"
-                  className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/80 px-2 py-1.5 transition-colors hover:border-indigo-200 hover:bg-indigo-50/50 sm:gap-3 sm:px-3"
+                  className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/80 px-2 py-1.5 transition-colors hover:border-imperial-700/30 hover:bg-imperial-900/5 sm:gap-3 sm:px-3"
                 >
-                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 ring-2 ring-white sm:h-9 sm:w-9">
+                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-imperial-900 ring-2 ring-white sm:h-9 sm:w-9">
                     {user.avatar_url ? (
                       <Image
                         src={user.avatar_url}
@@ -166,6 +161,12 @@ export function DashboardShell({
               )}
             </div>
           </div>
+
+          {showFilters && (
+            <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">
+              <HeaderFiltersWrapper regions={regions} hotels={hotels} />
+            </div>
+          )}
         </header>
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>

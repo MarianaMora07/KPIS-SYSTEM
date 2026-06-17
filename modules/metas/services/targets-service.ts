@@ -4,6 +4,7 @@ import { kpiTargetSchema } from "@/lib/validations/schemas";
 import type { DashboardFilters } from "@/modules/dashboard/types";
 import type { MetasDashboardRow } from "../types";
 import type { TrafficLightStatus } from "@/types/database";
+import { isTargetExpired } from "@/lib/metas/target-status";
 
 type TrafficLightRange = {
   kpi_id: string;
@@ -168,6 +169,7 @@ export async function listTargetsForDashboard(
       valor_real: valorReal,
       cumplimiento_pct: cumplimientoPct,
       semaforo: computeSemaforo(cumplimientoPct, rangeByKpi.get(t.kpi_id as string)),
+      vencida: isTargetExpired(t.fecha_fin as string),
     };
   });
 }

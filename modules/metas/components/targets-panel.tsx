@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { createTargetAction, deleteTargetAction } from "../actions/targets-actions";
+import { TargetExpiredBadge } from "./target-expired-badge";
 
 interface TargetsPanelProps {
   kpiId: string;
@@ -111,9 +112,13 @@ export function TargetsPanel({
 
       <ul className="space-y-2 text-sm">
         {targets.map((t) => (
-          <li key={t.id as string} className="flex justify-between rounded bg-slate-50 px-3 py-2">
-            <span>
-              {t.periodo_tipo as string}: {t.fecha_inicio as string} — {t.valor_meta as number}
+          <li key={t.id as string} className="flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 px-3 py-2">
+            <span className="flex flex-wrap items-center gap-2">
+              <span>
+                {t.periodo_tipo as string}: {t.fecha_inicio as string} — {t.fecha_fin as string} ·{" "}
+                {t.valor_meta as number}
+              </span>
+              <TargetExpiredBadge fechaFin={t.fecha_fin as string} />
             </span>
             {canConfigure && (
               <button

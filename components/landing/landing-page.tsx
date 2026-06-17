@@ -12,35 +12,33 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
+  CheckCircle2,
 } from "lucide-react";
+import { SiriWavesBackground } from "@/components/landing/siri-waves-background";
 
 const SLIDES = [
   {
     title: "Dashboard Ejecutivo",
     description:
       "Visualice KPIs comerciales y de mercadeo en tiempo real con semáforos, tendencias y comparativos por hotel y región.",
-    gradient: "from-cyan-500/30 via-indigo-500/30 to-purple-500/30",
     icon: BarChart3,
   },
   {
     title: "Metas y Cumplimiento",
     description:
       "Configure metas mensuales, trimestrales y anuales. El sistema clasifica automáticamente en cumplimiento, riesgo o incumplimiento.",
-    gradient: "from-purple-500/30 via-pink-500/30 to-rose-500/30",
     icon: Target,
   },
   {
     title: "Integración Inteligente",
     description:
       "Conecte PMS, CRM, ERP y fuentes externas. Automatice cálculos y elimine la dependencia de archivos Excel dispersos.",
-    gradient: "from-blue-500/30 via-violet-500/30 to-fuchsia-500/30",
     icon: Zap,
   },
   {
     title: "Seguridad y Auditoría",
     description:
       "Control de acceso por roles, restricción geográfica por hotel/región y bitácora inmutable de cada cambio.",
-    gradient: "from-emerald-500/20 via-cyan-500/30 to-indigo-500/30",
     icon: Shield,
   },
 ];
@@ -51,15 +49,6 @@ const FEATURES = [
   "Importación masiva Excel / CSV",
   "Análisis histórico y proyecciones",
 ];
-
-const SPARKLE_POSITIONS = [
-  { top: "70.0000%", left: "105.0000%" },
-  { top: "102.6214%", left: "72.4758%" },
-  { top: "93.6412%", left: "35.3503%" },
-  { top: "54.5118%", left: "62.6221%" },
-  { top: "35.1342%", left: "103.6060%" },
-  { top: "60.2205%", left: "82.1322%" },
-] as const;
 
 export function LandingPage() {
   const [current, setCurrent] = useState(0);
@@ -81,172 +70,254 @@ export function LandingPage() {
   const Icon = slide.icon;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-landing-bg text-white">
-      {/* Background effects */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="glow-orb animate-pulse-glow absolute -left-32 top-20 h-96 w-96 rounded-full" />
-        <div className="glow-orb animate-pulse-glow absolute -right-32 bottom-20 h-80 w-80 rounded-full" style={{ animationDelay: "2s" }} />
-        <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: `radial-gradient(circle at 50% 50%, rgba(99,102,241,0.15) 0%, transparent 50%)`,
-          }}
-        />
-      </div>
-
+    <div className="min-h-screen bg-white text-imperial-900">
       {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-5 lg:px-12">
-        <div className="flex items-center gap-3">
-          <Image
-            src="/logo.svg"
-            alt="Estelar KPI"
-            width={40}
-            height={40}
-            priority
-            className="rounded-lg"
-          />
-          <span className="text-lg font-semibold tracking-tight">Estelar KPI</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="rounded-full border border-white/20 px-5 py-2 text-sm transition-colors hover:border-white/40 hover:bg-white/5"
-          >
-            Iniciar sesión
+      <nav className="sticky top-0 z-50 w-full border-b-2 border-imperial-900/10 bg-white/95 shadow-sm backdrop-blur-md">
+        <div className="flex w-full items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-10">
+          <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+            <Image
+              src="/logo.svg"
+              alt="Estelar KPI"
+              width={40}
+              height={40}
+              priority
+              className="rounded-lg ring-2 ring-imperial-900/15"
+            />
+            <div className="min-w-0 text-left">
+              <p className="truncate text-sm font-bold leading-tight text-imperial-900">
+                Hoteles Estelar
+              </p>
+              <p className="truncate text-xs font-medium text-imperial-700/80">
+                Sistema de KPIs
+              </p>
+            </div>
           </Link>
-          <Link href="/login" className="btn-gradient rounded-full px-5 py-2 text-sm font-medium">
-            Acceder al sistema
-          </Link>
+          <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
+            <Link
+              href="/login"
+              className="hidden rounded-lg border-2 border-imperial-900/20 px-4 py-2 text-sm font-semibold text-imperial-900 transition-colors hover:border-imperial-900 hover:bg-imperial-900/5 sm:inline-block"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/login"
+              className="btn-primary whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide sm:px-5 sm:py-2.5 sm:text-sm"
+            >
+              Acceder
+            </Link>
+          </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative z-10 mx-auto flex max-w-6xl flex-col items-center px-6 pt-8 pb-16 text-center lg:pt-16">
-        {/* Glowing ring */}
-        <div className="relative mb-10 flex h-72 w-72 items-center justify-center lg:h-80 lg:w-80">
-          <div className="absolute inset-0 rounded-full border border-white/5" />
-          <div
-            className="absolute inset-2 rounded-full opacity-60"
-            style={{
-              background: `conic-gradient(from 0deg, #06b6d4, #a855f7, #ec4899, #6366f1, #06b6d4)`,
-              mask: "radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px))",
-              WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px))",
-            }}
-          />
-          <div className="absolute inset-8 rounded-full bg-landing-bg/80 backdrop-blur-sm" />
-          <div className="relative z-10 max-w-[200px] px-4">
-            <h1 className="text-xl font-bold leading-tight lg:text-2xl">
-              Impulse su negocio con{" "}
-              <span className="gradient-text">KPIs inteligentes</span>
-            </h1>
-          </div>
-          {/* Sparkles */}
-          {SPARKLE_POSITIONS.map((pos, i) => (
-            <div
-              key={i}
-              className="absolute h-1 w-1 rounded-full bg-white/60"
-              style={pos}
-            />
-          ))}
-        </div>
-
-        <p className="mb-8 max-w-2xl text-base leading-relaxed text-slate-400 lg:text-lg">
-          Plataforma centralizada de indicadores comerciales y de mercadeo para{" "}
-          <strong className="text-white">Hoteles Estelar</strong>. Consolide información,
-          automatice cálculos y tome decisiones en tiempo real.
-        </p>
-
-        <div className="mb-12 flex flex-wrap justify-center gap-4">
-          <Link
-            href="/login"
-            className="btn-gradient inline-flex items-center gap-2 rounded-full px-8 py-3 text-sm font-semibold"
+      <section className="relative overflow-hidden bg-gradient-to-b from-white via-[#f0f4fa] to-slate-50">
+        <SiriWavesBackground />
+        <div className="relative z-10 mx-auto max-w-6xl px-6 py-16 text-center lg:py-28">
+          <motion.p
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 inline-block rounded-full border border-imperial-900/20 bg-imperial-900/5 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-imperial-900"
           >
-            Solicitar acceso
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <a
-            href="#features"
-            className="inline-flex items-center gap-2 rounded-full border border-white/20 px-8 py-3 text-sm transition-colors hover:bg-white/5"
+            Mercadeo y ventas
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mx-auto max-w-3xl text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl"
           >
-            Conocer más
-          </a>
-        </div>
-
-        {/* Feature pills */}
-        <div className="flex flex-wrap justify-center gap-2">
-          {FEATURES.map((f) => (
-            <span
-              key={f}
-              className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs text-slate-300"
-            >
-              {f}
+            <span className="text-imperial-900">Impulse su negocio con </span>
+            <span className="text-imperial-900 underline decoration-imperial-900/25 decoration-4 underline-offset-4">
+              KPIs inteligentes
             </span>
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-slate-600 lg:text-lg"
+          >
+            Plataforma centralizada de indicadores comerciales y de mercadeo para{" "}
+            <strong className="font-bold text-imperial-900">
+              Hoteles Estelar
+            </strong>
+            . Consolide información, automatice cálculos y tome decisiones en
+            tiempo real.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-10 flex flex-wrap justify-center gap-4"
+          >
+            <Link
+              href="/login"
+              className="btn-primary inline-flex items-center gap-2 rounded-lg px-8 py-3.5 text-sm font-bold uppercase tracking-wide shadow-lg shadow-imperial-900/25"
+            >
+              Solicitar acceso
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <a
+              href="#capacidades"
+              className="inline-flex items-center gap-2 rounded-lg border-2 border-imperial-900 bg-white/80 px-8 py-3.5 text-sm font-bold text-imperial-900 backdrop-blur-sm transition-colors hover:bg-imperial-900 hover:text-white"
+            >
+              Conocer más
+            </a>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Features grid */}
+      <section className="border-y border-slate-200 bg-white py-12">
+        <div className="mx-auto grid max-w-6xl gap-4 px-6 sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map((feature, i) => (
+            <motion.div
+              key={feature}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              whileHover={{ y: -3 }}
+              className="rounded-xl border border-slate-200 border-l-4 border-l-imperial-900 bg-white p-5 shadow-sm transition-shadow hover:border-imperial-700/30 hover:shadow-md hover:shadow-imperial-900/5"
+            >
+              <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-imperial-900/10">
+                <CheckCircle2 className="h-5 w-5 text-imperial-900" />
+              </div>
+              <p className="text-sm font-medium leading-snug text-slate-700">
+                {feature}
+              </p>
+            </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Carousel */}
-      <section id="features" className="relative z-10 mx-auto max-w-5xl px-6 pb-24">
-        <h2 className="mb-8 text-center text-sm font-medium uppercase tracking-widest text-slate-500">
-          Capacidades del sistema
-        </h2>
+      {/* Ofertas / capacidades carousel */}
+      <section id="capacidades" className="border-t-4 border-imperial-900/10 bg-slate-50 py-16 lg:py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-10 text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-imperial-900">
+              Capacidades del sistema
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-imperial-900 sm:text-3xl">
+              Todo lo que necesita para gestionar sus indicadores
+            </h2>
+          </div>
 
-        <div className="relative overflow-hidden rounded-2xl border border-white/10 glass-dark">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={current}
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -40 }}
-              transition={{ duration: 0.4 }}
-              className={`flex flex-col items-center gap-6 bg-gradient-to-br ${slide.gradient} p-10 lg:flex-row lg:p-14`}
-            >
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
-                <Icon className="h-12 w-12 text-white" />
-              </div>
-              <div className="text-center lg:text-left">
-                <h3 className="mb-2 text-2xl font-semibold">{slide.title}</h3>
-                <p className="max-w-xl text-slate-300 leading-relaxed">{slide.description}</p>
-              </div>
-            </motion.div>
-          </AnimatePresence>
+          <div className="relative overflow-hidden rounded-2xl border-2 border-imperial-900/15 bg-white shadow-lg shadow-imperial-900/5">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={current}
+                initial={{ opacity: 0, x: 48 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -48 }}
+                transition={{ duration: 0.35 }}
+                className="flex flex-row items-start gap-6 p-8 sm:items-center sm:gap-8 sm:p-10 lg:p-14"
+              >
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-imperial-900 shadow-md sm:h-24 sm:w-24">
+                  <Icon className="h-10 w-10 text-white sm:h-12 sm:w-12" />
+                </div>
+                <div className="min-w-0 flex-1 text-left">
+                  <h3 className="mb-3 text-2xl font-bold text-imperial-900">
+                    {slide.title}
+                  </h3>
+                  <p className="max-w-xl text-base leading-relaxed text-slate-600">
+                    {slide.description}
+                  </p>
+                  <Link
+                    href="/login"
+                    className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-imperial-900 hover:underline"
+                  >
+                    Ver más
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              </motion.div>
+            </AnimatePresence>
 
-          <div className="flex items-center justify-between border-t border-white/10 px-6 py-4">
-            <button
-              type="button"
-              onClick={prev}
-              aria-label="Anterior"
-              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <div className="flex gap-2">
-              {SLIDES.map((_, i) => (
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-6">
+              <button
+                type="button"
+                onClick={prev}
+                aria-label="Anterior"
+                className="justify-self-start rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-colors hover:border-imperial-700/30 hover:text-imperial-900"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div className="flex justify-center gap-2">
+                {SLIDES.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCurrent(i)}
+                    aria-label={`Slide ${i + 1}`}
+                    className={`h-2 rounded-full transition-all ${
+                      i === current
+                        ? "w-8 bg-imperial-900"
+                        : "w-2 bg-slate-300 hover:bg-slate-400"
+                    }`}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={next}
+                aria-label="Siguiente"
+                className="justify-self-end rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition-colors hover:border-imperial-700/30 hover:text-imperial-900"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Mini cards row — preview of all slides */}
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {SLIDES.map((s, i) => {
+              const SlideIcon = s.icon;
+              return (
                 <button
-                  key={i}
+                  key={s.title}
                   type="button"
                   onClick={() => setCurrent(i)}
-                  aria-label={`Slide ${i + 1}`}
-                  className={`h-2 rounded-full transition-all ${
-                    i === current ? "w-8 bg-gradient-to-r from-cyan-400 to-purple-500" : "w-2 bg-white/20"
+                  className={`rounded-xl border p-4 text-left transition-all ${
+                    i === current
+                      ? "border-imperial-900 bg-imperial-900 text-white shadow-md"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-imperial-700/30 hover:shadow-sm"
                   }`}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={next}
-              aria-label="Siguiente"
-              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+                >
+                  <SlideIcon
+                    className={`mb-2 h-5 w-5 ${i === current ? "text-white" : "text-imperial-900"}`}
+                  />
+                  <p className="text-sm font-semibold">{s.title}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      <footer className="relative z-10 border-t border-white/10 py-6 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} Hoteles Estelar — Sistema de KPIs Mercadeo y Ventas
+      {/* CTA final */}
+      <section className="bg-imperial-900 py-14 text-center text-white">
+        <div className="mx-auto max-w-2xl px-6">
+          <h2 className="text-2xl font-bold sm:text-3xl">
+            El placer de descubrir sus indicadores
+          </h2>
+          <p className="mt-4 text-sm text-white/75 sm:text-base">
+            Acceda al sistema de KPIs de Hoteles Estelar y transforme datos en
+            decisiones estratégicas.
+          </p>
+          <Link
+            href="/login"
+            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-8 py-3 text-sm font-bold uppercase tracking-wide text-imperial-900 transition-colors hover:bg-slate-100"
+          >
+            Acceder al sistema
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      <footer className="border-t border-slate-200 bg-white py-8 text-center text-xs text-slate-500">
+        © {new Date().getFullYear()} Hoteles Estelar — Sistema de KPIs Mercadeo
+        y Ventas
       </footer>
     </div>
   );

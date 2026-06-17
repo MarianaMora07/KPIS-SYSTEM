@@ -3,7 +3,7 @@ import { PermissionsProvider } from "@/components/layout/permissions-context";
 import { listRegions, listHotels } from "@/modules/catalog";
 import { getSessionUser } from "@/lib/auth/get-session-user";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { canAccessSeguridad, getUserPermissions } from "@/lib/auth/permissions";
+import { getUserPermissions } from "@/lib/auth/permissions";
 import { DEMO_REGIONS, DEMO_HOTELS } from "@/modules/dashboard/data/demo-data";
 import type { AppRole } from "@/types/database";
 
@@ -47,7 +47,6 @@ export default async function DashboardLayout({
         }))}
         user={user}
         permissions={permissions}
-        canAccessAdmin={canAccessSeguridad(effectiveRol)}
         isDemoMode={isDemoMode}
       >
         {children}

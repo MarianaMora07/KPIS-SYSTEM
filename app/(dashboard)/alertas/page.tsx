@@ -1,5 +1,7 @@
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { listAlerts, listActionPlans } from "@/modules/alertas/services/alert-service";
+import { syncExpiredTargetAlerts } from "@/modules/metas/services/target-expiry-service";
 import { listUsers } from "@/modules/seguridad/services/security-service";
 import { DEMO_ALERTS } from "@/modules/alertas/data/demo-alerts";
 import { AlertasTabsView } from "@/modules/alertas/components/alertas-tabs-view";
@@ -20,12 +22,17 @@ export default async function AlertasPage({ searchParams }: AlertasPageProps) {
   const params = await searchParams;
   const isDemo = !isSupabaseConfigured();
 
+  if (!isDemo) {
+    await requirePermission("alertas.ver");
+  }
+
   let alerts = DEMO_ALERTS;
   let plans: Awaited<ReturnType<typeof listActionPlans>> = [];
   let users: { id: string; nombre: string }[] = [];
 
   if (!isDemo) {
     try {
+      await syncExpiredTargetAlerts().catch(() => {});
       const [alertsData, plansData, usersData] = await Promise.all([
         listAlerts("activa"),
         listActionPlans(),

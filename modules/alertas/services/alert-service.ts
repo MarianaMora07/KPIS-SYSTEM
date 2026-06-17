@@ -165,6 +165,7 @@ function mapAlertRow(row: any): AlertRow {
     id: row.id,
     kpi_id: row.kpi_id,
     kpi_value_id: row.kpi_value_id,
+    kpi_target_id: row.kpi_target_id ?? null,
     hotel_id: row.hotel_id,
     region_id: row.region_id,
     severidad: row.severidad,

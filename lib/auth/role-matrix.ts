@@ -5,60 +5,72 @@ export const PERMISSION_CODES = [
   "kpis.crear",
   "kpis.editar",
   "kpis.inactivar",
+  "kpis.ver",
   "metas.configurar",
   "dashboard.ver",
   "import.cargar",
   "integraciones.gestionar",
   "reportes.exportar",
+  "catalogo.ver",
+  "catalogo.gestionar",
+  "alertas.ver",
+  "planes.gestionar",
   "usuarios.gestionar",
   "auditoria.ver",
 ] as const;
 
 export type PermissionCode = (typeof PERMISSION_CODES)[number];
 
-const ALL_EXCEPT_USERS: PermissionCode[] = PERMISSION_CODES.filter(
-  (p) => p !== "usuarios.gestionar"
-);
+const ADMIN_PERMISSIONS: PermissionCode[] = [...PERMISSION_CODES];
 
-const KPI_WRITE_ROLES: PermissionCode[] = [
-  "kpis.crear",
-  "kpis.editar",
-  "kpis.inactivar",
-  "metas.configurar",
+const DIRECTOR_PERMISSIONS: PermissionCode[] = [
   "dashboard.ver",
+  "kpis.ver",
+  "reportes.exportar",
+  "catalogo.ver",
+];
+
+const GERENTE_PERMISSIONS: PermissionCode[] = [
+  "dashboard.ver",
+  "kpis.ver",
+  "metas.configurar",
+  "import.cargar",
+  "reportes.exportar",
+  "alertas.ver",
+  "planes.gestionar",
+];
+
+const ANALISTA_PERMISSIONS: PermissionCode[] = [
+  "dashboard.ver",
+  "kpis.ver",
   "import.cargar",
   "integraciones.gestionar",
   "reportes.exportar",
-  "auditoria.ver",
+];
+
+const CONSULTA_PERMISSIONS: PermissionCode[] = [
+  "dashboard.ver",
+  "kpis.ver",
+  "reportes.exportar",
 ];
 
 /**
  * Matriz estática por rol — debe coincidir con role_permissions en Supabase.
- * HU-001/002/003: kpis.* y metas.configurar
- * HU-004: import.cargar
- * HU-005: integraciones.gestionar
- * HU-006/007: dashboard.ver
- * HU-010: reportes.exportar
- * HU-011: usuarios.gestionar, auditoria.ver
  */
 export const ROLE_PERMISSIONS: Record<AppRole, readonly PermissionCode[]> = {
-  administrador: PERMISSION_CODES,
-  director_comercial: ALL_EXCEPT_USERS,
-  director_mercadeo: ALL_EXCEPT_USERS.filter(
-    (p) => p !== "integraciones.gestionar"
-  ),
-  gerente_hotel: [
-    "dashboard.ver",
-    "reportes.exportar",
-    "import.cargar",
-    "metas.configurar",
-    "kpis.editar",
-  ],
-  analista: ALL_EXCEPT_USERS,
-  consulta: ["dashboard.ver", "reportes.exportar"],
+  administrador: ADMIN_PERMISSIONS,
+  director_comercial: DIRECTOR_PERMISSIONS,
+  director_mercadeo: DIRECTOR_PERMISSIONS,
+  gerente_hotel: GERENTE_PERMISSIONS,
+  analista: ANALISTA_PERMISSIONS,
+  consulta: CONSULTA_PERMISSIONS,
 };
 
-const SEGURIDAD_UI_ROLES: AppRole[] = ["administrador", "analista"];
+const CATALOGO_UI_ROLES: AppRole[] = [
+  "administrador",
+  "director_comercial",
+  "director_mercadeo",
+];
 
 export function getPermissionsForRole(rol: AppRole): PermissionCode[] {
   return [...ROLE_PERMISSIONS[rol]];
@@ -73,7 +85,11 @@ export function roleHasPermission(
 }
 
 export function canAccessSeguridadUi(rol: AppRole | null | undefined): boolean {
-  return rol != null && SEGURIDAD_UI_ROLES.includes(rol);
+  return rol === "administrador";
+}
+
+export function canAccessCatalogoUi(rol: AppRole | null | undefined): boolean {
+  return rol != null && CATALOGO_UI_ROLES.includes(rol);
 }
 
 export function canManageUsers(rol: AppRole | null | undefined): boolean {
@@ -88,6 +104,18 @@ export function canEditKpis(rol: AppRole | null | undefined): boolean {
   return roleHasPermission(rol, "kpis.editar");
 }
 
+export function canViewKpis(rol: AppRole | null | undefined): boolean {
+  return roleHasPermission(rol, "kpis.ver");
+}
+
+export function canManageCatalog(rol: AppRole | null | undefined): boolean {
+  return roleHasPermission(rol, "catalogo.gestionar");
+}
+
+export function canManageActionPlans(rol: AppRole | null | undefined): boolean {
+  return roleHasPermission(rol, "planes.gestionar");
+}
+
 export function hasPermissionInList(
   permissions: string[],
   codigo: PermissionCode | string
@@ -100,6 +128,10 @@ export function canManageKpisFromList(permissions: string[]): boolean {
     hasPermissionInList(permissions, "kpis.crear") ||
     hasPermissionInList(permissions, "kpis.editar")
   );
+}
+
+export function canViewKpisFromList(permissions: string[]): boolean {
+  return hasPermissionInList(permissions, "kpis.ver");
 }
 
 export function canExportReportsFromList(permissions: string[]): boolean {
@@ -118,4 +150,10 @@ export function canConfigureMetasFromList(permissions: string[]): boolean {
   return hasPermissionInList(permissions, "metas.configurar");
 }
 
-export { KPI_WRITE_ROLES };
+export function canManageActionPlansFromList(permissions: string[]): boolean {
+  return hasPermissionInList(permissions, "planes.gestionar");
+}
+
+export function canManageCatalogFromList(permissions: string[]): boolean {
+  return hasPermissionInList(permissions, "catalogo.gestionar");
+}

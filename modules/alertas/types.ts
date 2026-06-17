@@ -6,6 +6,7 @@ export interface AlertRow {
   id: string;
   kpi_id: string;
   kpi_value_id: string | null;
+  kpi_target_id?: string | null;
   hotel_id: string | null;
   region_id: string | null;
   severidad: AlertSeverity;

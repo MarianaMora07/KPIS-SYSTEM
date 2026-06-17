@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertPermission } from "@/lib/auth/require-permission";
 import { createVariable } from "../services/formula-service";
 
 export async function createVariableAction(input: {
@@ -10,6 +11,7 @@ export async function createVariableAction(input: {
   tipo: "simple" | "compuesta";
   unidad_medida?: string;
 }) {
+  await assertPermission("kpis.editar");
   const supabase = await createClient();
   const {
     data: { user },

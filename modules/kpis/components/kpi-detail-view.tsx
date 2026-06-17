@@ -51,6 +51,7 @@ export function KpiDetailView({
   const { can } = usePermissions();
   const canEdit = can("kpis.editar");
   const canCreate = can("kpis.crear");
+  const canConfigureMetas = can("metas.configurar");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
@@ -81,16 +82,18 @@ export function KpiDetailView({
           Volver a KPIs
         </Link>
         <div className="flex gap-2">
-          <RegisterValueForm
-            kpis={[
-              {
-                id,
-                codigo: kpi.codigo as string,
-                nombre: kpi.nombre as string,
-              },
-            ]}
-            defaultKpiId={id}
-          />
+          {canConfigureMetas && (
+            <RegisterValueForm
+              kpis={[
+                {
+                  id,
+                  codigo: kpi.codigo as string,
+                  nombre: kpi.nombre as string,
+                },
+              ]}
+              defaultKpiId={id}
+            />
+          )}
           {canEdit && (
             <Link
               href={`/kpis/${id}/editar`}
@@ -132,20 +135,33 @@ export function KpiDetailView({
         initialSelectedFecha={initialSelectedFecha}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <TargetsPanel kpiId={id} targets={targets} regions={regions} hotels={hotels} />
-        <TrafficLightPanel kpiId={id} initialRanges={trafficLightRanges} />
-      </div>
+      {canConfigureMetas && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <TargetsPanel kpiId={id} targets={targets} regions={regions} hotels={hotels} />
+          <TrafficLightPanel kpiId={id} initialRanges={trafficLightRanges} />
+        </div>
+      )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <VariablesPanel variables={variables} />
-        <FormulaPanel
-          kpiId={id}
-          kpiNombre={kpi.nombre as string}
-          variableCodes={variables.map((v) => v.codigo)}
-          initialExpresion={initialFormula}
-        />
-      </div>
+      {canEdit && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <VariablesPanel variables={variables} />
+          <FormulaPanel
+            kpiId={id}
+            kpiNombre={kpi.nombre as string}
+            variableCodes={variables.map((v) => v.codigo)}
+            initialExpresion={initialFormula}
+          />
+        </div>
+      )}
+
+      {!canEdit && initialFormula && (
+        <section className="glass rounded-xl border border-slate-200/60 p-6">
+          <h2 className="mb-2 text-sm font-medium uppercase tracking-wider text-slate-500">
+            Fórmula (solo lectura)
+          </h2>
+          <p className="font-mono text-sm text-slate-700">{initialFormula}</p>
+        </section>
+      )}
 
       <section className="glass rounded-xl border border-slate-200/60 p-6">
         <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">

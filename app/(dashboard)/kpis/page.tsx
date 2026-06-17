@@ -1,3 +1,4 @@
+import { requirePermission } from "@/lib/auth/require-permission";
 import { listKpis } from "@/modules/kpis/services/kpi-service";
 import {
   listKpiCategories,
@@ -10,8 +11,7 @@ import {
 } from "@/modules/catalog";
 import { listUsers } from "@/modules/seguridad/services/security-service";
 import { KpiList } from "@/modules/kpis/components/kpi-list";
-import { KpiCreateForm } from "@/modules/kpis/components/kpi-create-form";
-import { RegisterValueForm } from "@/modules/kpis/components/register-value-form";
+import { KpisPageToolbar } from "@/modules/kpis/components/kpis-page-toolbar";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 
 export default async function KpisPage() {
@@ -29,6 +29,8 @@ export default async function KpisPage() {
       </div>
     );
   }
+
+  await requirePermission("kpis.ver");
 
   const [
     kpis,
@@ -54,28 +56,24 @@ export default async function KpisPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <KpiCreateForm
-          categories={categories}
-          regions={regions}
-          hotels={hotels}
-          users={users.map((u) => ({
-            id: u.id,
-            nombre: [u.nombre, u.apellido].filter(Boolean).join(" ") || u.email,
-          }))}
-          businessUnits={businessUnits}
-          salesChannels={salesChannels}
-          campaigns={campaigns}
-          teams={teams}
-        />
-        <RegisterValueForm
-          kpis={kpis.map((k) => ({
-            id: k.id,
-            codigo: k.codigo,
-            nombre: k.nombre,
-          }))}
-        />
-      </div>
+      <KpisPageToolbar
+        kpis={kpis.map((k) => ({
+          id: k.id,
+          codigo: k.codigo,
+          nombre: k.nombre,
+        }))}
+        categories={categories}
+        regions={regions}
+        hotels={hotels}
+        users={users.map((u) => ({
+          id: u.id,
+          nombre: [u.nombre, u.apellido].filter(Boolean).join(" ") || u.email,
+        }))}
+        businessUnits={businessUnits}
+        salesChannels={salesChannels}
+        campaigns={campaigns}
+        teams={teams}
+      />
       <KpiList kpis={kpis} />
     </div>
   );

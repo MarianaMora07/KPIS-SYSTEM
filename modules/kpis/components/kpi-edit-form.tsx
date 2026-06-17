@@ -41,7 +41,8 @@ export function KpiEditForm({ kpiId, defaultValues, catalogs }: KpiEditFormProps
   }
 
   return (
-    <div className="glass max-w-2xl rounded-xl border border-slate-200/60 p-6">
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="glass rounded-xl border border-slate-200/60 p-6">
       <h1 className="mb-6 text-xl font-semibold text-imperial-900">Editar KPI</h1>
       <KpiFormFields
         catalogs={catalogs}
@@ -53,6 +54,7 @@ export function KpiEditForm({ kpiId, defaultValues, catalogs }: KpiEditFormProps
         submitLabel="Guardar cambios"
         onSubmit={handleSubmit}
       />
+      </div>
     </div>
   );
 }

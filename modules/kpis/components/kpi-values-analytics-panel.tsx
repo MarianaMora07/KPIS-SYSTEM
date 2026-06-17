@@ -86,6 +86,12 @@ export function KpiValuesAnalyticsPanel({
             </option>
           ))}
         </select>
+        {selectedKey === "all" && (
+          <p className="w-full text-xs text-slate-500 sm:text-right">
+            Histórico completo en gráficas; tarjetas muestran el{" "}
+            <strong>último valor</strong> registrado.
+          </p>
+        )}
       </div>
 
       {focusedRow && (
@@ -154,7 +160,11 @@ export function KpiValuesAnalyticsPanel({
               Tendencias
               {focusedRow && (
                 <span className="ml-2 normal-case text-amber-600">
-                  (hasta {focusedRow.fecha})
+                  (hasta {focusedRow.fecha}
+                  {focusedRow.hotel_nombre
+                    ? ` · ${focusedRow.hotel_nombre}`
+                    : ""}
+                  )
                 </span>
               )}
             </h3>

@@ -2,28 +2,28 @@
 
 :root {
   --background: #f8fafc;
-  --foreground: #0a192f;
-  --imperial: #0a192f;
+  --foreground: #0b3061;
+  --imperial: #0b3061;
+  --estelar-blue: #0b3061;
+  --estelar-blue-hover: #092952;
+  --estelar-blue-light: #0e3d7a;
   --gold: #d4af37;
-  --neon-blue: #06b6d4;
-  --neon-purple: #a855f7;
-  --neon-pink: #ec4899;
-  --landing-bg: #060818;
+  --landing-bg: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-imperial-900: #0a192f;
-  --color-imperial-800: #112240;
-  --color-imperial-700: #1a365d;
+  --color-imperial-900: #0b3061;
+  --color-imperial-800: #092952;
+  --color-imperial-700: #0e3d7a;
+  --color-estelar-900: #0b3061;
+  --color-estelar-800: #092952;
+  --color-estelar-700: #0e3d7a;
   --color-gold-500: #d4af37;
   --color-gold-400: #e5c158;
-  --color-neon-blue: #06b6d4;
-  --color-neon-purple: #a855f7;
-  --color-neon-pink: #ec4899;
-  --color-landing-bg: #060818;
-  --font-sans: var(--font-geist-sans);
+  --color-landing-bg: #ffffff;
+  --font-sans: var(--font-montserrat);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -33,57 +33,70 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+button:not(:disabled),
+a[href],
+[role="button"],
+select,
+summary {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 .glass {
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow:
-    0 1px 2px rgba(10, 25, 47, 0.05),
-    0 4px 14px rgba(10, 25, 47, 0.07),
-    0 0 0 1px rgba(10, 25, 47, 0.04);
+    0 1px 2px rgba(11, 48, 97, 0.05),
+    0 4px 14px rgba(11, 48, 97, 0.07),
+    0 0 0 1px rgba(11, 48, 97, 0.04);
 }
 
 .glass-dark {
-  background: rgba(10, 15, 46, 0.75);
+  background: rgba(11, 48, 97, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #06b6d4 0%, #a855f7 50%, #ec4899 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #0b3061;
+  background: none;
+  -webkit-text-fill-color: #0b3061;
 }
 
+.btn-primary,
 .btn-gradient {
-  background: linear-gradient(135deg, #06b6d4 0%, #6366f1 50%, #a855f7 100%);
+  background: #0b3061;
   color: white;
-  transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
+.btn-primary:hover,
 .btn-gradient:hover {
-  opacity: 0.95;
+  background: #092952;
   transform: translateY(-1px);
-  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 16px rgba(11, 48, 97, 0.25);
 }
 
 .form-input {
   width: 100%;
   border-radius: 0.625rem;
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  background: linear-gradient(135deg, rgba(10, 15, 46, 0.04) 0%, rgba(168, 85, 247, 0.04) 100%);
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
   padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
-  color: #0a192f;
+  color: #0b3061;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: #0b3061;
+  box-shadow: 0 0 0 3px rgba(11, 48, 97, 0.12);
 }
 
 .form-input-dark {
@@ -93,8 +106,8 @@ body {
 }
 
 .form-input-dark:focus {
-  border-color: #a855f7;
-  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
+  border-color: #0b3061;
+  box-shadow: 0 0 0 3px rgba(11, 48, 97, 0.2);
 }
 
 .form-input-dark::placeholder {
@@ -105,7 +118,7 @@ body {
   display: block;
   margin-bottom: 0.375rem;
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 600;
   color: #334155;
 }
 
@@ -114,7 +127,7 @@ body {
 }
 
 .glow-orb {
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, rgba(6, 182, 212, 0.2) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(11, 48, 97, 0.12) 0%, transparent 70%);
   filter: blur(40px);
 }
 
@@ -125,4 +138,59 @@ body {
 
 .animate-pulse-glow {
   animation: pulse-glow 4s ease-in-out infinite;
+}
+
+/* Ondas Siri — landing hero */
+@keyframes siri-wave-drift {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes siri-ribbon-flow {
+  0%, 100% { transform: translateX(-2%) scaleY(1); opacity: 0.45; }
+  25% { transform: translateX(3%) scaleY(1.12); opacity: 0.8; }
+  50% { transform: translateX(-1%) scaleY(0.92); opacity: 0.55; }
+  75% { transform: translateX(2%) scaleY(1.06); opacity: 0.7; }
+}
+
+.siri-wave-layer {
+  animation: siri-wave-drift linear infinite;
+}
+
+.siri-wave-layer-1 {
+  animation-duration: 14s;
+}
+
+.siri-wave-layer-2 {
+  animation-duration: 10s;
+  animation-direction: reverse;
+}
+
+.siri-wave-layer-3 {
+  animation-duration: 18s;
+}
+
+.siri-ribbon {
+  animation: siri-ribbon-flow ease-in-out infinite;
+}
+
+.siri-ribbon-1 {
+  animation-duration: 3.5s;
+}
+
+.siri-ribbon-2 {
+  animation-duration: 4.5s;
+  animation-delay: -1s;
+}
+
+.siri-ribbon-3 {
+  animation-duration: 4s;
+  animation-delay: -2.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .siri-wave-layer,
+  .siri-ribbon {
+    animation: none;
+  }
 }

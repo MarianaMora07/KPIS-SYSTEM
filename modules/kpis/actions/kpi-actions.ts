@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertPermission } from "@/lib/auth/require-permission";
 import {
   kpiCreateSchema,
   kpiValueSchema,
@@ -11,6 +12,7 @@ import {
 import { formatZodError } from "@/lib/validations/format-zod-error";
 
 export async function createKpiAction(input: KpiCreateInput) {
+  await assertPermission("kpis.crear");
   let parsed: KpiCreateInput;
   try {
     parsed = kpiCreateSchema.parse(input);
@@ -40,6 +42,7 @@ export async function createKpiAction(input: KpiCreateInput) {
 }
 
 export async function inactivateKpiAction(id: string) {
+  await assertPermission("kpis.inactivar");
   const supabase = await createClient();
   const {
     data: { user },
@@ -57,6 +60,7 @@ export async function inactivateKpiAction(id: string) {
 }
 
 export async function updateKpiAction(id: string, input: KpiCreateInput) {
+  await assertPermission("kpis.editar");
   let parsed: KpiCreateInput;
   try {
     parsed = kpiCreateSchema.parse(input);
@@ -77,6 +81,7 @@ export async function updateKpiAction(id: string, input: KpiCreateInput) {
 }
 
 export async function duplicateKpiAction(id: string) {
+  await assertPermission("kpis.crear");
   const supabase = await createClient();
   const {
     data: { user },
@@ -90,6 +95,7 @@ export async function duplicateKpiAction(id: string) {
 }
 
 export async function registerKpiValueAction(input: KpiValueInput) {
+  await assertPermission("metas.configurar");
   const parsed = kpiValueSchema.parse(input);
   const supabase = await createClient();
 

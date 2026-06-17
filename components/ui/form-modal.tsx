@@ -39,23 +39,22 @@ export function FormModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className={cn(
           "relative z-10 max-h-[90vh] w-full overflow-y-auto rounded-2xl",
-          "border border-indigo-200/60 bg-gradient-to-br from-white via-indigo-50/30 to-purple-50/40",
-          "shadow-2xl shadow-indigo-500/10",
+          "border border-slate-200 bg-white shadow-2xl shadow-slate-200/50",
           widths[maxWidth]
         )}
       >
-        <div className="sticky top-0 z-10 border-b border-indigo-100/80 bg-gradient-to-r from-indigo-600/10 via-purple-600/10 to-pink-600/10 px-6 py-4 backdrop-blur-md">
+        <div className="sticky top-0 z-10 border-b border-imperial-800 bg-imperial-900 px-6 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-imperial-900">{title}</h2>
+              <h2 className="text-lg font-semibold text-white">{title}</h2>
               {subtitle && (
-                <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>
+                <p className="mt-0.5 text-sm text-white/75">{subtitle}</p>
               )}
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/80 hover:text-slate-700"
+              className="rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
             >
               <X className="h-5 w-5" />
             </button>
@@ -158,7 +157,7 @@ export function FormActions({
   showCancel?: boolean;
 }) {
   return (
-    <div className="flex gap-3 border-t border-indigo-100/80 pt-4">
+    <div className="flex gap-3 border-t border-slate-200 pt-4">
       <button
         type="submit"
         disabled={pending}
@@ -221,7 +220,7 @@ export function FormSecondaryButton({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white/80 px-5 py-2.5 text-sm font-medium text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50"
+      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-imperial-900 transition-colors hover:border-imperial-700/30 hover:bg-slate-50"
     >
       {children}
     </button>

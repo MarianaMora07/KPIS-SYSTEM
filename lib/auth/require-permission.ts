@@ -19,6 +19,17 @@ export async function requirePermission(
   return { rol, permissions };
 }
 
+/** Lanza error si el usuario no tiene el permiso (server actions). */
+export async function assertPermission(
+  codigo: PermissionCode | string
+): Promise<{ rol: AppRole; permissions: string[] }> {
+  const { rol, permissions } = await getUserPermissions();
+  if (!rol || !hasPermissionInList(permissions, codigo)) {
+    throw new Error("No tiene permiso para esta acción");
+  }
+  return { rol, permissions };
+}
+
 export async function requireSeguridadUi(
   redirectTo = "/dashboard"
 ): Promise<{ rol: AppRole; permissions: string[] }> {
@@ -45,16 +56,8 @@ export async function getUserHotelScopeIds(): Promise<string[]> {
 }
 
 export async function requireKpiEditAccess(
-  kpiHotelId: string | null,
+  _kpiHotelId: string | null,
   redirectTo = "/kpis"
 ): Promise<{ rol: AppRole; permissions: string[] }> {
-  const { rol, permissions } = await requirePermission("kpis.editar", redirectTo);
-
-  if (rol === "gerente_hotel") {
-    if (!kpiHotelId) redirect(redirectTo);
-    const scopes = await getUserHotelScopeIds();
-    if (!scopes.includes(kpiHotelId)) redirect(redirectTo);
-  }
-
-  return { rol, permissions };
+  return requirePermission("kpis.editar", redirectTo);
 }

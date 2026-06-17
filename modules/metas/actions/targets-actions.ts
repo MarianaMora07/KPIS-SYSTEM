@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertPermission } from "@/lib/auth/require-permission";
 import {
   createTarget,
   deleteTarget,
@@ -10,6 +11,7 @@ import {
 import type { KpiTargetInput } from "@/lib/validations/schemas";
 
 export async function createTargetAction(kpiId: string, input: KpiTargetInput) {
+  await assertPermission("metas.configurar");
   const supabase = await createClient();
   const {
     data: { user },
@@ -21,6 +23,7 @@ export async function createTargetAction(kpiId: string, input: KpiTargetInput) {
 }
 
 export async function deleteTargetAction(kpiId: string, targetId: string) {
+  await assertPermission("metas.configurar");
   await deleteTarget(targetId);
   revalidatePath(`/kpis/${kpiId}`);
 }
@@ -34,6 +37,7 @@ export async function saveTrafficLightAction(
     incumplimiento_max_pct: number;
   }
 ) {
+  await assertPermission("metas.configurar");
   await upsertTrafficLightRange(kpiId, ranges);
   revalidatePath(`/kpis/${kpiId}`);
 }

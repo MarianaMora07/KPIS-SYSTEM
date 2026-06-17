@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertPermission } from "@/lib/auth/require-permission";
 import { createRegion, createHotel } from "../services/catalog-service";
 
 export async function createRegionAction(input: {
@@ -8,6 +9,7 @@ export async function createRegionAction(input: {
   nombre: string;
   descripcion?: string;
 }) {
+  await assertPermission("catalogo.gestionar");
   await createRegion(input);
   revalidatePath("/catalogo");
 }
@@ -18,6 +20,7 @@ export async function createHotelAction(input: {
   nombre: string;
   ciudad?: string;
 }) {
+  await assertPermission("catalogo.gestionar");
   await createHotel(input);
   revalidatePath("/catalogo");
 }

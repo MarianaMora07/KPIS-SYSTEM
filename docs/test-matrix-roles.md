@@ -1,80 +1,106 @@
 # Matriz de prueba por rol (HU-KPI-011)
 
-Fuente operativa alineada con el PDF de requerimientos y `lib/auth/role-matrix.ts`.
+Fuente operativa alineada con el PDF de requerimientos y [`lib/auth/role-matrix.ts`](../lib/auth/role-matrix.ts).
 
-Usuarios de prueba: registrarse en `/login` y asignar rol desde `/seguridad` (solo **administrador** puede asignar roles).
+Usuarios de prueba: registrarse en `/login` y asignar rol desde `/seguridad` (solo **administrador** puede asignar roles y alcances).
 
-| Rol | Dashboard | KPIs crear/editar | Import | Integraciones | Reportes export | Seguridad/Catálogo | Scope esperado |
-|-----|-----------|-------------------|--------|---------------|-----------------|-------------------|----------------|
-| administrador | Sí | Sí (crear + editar + inactivar) | Sí | Sí | Sí | Sí (gestión completa) | Todos los hoteles |
-| director_comercial | Sí | Sí | Sí | Sí | Sí | No | Todos |
-| director_mercadeo | Sí | Sí | Sí | **No** | Sí | No | Todos |
-| gerente_hotel | Sí | **Editar*** (definición + metas/valores) | Sí | No | Sí | No | Solo hotel asignado |
-| analista | Sí | Sí | Sí | Sí | Sí | Sí (**solo lectura**) | Según scopes |
-| consulta | Sí | No | No | No | Sí | No | Solo lectura |
+## Sidebar por rol
 
-\* Asignar `user_hotel_scopes` al gerente y verificar que el dashboard solo muestra datos de ese hotel (RLS). El gerente **no puede crear** KPIs nuevos ni inactivarlos.
+| Rol | Ítems visibles en sidebar |
+|-----|---------------------------|
+| **administrador** | Dashboard, KPIs, Importar, Integraciones, Alertas, Reportes, Catálogo, Seguridad, Perfil |
+| **director_comercial** | Dashboard, KPIs, Reportes, Catálogo, Perfil |
+| **director_mercadeo** | Igual que director comercial |
+| **gerente_hotel** | Dashboard, KPIs, Importar, Alertas, Reportes, Perfil |
+| **analista** | Dashboard, KPIs, Importar, Integraciones, Reportes, Perfil |
+| **consulta** | Dashboard, KPIs, Reportes, Perfil |
 
-## Aclaraciones por HU
+## Matriz de permisos
 
-| HU | Permiso | Notas |
-|----|---------|-------|
-| HU-001 | `kpis.crear`, `kpis.editar`, `kpis.inactivar` | Gerente solo `kpis.editar` en KPIs de su hotel |
-| HU-002 | `metas.configurar` | Mismos roles que editar KPI |
-| HU-003 | `kpis.editar` | Fórmulas y variables |
-| HU-004 | `import.cargar` | Todos excepto consulta |
-| HU-005 | `integraciones.gestionar` | admin, director_comercial, analista |
-| HU-006/007 | `dashboard.ver` | Todos |
-| HU-010 | `reportes.exportar` | Todos (incl. consulta) |
-| HU-011 | `usuarios.gestionar` | Solo administrador asigna roles/scopes |
-| HU-012 | `auditoria.ver` | Bitácora en Seguridad (admin + analista) |
+| Permiso | admin | dir. comercial | dir. mercadeo | gerente_hotel | analista | consulta |
+|---------|:-----:|:--------------:|:-------------:|:-------------:|:--------:|:--------:|
+| `dashboard.ver` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `kpis.ver` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `kpis.crear` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `kpis.editar` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `kpis.inactivar` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `metas.configurar` | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| `import.cargar` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| `integraciones.gestionar` | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| `reportes.exportar` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `catalogo.ver` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `catalogo.gestionar` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `alertas.ver` | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| `planes.gestionar` | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| `usuarios.gestionar` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `auditoria.ver` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Notas:**
+
+- Directores ven KPIs en **solo lectura** (sin crear/editar/duplicar/inactivar, sin fórmulas/variables editables).
+- Gerente puede **metas, valores y planes** en su alcance; **no** edita definición de KPI ni fórmulas.
+- Analista es rol operativo global (import + integraciones); **sin** seguridad, catálogo, alertas ni planes.
+- Consulta: dashboard, KPIs lectura, exportación.
+
+## Alcance geográfico
+
+Configurable en `/seguridad` con **checkboxes multi-selección** + botón **Confirmar alcance** (solo administrador, no sobre sí mismo).
+
+| Rol | Scope esperado |
+|-----|----------------|
+| administrador | Todos los hoteles |
+| director_comercial / director_mercadeo | Todos (`fn_user_has_full_access`) |
+| gerente_hotel | Solo hoteles/regiones asignados (RLS) |
+| analista | Global operativo (`fn_user_has_full_access`) |
+| consulta | Según scopes; lectura |
 
 ## Checklist de verificación manual
-
-Crear 6 usuarios (o cambiar rol desde administrador) y validar:
 
 ### administrador
 - [ ] Ve todos los ítems del sidebar incl. Seguridad y Catálogo
 - [ ] Puede crear, editar e inactivar KPIs
-- [ ] Puede asignar roles y alcances en `/seguridad`
+- [ ] Puede asignar roles y alcance **multi-hotel/región** en `/seguridad`
+- [ ] No puede editar su propio alcance
 - [ ] Ve datos de todos los hoteles en dashboard
 
 ### director_comercial
-- [ ] No ve Seguridad ni Catálogo
-- [ ] Puede crear/editar KPIs e importar
-- [ ] Ve y gestiona integraciones
-- [ ] `/integraciones` accesible; `/seguridad` redirige a dashboard
+- [ ] Sidebar: Dashboard, KPIs, Reportes, Catálogo, Perfil (5 ítems + perfil)
+- [ ] KPI detalle **sin** botones crear/editar/duplicar/inactivar
+- [ ] Catálogo en lectura (sin "Nueva región/hotel")
+- [ ] `/import`, `/integraciones`, `/alertas`, `/seguridad` redirigen o no aparecen en sidebar
 
 ### director_mercadeo
-- [ ] Igual que director_comercial **excepto** integraciones
-- [ ] No ve ítem Integraciones en sidebar
-- [ ] `/integraciones` redirige a dashboard
+- [ ] Igual que director_comercial
 
 ### gerente_hotel
 - [ ] Con `user_hotel_scopes` asignado: dashboard filtrado a su hotel
-- [ ] Puede editar KPIs de su hotel (no crear ni inactivar)
-- [ ] Puede importar y configurar metas
-- [ ] No accede a integraciones ni seguridad
+- [ ] Puede registrar valores y configurar metas; **no** editar definición KPI ni fórmulas
+- [ ] Puede importar, ver alertas y gestionar planes de acción
+- [ ] No accede a integraciones, catálogo ni seguridad
 
 ### analista
-- [ ] Ve Seguridad y Catálogo en **modo lectura** (sin selectores de rol)
-- [ ] Puede gestionar integraciones
-- [ ] Puede crear/editar KPIs según scopes asignados
+- [ ] Sidebar: Dashboard, KPIs, Importar, Integraciones, Reportes, Perfil
+- [ ] KPIs en lectura (sin edición de definición)
+- [ ] Puede importar y ver logs de integraciones
+- [ ] **No** ve Seguridad, Catálogo, Alertas ni tab Planes
+- [ ] Sin botones resolver/escalar alertas ni plan de acción
 
 ### consulta
-- [ ] Solo dashboard, alertas, reportes y perfil
-- [ ] Puede exportar reportes; no importar ni editar KPIs
-- [ ] Botones de edición ocultos en toda la UI
+- [ ] Sidebar: Dashboard, KPIs, Reportes, Perfil
+- [ ] KPIs y dashboard en lectura; puede exportar reportes
+- [ ] Sin import, integraciones, alertas, metas ni edición
 
-## Checklist HU-006 / HU-007 (Sprint 0)
+## Checklist HU-006 / HU-007
 
 - [ ] Dashboard: tarjetas KPI con semáforo
 - [ ] Filtros región / hotel / período
 - [ ] Gráfico tendencias + comparativo mes/año
 - [ ] Línea de proyección etiquetada como estimación
-- [ ] Top indicadores críticos
+- [ ] Top indicadores críticos (link alerta/plan según permiso)
 - [ ] Drill-down con mini gráfico
 
 ## Migración
 
-Aplicar `supabase/migrations/20250619000001_rbac_matrix_fix.sql` para sincronizar `role_permissions` y RLS de `kpis_update` para gerente_hotel.
+Aplicar migraciones con `supabase db push`:
+
+- `20250622000001_rbac_roles_realignment.sql` — permisos granulares + matriz `role_permissions` + RLS KPIs/planes

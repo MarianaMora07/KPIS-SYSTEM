@@ -11,6 +11,7 @@ import {
 } from "@/modules/alertas/actions/alert-actions";
 import type { AlertRow } from "@/modules/alertas/types";
 import type { TrafficLightStatus } from "@/types/database";
+import { usePermissions } from "@/components/layout/permissions-context";
 
 interface AlertsListProps {
   alerts: AlertRow[];
@@ -39,12 +40,17 @@ export function AlertsList({ alerts, isDemo }: AlertsListProps) {
 }
 
 function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
+  const { can } = usePermissions();
+  const canManageAlerts = can("alertas.ver");
+  const canManagePlans = can("planes.gestionar");
   const [pending, startTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const status: TrafficLightStatus =
     alert.severidad === "critico" ? "incumplimiento" : "riesgo";
 
   const planUrl = buildPlanUrl(alert);
+  const isTargetAlert =
+    !!alert.kpi_target_id || alert.mensaje.startsWith("Meta finalizada:");
 
   function handleConfirm() {
     if (!pendingAction) return;
@@ -86,6 +92,11 @@ function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                   {alert.severidad}
                 </span>
+                {isTargetAlert && (
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                    Meta finalizada
+                  </span>
+                )}
               </div>
               <p className="mt-1 text-sm text-slate-600">{alert.mensaje}</p>
               <p className="mt-1 text-xs text-slate-400">
@@ -96,7 +107,7 @@ function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {!isDemo && (
+            {!isDemo && canManageAlerts && (
               <>
                 <button
                   type="button"
@@ -117,13 +128,15 @@ function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
                 </button>
               </>
             )}
-            <Link
-              href={planUrl}
-              className="flex items-center gap-1 rounded-lg bg-imperial-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-imperial-800"
-            >
-              Plan de acción
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
+            {canManagePlans && (
+              <Link
+                href={planUrl}
+                className="flex items-center gap-1 rounded-lg bg-imperial-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-imperial-800"
+              >
+                Plan de acción
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
           </div>
         </div>
       </li>
