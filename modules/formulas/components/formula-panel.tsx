@@ -15,8 +15,7 @@ export function FormulaPanel({
   variableCodes?: string[];
   initialExpresion?: string;
 }) {
-  const { can } = usePermissions();
-  const canEdit = can("kpis.editar");
+  const { canManageUsers } = usePermissions();
   const [expresion, setExpresion] = useState(initialExpresion);
   const [result, setResult] = useState<{ es_valida: boolean; errores: string[] } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -33,12 +32,12 @@ export function FormulaPanel({
       <textarea
         value={expresion}
         onChange={(e) => setExpresion(e.target.value)}
-        readOnly={!canEdit}
+        readOnly={!canManageUsers}
         rows={3}
-        placeholder="Ej: ocupacion * tarifa_promedio"
+        placeholder="Ej: reservas_web / visitas_mes * 100"
         className="w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm"
       />
-      {variableCodes.length > 0 && (
+      {canManageUsers && variableCodes.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           <span className="text-xs text-slate-500">Insertar variable:</span>
           {variableCodes.map((code) => (
@@ -60,20 +59,30 @@ export function FormulaPanel({
           {result.es_valida ? "Fórmula válida" : result.errores.join("; ")}
         </p>
       )}
-      {canEdit && (
+      {canManageUsers && (
         <button
           type="button"
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const res = await saveFormulaAction(kpiId, expresion);
-              setResult(res.validation);
+              try {
+                const res = await saveFormulaAction(kpiId, expresion);
+                setResult(res.validation);
+              } catch (err) {
+                setResult({
+                  es_valida: false,
+                  errores: [err instanceof Error ? err.message : "Error al guardar"],
+                });
+              }
             })
           }
           className="mt-3 rounded-lg bg-imperial-900 px-4 py-2 text-sm text-white"
         >
           Validar y guardar
         </button>
+      )}
+      {!canManageUsers && initialExpresion && (
+        <p className="mt-2 text-xs text-slate-500">Solo lectura</p>
       )}
     </section>
   );

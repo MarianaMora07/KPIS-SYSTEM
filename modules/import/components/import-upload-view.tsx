@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { Upload, CheckCircle, XCircle, Loader2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { usePermissions } from "@/components/layout/permissions-context";
-import { EXPECTED_COLUMNS } from "@/modules/import/constants";
+import { EXPECTED_COLUMNS, formatExpectedColumnsHelp } from "@/modules/import/constants";
 
 const REQUIRED_COLUMNS = ["kpi_codigo", "fecha", "valor_real"] as const;
 
@@ -129,16 +129,15 @@ export function ImportUploadView() {
 
         if (!res.ok) throw new Error(data.error ?? "Error al subir");
 
-        setJob({
-          id: data.jobId,
-          estado: data.estado,
-          total_filas: 0,
-          filas_ok: 0,
-          filas_error: 0,
-          nombre_archivo: file.name,
-        });
+        const jobResult = data as JobResult;
+        setJob(jobResult);
 
-        await pollJob(data.jobId);
+        if (
+          jobResult.id &&
+          (jobResult.estado === "pendiente" || jobResult.estado === "procesando")
+        ) {
+          await pollJob(jobResult.id);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Error al importar");
       } finally {
@@ -208,7 +207,7 @@ export function ImportUploadView() {
           {uploading ? "Subiendo archivo…" : "Arrastre un archivo Excel o CSV"}
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Máximo 5 MB · Columnas: {EXPECTED_COLUMNS.join(", ")}
+          Máximo 5 MB · Columnas: {formatExpectedColumnsHelp()}
         </p>
       </div>
 
@@ -282,6 +281,13 @@ function JobStatusCard({ job }: { job: JobResult }) {
         </div>
       )}
 
+      {isFailed && job.total_filas === 0 && !job.import_job_errors?.length && (
+        <p className="text-sm text-red-600">
+          El procesamiento falló antes de leer filas. Verifique permisos de storage y que la
+          plantilla use códigos KPI y hoteles existentes.
+        </p>
+      )}
+
       {job.import_job_errors && job.import_job_errors.length > 0 && (
         <div className="mt-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -290,7 +296,7 @@ function JobStatusCard({ job }: { job: JobResult }) {
           <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
             {job.import_job_errors.map((err, i) => (
               <li key={i} className="rounded bg-red-50 px-3 py-1.5 text-red-700">
-                Fila {err.fila}
+                {err.fila > 0 ? `Fila ${err.fila}` : "General"}
                 {err.columna && ` (${err.columna})`}: {err.mensaje}
               </li>
             ))}

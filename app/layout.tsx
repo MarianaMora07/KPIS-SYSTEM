@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   title: "Sistema de KPIs | Hoteles Estelar",
   description:
     "Plataforma centralizada de indicadores comerciales y de mercadeo — Hoteles Estelar",
+  icons: {
+    icon: [{ url: "/logo_estelar.png", type: "image/png" }],
+    apple: "/logo_estelar.png",
+    shortcut: "/logo_estelar.png",
+  },
 };
 
 export default function RootLayout({

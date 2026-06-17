@@ -51,19 +51,46 @@ async function DashboardData({ searchParams }: PageProps) {
   if (isSupabaseConfigured()) {
     try {
       await syncExpiredTargetAlerts().catch(() => {});
-      [kpiCards, history, worstPerformers, metas] = await Promise.all([
+      const results = await Promise.allSettled([
         getLatestKpiCards(filters),
         getDashboardKpis(filters),
         getWorstPerformers(filters),
         listTargetsForDashboard(filters),
       ]);
+
+      const failed = results.some((r) => r.status === "rejected");
+      if (results[0].status === "fulfilled") kpiCards = results[0].value;
+      if (results[1].status === "fulfilled") history = results[1].value;
+      if (results[2].status === "fulfilled") worstPerformers = results[2].value;
+      if (results[3].status === "fulfilled") metas = results[3].value;
+
+      if (failed || kpiCards.length === 0) {
+        const demoFilters = {
+          fechaDesde: filters.fechaDesde,
+          fechaHasta: filters.fechaHasta,
+        };
+        if (kpiCards.length === 0) {
+          isDemo = true;
+          const demo = filterDemoData(DEMO_DASHBOARD_DATA, demoFilters);
+          kpiCards = getLatestFromDemo(demo);
+          history = demo;
+          worstPerformers = getWorstFromCards(demo);
+        }
+        if (metas.length === 0 && results[3].status === "rejected") {
+          metas = filterDemoMetas(DEMO_METAS_DATA, demoFilters);
+        }
+      }
     } catch {
       isDemo = true;
-      const demo = filterDemoData(DEMO_DASHBOARD_DATA, filters);
+      const demoFilters = {
+        fechaDesde: filters.fechaDesde,
+        fechaHasta: filters.fechaHasta,
+      };
+      const demo = filterDemoData(DEMO_DASHBOARD_DATA, demoFilters);
       kpiCards = getLatestFromDemo(demo);
       history = demo;
       worstPerformers = getWorstFromCards(demo);
-      metas = filterDemoMetas(DEMO_METAS_DATA, filters);
+      metas = filterDemoMetas(DEMO_METAS_DATA, demoFilters);
     }
   } else {
     isDemo = true;

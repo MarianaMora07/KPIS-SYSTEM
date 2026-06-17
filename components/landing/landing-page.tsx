@@ -76,12 +76,12 @@ export function LandingPage() {
         <div className="flex w-full items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-10">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
             <Image
-              src="/logo.svg"
+              src="/logo_estelar.png"
               alt="Estelar KPI"
               width={40}
               height={40}
               priority
-              className="rounded-lg ring-2 ring-imperial-900/15"
+              className="rounded-full object-contain ring-2 ring-imperial-900/15"
             />
             <div className="min-w-0 text-left">
               <p className="truncate text-sm font-bold leading-tight text-imperial-900">

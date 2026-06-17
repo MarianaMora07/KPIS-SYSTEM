@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
-  <rect width="120" height="120" rx="28" fill="#0B3061"/>
-  <circle cx="60" cy="52" r="32" stroke="#ffffff" stroke-width="2.5" fill="none" opacity="0.9"/>
-  <path d="M60 28 L66 48 L88 48 L70 60 L76 80 L60 68 L44 80 L50 60 L32 48 L54 48 Z" fill="#ffffff" opacity="0.9"/>
-  <text x="60" y="108" text-anchor="middle" fill="#ffffff" font-family="system-ui,sans-serif" font-size="10" font-weight="600">ESTELAR KPI</text>
-</svg>

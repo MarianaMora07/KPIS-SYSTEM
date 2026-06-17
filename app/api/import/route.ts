@@ -67,12 +67,18 @@ export async function POST(request: Request) {
     .from("imports")
     .upload(storagePath, buffer, {
       contentType: file.type || "application/octet-stream",
-      upsert: true,
     });
 
   if (uploadError) {
     await supabase.from("import_jobs").delete().eq("id", job.id);
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    const hint =
+      uploadError.message.includes("row-level security")
+        ? " Falta configurar las políticas RLS del bucket «imports» en Supabase (ver migración 20250623000002)."
+        : "";
+    return NextResponse.json(
+      { error: `${uploadError.message}${hint}` },
+      { status: 500 }
+    );
   }
 
   await supabase
@@ -80,11 +86,24 @@ export async function POST(request: Request) {
     .update({ storage_path: storagePath })
     .eq("id", job.id);
 
-  // Procesar en background (fire-and-forget dentro del mismo request)
-  processImportJob(job.id).catch(console.error);
+  try {
+    await processImportJob(job.id);
+  } catch (e) {
+    console.error("Error procesando importación:", e);
+  }
 
-  return NextResponse.json({
-    jobId: job.id,
-    estado: "pendiente",
-  });
+  const { data: finalJob, error: fetchError } = await supabase
+    .from("import_jobs")
+    .select("*, import_job_errors(*)")
+    .eq("id", job.id)
+    .single();
+
+  if (fetchError || !finalJob) {
+    return NextResponse.json(
+      { error: fetchError?.message ?? "Error al obtener resultado" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(finalJob);
 }

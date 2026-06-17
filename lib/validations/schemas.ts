@@ -60,14 +60,22 @@ export const importFileSchema = z.object({
   plantilla_tipo: z.string().max(100).optional(),
 });
 
-export const kpiValueSchema = z.object({
-  kpi_id: z.string().uuid(),
-  fecha: z.string().date(),
-  valor_real: z.number(),
-  valor_meta: z.number().optional().nullable(),
-  hotel_id: z.string().uuid().optional().nullable(),
-  region_id: z.string().uuid().optional().nullable(),
-});
+export const kpiValueSchema = z
+  .object({
+    kpi_id: z.string().uuid(),
+    fecha: z.string().date(),
+    valor_real: z.number().optional(),
+    valor_meta: z.number().optional().nullable(),
+    hotel_id: z.string().uuid().optional().nullable(),
+    region_id: z.string().uuid().optional().nullable(),
+    variable_inputs: z.record(z.string(), z.number()).optional(),
+  })
+  .refine(
+    (data) =>
+      data.valor_real != null ||
+      (data.variable_inputs != null && Object.keys(data.variable_inputs).length > 0),
+    { message: "Ingrese valor real o los valores de las variables de la fórmula" }
+  );
 
 export type KpiCreateInput = z.infer<typeof kpiCreateSchema>;
 export type KpiTargetInput = z.infer<typeof kpiTargetSchema>;

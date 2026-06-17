@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { listImportJobs } from "@/modules/import/services/import-service";
 import { ImportUploadView } from "@/modules/import/components/import-upload-view";
+import { ImportHistoryList } from "@/modules/import/components/import-history-list";
 
 export default async function ImportPage() {
   if (!isSupabaseConfigured()) {
@@ -37,37 +38,14 @@ export default async function ImportPage() {
       </div>
       <p className="text-sm text-slate-600">
         Carga masiva de <strong>valores KPI</strong> (<code>kpi_values</code>) para KPIs ya
-        existentes. No crea ni modifica la definición del indicador; use el formulario en{" "}
-        <a href="/kpis" className="text-amber-700 underline">
-          KPIs
-        </a>{" "}
-        para altas individuales.
+        existentes. Use <code>valor_real</code> para KPIs sin fórmula, o columnas{" "}
+        <code>var_&#123;codigo&#125;</code> cuando el KPI tenga fórmula configurada (ej.{" "}
+        <code>var_visitas_mes</code>, <code>var_reservas_web</code>). La definición de variables y
+        fórmulas se gestiona en el detalle de cada KPI (solo administrador).
       </p>
       <ImportUploadView />
 
-      {history.length > 0 && (
-        <section className="glass rounded-xl border border-slate-200/60 p-6">
-          <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">
-            Historial de importaciones
-          </h2>
-          <ul className="space-y-2 text-sm">
-            {history.map((job) => (
-              <li
-                key={job.id}
-                className="flex justify-between rounded bg-slate-50 px-3 py-2"
-              >
-                <span>{job.nombre_archivo}</span>
-                <span className="text-slate-500">
-                  {job.estado} · {job.filas_ok ?? 0}/{job.total_filas ?? 0} ok
-                </span>
-                <span className="text-xs text-slate-400">
-                  {new Date(job.created_at).toLocaleString("es-CO")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <ImportHistoryList jobs={history} />
     </div>
   );
 }

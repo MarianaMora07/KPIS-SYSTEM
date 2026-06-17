@@ -10,6 +10,8 @@ import {
   type KpiValueInput,
 } from "@/lib/validations/schemas";
 import { formatZodError } from "@/lib/validations/format-zod-error";
+import { computeKpiValueFromInputs } from "@/lib/kpis/compute-formula-value";
+import { invalidateCache } from "@/lib/cache/dashboard-cache";
 
 export async function createKpiAction(input: KpiCreateInput) {
   await assertPermission("kpis.crear");
@@ -110,24 +112,50 @@ export async function registerKpiValueAction(input: KpiValueInput) {
     .eq("id", parsed.kpi_id)
     .single();
 
-  let valorReal = parsed.valor_real;
+  const rawInputs =
+    parsed.variable_inputs && Object.keys(parsed.variable_inputs).length > 0
+      ? parsed.variable_inputs
+      : parsed.valor_real!;
 
-  const { computeKpiValueReal } = await import("@/lib/kpis/compute-formula-value");
-  valorReal = await computeKpiValueReal(parsed.kpi_id, parsed.valor_real);
+  const { valorReal, variableInputs } = await computeKpiValueFromInputs(
+    parsed.kpi_id,
+    rawInputs
+  );
 
-  const { data, error } = await supabase
+  const insertPayload = {
+    kpi_id: parsed.kpi_id,
+    hotel_id: parsed.hotel_id ?? kpi?.hotel_id ?? null,
+    region_id: parsed.region_id ?? kpi?.region_id ?? null,
+    fecha: parsed.fecha,
+    valor_real: valorReal,
+    valor_meta: parsed.valor_meta ?? kpi?.meta ?? null,
+    fuente: "manual" as const,
+    ...(variableInputs ? { variable_inputs: variableInputs } : {}),
+  };
+
+  let { data, error } = await supabase
     .from("kpi_values")
-    .insert({
-      kpi_id: parsed.kpi_id,
-      hotel_id: parsed.hotel_id ?? kpi?.hotel_id ?? null,
-      region_id: parsed.region_id ?? kpi?.region_id ?? null,
-      fecha: parsed.fecha,
-      valor_real: valorReal,
-      valor_meta: parsed.valor_meta ?? kpi?.meta ?? null,
-      fuente: "manual",
-    })
+    .insert(insertPayload)
     .select()
     .single();
+
+  if (error?.message.includes("variable_inputs")) {
+    const retry = await supabase
+      .from("kpi_values")
+      .insert({
+        kpi_id: insertPayload.kpi_id,
+        hotel_id: insertPayload.hotel_id,
+        region_id: insertPayload.region_id,
+        fecha: insertPayload.fecha,
+        valor_real: insertPayload.valor_real,
+        valor_meta: insertPayload.valor_meta,
+        fuente: insertPayload.fuente,
+      })
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) throw new Error(error.message);
 
@@ -136,8 +164,24 @@ export async function registerKpiValueAction(input: KpiValueInput) {
   );
   await notifyAlertForKpiValue(data.id).catch(() => {});
 
+  invalidateCache("dashboard");
+  invalidateCache("cards");
   revalidatePath("/dashboard");
   revalidatePath("/kpis");
   revalidatePath(`/kpis/${parsed.kpi_id}`);
   return data;
+}
+
+export async function deleteKpiValueAction(kpiId: string, valueId: string) {
+  const { rol } = await assertPermission("metas.configurar");
+  if (rol !== "administrador") {
+    throw new Error("Solo un administrador puede eliminar valores registrados");
+  }
+  const { deleteKpiValue } = await import("../services/kpi-service");
+  await deleteKpiValue(kpiId, valueId);
+  invalidateCache("dashboard");
+  invalidateCache("cards");
+  revalidatePath("/dashboard");
+  revalidatePath("/kpis");
+  revalidatePath(`/kpis/${kpiId}`);
 }

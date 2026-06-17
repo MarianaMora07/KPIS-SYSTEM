@@ -6,7 +6,11 @@ import {
 } from "@/modules/kpis/services/kpi-service";
 import { KpiDetailView } from "@/modules/kpis/components/kpi-detail-view";
 import { listTargets, listTrafficLightRanges } from "@/modules/metas/services/targets-service";
-import { listVariables, getKpiFormula } from "@/modules/formulas/services/formula-service";
+import {
+  listVariables,
+  getKpiFormula,
+} from "@/modules/formulas/services/formula-service";
+import { getRequiredInputVariableCodes } from "@/lib/kpis/compute-formula-value";
 import { listRegions, listHotels } from "@/modules/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import type { TrafficLightStatus } from "@/types/database";
@@ -36,6 +40,7 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
         listHotels(),
       ]);
 
+    const formulaVariableCodes = await getRequiredInputVariableCodes(id);
     const latestRange = trafficRanges[0] ?? null;
 
     return (
@@ -49,6 +54,10 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
           valor_meta: v.valor_meta != null ? Number(v.valor_meta) : null,
           cumplimiento_pct: v.cumplimiento_pct != null ? Number(v.cumplimiento_pct) : null,
           semaforo: (v.semaforo as TrafficLightStatus | null) ?? null,
+          variable_inputs:
+            v.variable_inputs && typeof v.variable_inputs === "object"
+              ? (v.variable_inputs as Record<string, number>)
+              : null,
         }))}
         targets={targets}
         regions={regions.map((r) => ({ id: r.id, nombre: r.nombre }))}
@@ -68,8 +77,10 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
           codigo: v.codigo,
           nombre: v.nombre,
           tipo: v.tipo,
+          formula_compuesta: v.formula_compuesta,
         }))}
         initialFormula={formula?.expresion ?? ""}
+        formulaVariableCodes={formulaVariableCodes}
         initialSelectedFecha={initialSelectedFecha}
       />
     );

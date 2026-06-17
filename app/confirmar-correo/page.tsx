@@ -15,11 +15,11 @@ function ConfirmContent() {
     <AuthPageShell>
       <div className="mb-6 flex justify-center">
         <Image
-          src="/logo.svg"
+          src="/logo_estelar.png"
           alt="Estelar KPI"
           width={56}
           height={56}
-          className="rounded-xl shadow-md ring-2 ring-imperial-900/10"
+          className="rounded-full object-contain shadow-md ring-2 ring-imperial-900/10"
         />
       </div>
 

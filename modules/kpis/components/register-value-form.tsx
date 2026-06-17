@@ -16,11 +16,14 @@ import {
 interface RegisterValueFormProps {
   kpis: { id: string; codigo: string; nombre: string }[];
   defaultKpiId?: string;
+  /** Variables simples requeridas por la fórmula del KPI (si aplica). */
+  formulaVariableCodes?: string[];
 }
 
 export function RegisterValueForm({
   kpis,
   defaultKpiId,
+  formulaVariableCodes = [],
 }: RegisterValueFormProps) {
   const { can } = usePermissions();
   const router = useRouter();
@@ -31,6 +34,7 @@ export function RegisterValueForm({
   if (!can("metas.configurar") || kpis.length === 0) return null;
 
   const singleKpi = kpis.length === 1;
+  const usesFormula = formulaVariableCodes.length > 0;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,15 +43,28 @@ export function RegisterValueForm({
     const kpiId = (fd.get("kpi_id") as string) || defaultKpiId || kpis[0].id;
     const fecha = fd.get("fecha") as string;
 
+    const variable_inputs: Record<string, number> = {};
+    if (usesFormula) {
+      for (const code of formulaVariableCodes) {
+        const raw = fd.get(`var_${code}`);
+        if (raw != null && String(raw).trim() !== "") {
+          variable_inputs[code] = Number(raw);
+        }
+      }
+    }
+
+    const valorRaw = fd.get("valor_real");
+    const valor_real =
+      valorRaw != null && String(valorRaw).trim() !== "" ? Number(valorRaw) : undefined;
+
     startTransition(async () => {
       try {
         await registerKpiValueAction({
           kpi_id: kpiId,
           fecha,
-          valor_real: Number(fd.get("valor_real")),
-          valor_meta: fd.get("valor_meta")
-            ? Number(fd.get("valor_meta"))
-            : null,
+          valor_real,
+          variable_inputs: usesFormula ? variable_inputs : undefined,
+          valor_meta: fd.get("valor_meta") ? Number(fd.get("valor_meta")) : null,
         });
         setOpen(false);
         (e.target as HTMLFormElement).reset();
@@ -69,7 +86,11 @@ export function RegisterValueForm({
         open={open}
         onClose={() => setOpen(false)}
         title="Registrar valor de KPI"
-        subtitle="El cumplimiento y semáforo se calculan automáticamente"
+        subtitle={
+          usesFormula
+            ? "Ingrese cada variable; el valor del KPI se calcula con la fórmula configurada"
+            : "El cumplimiento y semáforo se calculan automáticamente"
+        }
         maxWidth="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -99,13 +120,26 @@ export function RegisterValueForm({
             required
             defaultValue={new Date().toISOString().slice(0, 10)}
           />
-          <FormField
-            label="Valor real *"
-            name="valor_real"
-            type="number"
-            step="any"
-            required
-          />
+          {usesFormula ? (
+            formulaVariableCodes.map((code) => (
+              <FormField
+                key={code}
+                label={`${code} *`}
+                name={`var_${code}`}
+                type="number"
+                step="any"
+                required
+              />
+            ))
+          ) : (
+            <FormField
+              label="Valor real *"
+              name="valor_real"
+              type="number"
+              step="any"
+              required
+            />
+          )}
           <FormField label="Meta (opcional)" name="valor_meta" type="number" step="any" />
           {error && <FormError message={error} />}
           <FormActions

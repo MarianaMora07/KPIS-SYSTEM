@@ -62,11 +62,11 @@ function LoginForm() {
     <AuthPageShell>
       <div className="mb-6 flex flex-col items-center gap-3 text-center">
         <Image
-          src="/logo.svg"
+          src="/logo_estelar.png"
           alt="Estelar KPI"
           width={56}
           height={56}
-          className="rounded-xl shadow-md ring-2 ring-imperial-900/10"
+          className="rounded-full object-contain shadow-md ring-2 ring-imperial-900/10"
         />
         <h1 className="text-2xl font-bold text-imperial-900">Sistema de KPIs</h1>
         <p className="text-sm font-medium text-imperial-700/80">Hoteles Estelar</p>

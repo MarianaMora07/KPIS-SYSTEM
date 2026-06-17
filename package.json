@@ -7,11 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:start": "supabase start",
-    "db:stop": "supabase stop",
-    "db:reset": "supabase db reset",
-    "db:push": "supabase db push",
-    "db:types": "supabase gen types typescript --local > types/database.generated.ts"
+    "db:start": "npx supabase@latest start",
+    "db:stop": "npx supabase@latest stop",
+    "db:reset": "npx supabase@latest db reset",
+    "db:push": "npx supabase@latest db push",
+    "db:types": "npx supabase@latest gen types typescript --local > types/database.generated.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

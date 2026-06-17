@@ -63,13 +63,13 @@ export function Sidebar({
         href="/dashboard"
         className="flex flex-col items-center gap-2 border-b border-white/10 px-4 py-5"
       >
-        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/5 ring-1 ring-white/10">
+        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-white/20">
           <Image
-            src="/logo.svg"
+            src="/logo_estelar.png"
             alt="Logo Estelar KPI"
             width={40}
             height={40}
-            className="rounded-lg object-contain"
+            className="rounded-full object-contain"
             priority
           />
         </div>

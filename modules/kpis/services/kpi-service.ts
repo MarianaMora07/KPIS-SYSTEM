@@ -160,15 +160,41 @@ export async function listKpiVersions(kpiId: string) {
 
 export async function listKpiValues(kpiId: string, limit = 100) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const withInputs = await supabase
     .from("kpi_values")
-    .select("id, fecha, valor_real, valor_meta, cumplimiento_pct, semaforo")
+    .select("id, fecha, valor_real, valor_meta, cumplimiento_pct, semaforo, variable_inputs")
     .eq("kpi_id", kpiId)
     .order("fecha", { ascending: false })
     .limit(limit);
 
+  if (!withInputs.error) return withInputs.data ?? [];
+
+  if (withInputs.error.message.includes("variable_inputs")) {
+    const { data, error } = await supabase
+      .from("kpi_values")
+      .select("id, fecha, valor_real, valor_meta, cumplimiento_pct, semaforo")
+      .eq("kpi_id", kpiId)
+      .order("fecha", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => ({ ...row, variable_inputs: null }));
+  }
+
+  throw new Error(withInputs.error.message);
+}
+
+export async function deleteKpiValue(kpiId: string, valueId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("kpi_values")
+    .delete()
+    .eq("id", valueId)
+    .eq("kpi_id", kpiId)
+    .select("id")
+    .maybeSingle();
+
   if (error) throw new Error(error.message);
-  return data ?? [];
+  if (!data) throw new Error("Valor no encontrado");
 }
 
 export async function inactivateKpi(id: string) {

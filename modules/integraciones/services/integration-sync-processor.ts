@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dispatchActivepiecesEvent } from "@/lib/activepieces/dispatch";
 import { getAdapterFor } from "../adapters/pms-demo-adapter";
 import type { IntegrationRecord } from "../adapters/types";
-import { computeKpiValueReal } from "@/lib/kpis/compute-formula-value";
+import { computeKpiValueFromInputs } from "@/lib/kpis/compute-formula-value";
 
 export async function processIntegrationSync(
   integrationId: string,
@@ -55,7 +55,27 @@ export async function processIntegrationSync(
           continue;
         }
 
-        const valorReal = await computeKpiValueReal(kpi.id, rec.valor);
+        const rawInputs =
+          rec.variables && Object.keys(rec.variables).length > 0
+            ? rec.variables
+            : rec.valor;
+
+        let valorReal: number;
+        let variableInputs: Record<string, number> | null = null;
+        try {
+          const computed = await computeKpiValueFromInputs(kpi.id, rawInputs);
+          valorReal = computed.valorReal;
+          variableInputs = computed.variableInputs;
+        } catch {
+          err++;
+          await supabase.from("integration_logs").insert({
+            integration_job_id: jobId,
+            nivel: "error",
+            mensaje: `Error al calcular fórmula para ${rec.kpi_codigo}`,
+            payload: rec,
+          });
+          continue;
+        }
 
         const { error: upsertError } = await supabase.from("kpi_values").upsert(
           {
@@ -65,6 +85,7 @@ export async function processIntegrationSync(
             fecha: rec.fecha,
             valor_real: valorReal,
             valor_meta: kpi.meta,
+            variable_inputs: variableInputs,
             fuente: "integracion",
           },
           { onConflict: "kpi_id,hotel_id,fecha" }

@@ -12,6 +12,7 @@ export interface ExternalKpiRecord {
   kpi_codigo: string;
   valor: number;
   fecha: string;
+  variables?: Record<string, number>;
 }
 
 export interface IntegrationAdapter {

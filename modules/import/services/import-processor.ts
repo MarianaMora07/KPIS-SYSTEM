@@ -1,12 +1,13 @@
 import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
 import { dispatchActivepiecesEvent } from "@/lib/activepieces/dispatch";
-import { computeKpiValueReal } from "@/lib/kpis/compute-formula-value";
+import { computeKpiValueFromInputs, getRequiredInputVariableCodes } from "@/lib/kpis/compute-formula-value";
 
 interface ImportRow {
   kpi_codigo: string;
   fecha: string;
-  valor_real: number;
+  valor_real?: number;
+  variable_inputs?: Record<string, number>;
   hotel_codigo?: string;
   valor_meta?: number;
 }
@@ -48,6 +49,7 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
 
     const kpiByCode = new Map((kpis ?? []).map((k) => [k.codigo.toUpperCase(), k]));
     const hotelByCode = new Map((hotels ?? []).map((h) => [h.codigo.toUpperCase(), h]));
+    const requiredVarsCache = new Map<string, string[]>();
 
     let ok = 0;
     const errors: { fila: number; columna?: string; valor?: string; mensaje: string }[] = [];
@@ -56,9 +58,9 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
       const rowNum = i + 2;
       const row = rows[i];
 
-      const validation = validateRow(row, rowNum);
-      if (validation) {
-        errors.push(validation);
+      const baseValidation = validateRow(row, rowNum);
+      if (baseValidation) {
+        errors.push(baseValidation);
         continue;
       }
 
@@ -70,6 +72,17 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
           valor: row.kpi_codigo,
           mensaje: `KPI no encontrado: ${row.kpi_codigo}`,
         });
+        continue;
+      }
+
+      if (!requiredVarsCache.has(kpi.id)) {
+        requiredVarsCache.set(kpi.id, await getRequiredInputVariableCodes(kpi.id));
+      }
+      const requiredVars = requiredVarsCache.get(kpi.id) ?? [];
+
+      const varValidation = validateVariableInputs(row, requiredVars, rowNum);
+      if (varValidation) {
+        errors.push(varValidation);
         continue;
       }
 
@@ -91,7 +104,24 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
         regionId = hotel.region_id;
       }
 
-      const valorReal = await computeKpiValueReal(kpi.id, row.valor_real);
+      const rawInputs =
+        requiredVars.length > 0 && row.variable_inputs
+          ? row.variable_inputs
+          : row.valor_real!;
+
+      let valorReal: number;
+      let variableInputs: Record<string, number> | null = null;
+      try {
+        const computed = await computeKpiValueFromInputs(kpi.id, rawInputs);
+        valorReal = computed.valorReal;
+        variableInputs = computed.variableInputs;
+      } catch (e) {
+        errors.push({
+          fila: rowNum,
+          mensaje: e instanceof Error ? e.message : "Error al calcular fórmula",
+        });
+        continue;
+      }
 
       const { error: insertError } = await supabase.from("kpi_values").insert({
         kpi_id: kpi.id,
@@ -100,6 +130,7 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
         fecha: row.fecha,
         valor_real: valorReal,
         valor_meta: row.valor_meta ?? kpi.meta ?? null,
+        variable_inputs: variableInputs,
         fuente: "import",
       });
 
@@ -156,6 +187,13 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
     return { total: rows.length, ok, errors: errors.length };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error desconocido";
+    await supabase.from("import_job_errors").insert({
+      import_job_id: jobId,
+      fila: 0,
+      columna: null,
+      valor: null,
+      mensaje: message,
+    });
     await supabase
       .from("import_jobs")
       .update({
@@ -185,16 +223,30 @@ function parseFile(buffer: ArrayBuffer, tipo: "xlsx" | "csv"): ImportRow[] {
     for (const [key, val] of Object.entries(row)) {
       normalized[key.toLowerCase().trim()] = val;
     }
+
+    const variable_inputs: Record<string, number> = {};
+    for (const [key, val] of Object.entries(normalized)) {
+      if (key.startsWith("var_") && val !== "" && val != null) {
+        const code = key.slice(4);
+        variable_inputs[code] = Number(val);
+      }
+    }
+
+    const valorRaw = normalized.valor_real;
+    const valor_real =
+      valorRaw !== "" && valorRaw != null && !isNaN(Number(valorRaw))
+        ? Number(valorRaw)
+        : undefined;
+
     return {
       kpi_codigo: String(normalized.kpi_codigo ?? "").trim(),
       fecha: normalizeDate(normalized.fecha),
-      valor_real: Number(normalized.valor_real),
+      valor_real,
+      variable_inputs: Object.keys(variable_inputs).length > 0 ? variable_inputs : undefined,
       hotel_codigo: normalized.hotel_codigo
         ? String(normalized.hotel_codigo).trim()
         : undefined,
-      valor_meta: normalized.valor_meta
-        ? Number(normalized.valor_meta)
-        : undefined,
+      valor_meta: normalized.valor_meta ? Number(normalized.valor_meta) : undefined,
     };
   });
 }
@@ -223,8 +275,33 @@ function validateRow(
   if (!row.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(row.fecha)) {
     return { fila, columna: "fecha", valor: row.fecha, mensaje: "fecha inválida (YYYY-MM-DD)" };
   }
-  if (isNaN(row.valor_real)) {
-    return { fila, columna: "valor_real", mensaje: "valor_real debe ser numérico" };
+  const hasVars = row.variable_inputs && Object.keys(row.variable_inputs).length > 0;
+  if (!hasVars && (row.valor_real == null || isNaN(row.valor_real))) {
+    return {
+      fila,
+      columna: "valor_real",
+      mensaje: "valor_real o columnas var_* son requeridos",
+    };
+  }
+  return null;
+}
+
+function validateVariableInputs(
+  row: ImportRow,
+  requiredVars: string[],
+  fila: number
+): { fila: number; columna?: string; mensaje: string } | null {
+  if (requiredVars.length === 0) return null;
+  const inputs = row.variable_inputs ?? {};
+  for (const code of requiredVars) {
+    const val = inputs[code];
+    if (val == null || isNaN(val)) {
+      return {
+        fila,
+        columna: `var_${code}`,
+        mensaje: `Falta columna var_${code} para el KPI con fórmula`,
+      };
+    }
   }
   return null;
 }

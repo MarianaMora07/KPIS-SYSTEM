@@ -23,11 +23,17 @@ Duración estimada: 20–25 minutos. Un paso por HU del PDF.
 - Configurar rangos semáforo (carga rangos existentes).
 - Registrar valor → clasificación automática cumplimiento/riesgo/incumplimiento.
 
-## HU-KPI-003 — Fórmulas y variables (2 min)
+## HU-KPI-003 — Fórmulas y variables (3 min)
 
-- Panel variables: crear simple/compuesta; error claro si código duplicado.
-- Editor de fórmula con autocompletado de variables.
-- Importar Excel o sincronizar integración → `valor_real` calculado si hay fórmula válida.
+Solo **administrador** configura variables y fórmulas en el detalle del KPI.
+
+1. **Variables simples:** `visitas_mes`, `reservas_web` (código único; error si duplicado).
+2. **Variable compuesta (opcional):** `tasa_bruta` con fórmula `reservas_web / visitas_mes`.
+3. **Fórmula del KPI:** `reservas_web / visitas_mes * 100` → validar y guardar.
+4. **Registrar valor:** campos por variable (`visitas_mes=1000`, `reservas_web=25`) → guarda `2.5%` y muestra entradas en el listado.
+5. **Import:** plantilla con columnas `var_visitas_mes`, `var_reservas_web` para `CNV-001`.
+
+**Fase 2 (pendiente):** indicadores derivados con sintaxis `kpi("CODIGO")`.
 
 ## HU-KPI-004 — Importar Excel (2 min)
 

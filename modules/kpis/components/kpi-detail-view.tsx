@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Copy, Pencil } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { duplicateKpiAction } from "@/modules/kpis/actions/kpi-actions";
+import { duplicateKpiAction, deleteKpiValueAction } from "@/modules/kpis/actions/kpi-actions";
 import { TargetsPanel } from "@/modules/metas/components/targets-panel";
 import { TrafficLightPanel } from "@/modules/metas/components/traffic-light-panel";
 import { FormulaPanel } from "@/modules/formulas/components/formula-panel";
@@ -31,8 +31,15 @@ interface KpiDetailViewProps {
     riesgo_max_pct: number;
     incumplimiento_max_pct: number;
   } | null;
-  variables?: { id: string; codigo: string; nombre: string; tipo: string }[];
+  variables?: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    tipo: string;
+    formula_compuesta?: string | null;
+  }[];
   initialFormula?: string;
+  formulaVariableCodes?: string[];
   initialSelectedFecha?: string;
 }
 
@@ -46,17 +53,20 @@ export function KpiDetailView({
   trafficLightRanges = null,
   variables = [],
   initialFormula = "",
+  formulaVariableCodes = [],
   initialSelectedFecha,
 }: KpiDetailViewProps) {
-  const { can } = usePermissions();
+  const { can, canManageUsers } = usePermissions();
   const canEdit = can("kpis.editar");
   const canCreate = can("kpis.crear");
   const canConfigureMetas = can("metas.configurar");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
+  const [valueToDelete, setValueToDelete] = useState<KpiValueRow | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const id = kpi.id as string;
+  const unidadMedida = (kpi.unidad_medida as string) ?? "";
 
   function handleDuplicate() {
     startTransition(async () => {
@@ -67,6 +77,20 @@ export function KpiDetailView({
       } catch (err) {
         setShowDuplicateConfirm(false);
         setErrorMsg(err instanceof Error ? err.message : "Error al duplicar");
+      }
+    });
+  }
+
+  function handleConfirmDeleteValue() {
+    if (!valueToDelete) return;
+    startTransition(async () => {
+      try {
+        await deleteKpiValueAction(id, valueToDelete.id);
+        setValueToDelete(null);
+        router.refresh();
+      } catch (err) {
+        setValueToDelete(null);
+        setErrorMsg(err instanceof Error ? err.message : "Error al eliminar valor");
       }
     });
   }
@@ -92,6 +116,7 @@ export function KpiDetailView({
                 },
               ]}
               defaultKpiId={id}
+              formulaVariableCodes={formulaVariableCodes}
             />
           )}
           {canEdit && (
@@ -133,6 +158,7 @@ export function KpiDetailView({
         unidadMedida={(kpi.unidad_medida as string) ?? ""}
         values={values}
         initialSelectedFecha={initialSelectedFecha}
+        trafficLightRanges={trafficLightRanges}
       />
 
       {canConfigureMetas && (
@@ -142,7 +168,7 @@ export function KpiDetailView({
         </div>
       )}
 
-      {canEdit && (
+      {(canManageUsers || variables.length > 0 || initialFormula) && (
         <div className="grid gap-6 lg:grid-cols-2">
           <VariablesPanel variables={variables} />
           <FormulaPanel
@@ -154,15 +180,6 @@ export function KpiDetailView({
         </div>
       )}
 
-      {!canEdit && initialFormula && (
-        <section className="glass rounded-xl border border-slate-200/60 p-6">
-          <h2 className="mb-2 text-sm font-medium uppercase tracking-wider text-slate-500">
-            Fórmula (solo lectura)
-          </h2>
-          <p className="font-mono text-sm text-slate-700">{initialFormula}</p>
-        </section>
-      )}
-
       <section className="glass rounded-xl border border-slate-200/60 p-6">
         <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">
           Valores registrados
@@ -171,13 +188,31 @@ export function KpiDetailView({
           {values.map((v) => (
             <li
               key={v.id}
-              className="flex items-center justify-between rounded bg-slate-50 px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 px-3 py-2"
             >
               <span className="text-slate-600">{v.fecha}</span>
               <span className="font-medium">
-                {formatKpiValue(Number(v.valor_real), (kpi.unidad_medida as string) ?? "")}
+                {formatKpiValue(Number(v.valor_real), unidadMedida)}
               </span>
               <span className="text-slate-500">{v.cumplimiento_pct ?? "—"}%</span>
+              {v.variable_inputs && Object.keys(v.variable_inputs).length > 0 && (
+                <span className="w-full text-xs text-slate-400">
+                  Entradas:{" "}
+                  {Object.entries(v.variable_inputs)
+                    .map(([k, val]) => `${k}=${val}`)
+                    .join(", ")}
+                </span>
+              )}
+              {canManageUsers && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setValueToDelete(v)}
+                  className="text-xs text-red-600 hover:text-red-800"
+                >
+                  Eliminar
+                </button>
+              )}
             </li>
           ))}
           {values.length === 0 && (
@@ -212,8 +247,24 @@ export function KpiDetailView({
       />
 
       <ConfirmDialog
+        open={!!valueToDelete}
+        title="Eliminar valor registrado"
+        description={
+          valueToDelete
+            ? `¿Desea eliminar el registro del ${valueToDelete.fecha} (${formatKpiValue(Number(valueToDelete.valor_real), unidadMedida)})?`
+            : undefined
+        }
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        loading={pending}
+        onConfirm={handleConfirmDeleteValue}
+        onCancel={() => setValueToDelete(null)}
+      />
+
+      <ConfirmDialog
         open={!!errorMsg}
-        title="No se pudo duplicar"
+        title="No se pudo completar la acción"
         description={errorMsg ?? undefined}
         confirmLabel="Entendido"
         variant="danger"

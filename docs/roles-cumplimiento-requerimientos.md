@@ -63,7 +63,9 @@ El enum `app_role` define **seis roles** (HU-KPI-011):
 |----|---------------------|:-------------:|:----------:|:-------------:|:--------:|:--------:|
 | **HU-KPI-001** Crear/editar/duplicar/inactivar KPI | Administrador | ✅ | ❌ lectura | ❌ lectura | ❌ lectura | ❌ lectura |
 | **HU-KPI-002** Metas y semáforo | Administrador + operación hotel | ✅ | ❌ | ✅ en alcance | ❌ | ❌ |
-| **HU-KPI-003** Fórmulas y variables | Administrador | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **HU-KPI-003** Fórmulas y variables | Administrador | ✅ crear/editar | 👁️ lectura fórmula | 👁️ | 👁️ | 👁️ |
+
+**HU-KPI-003 (Fase 1):** variables simples/compuestas, fórmulas por KPI, cálculo con inputs por variable (registro + import `var_*`). **Fase 2 pendiente:** `kpi("CODIGO")` para indicadores derivados.
 
 ### FEATURE 2 — Carga e integración
 

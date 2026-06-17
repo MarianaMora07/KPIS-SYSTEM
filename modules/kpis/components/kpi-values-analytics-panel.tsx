@@ -11,6 +11,10 @@ import {
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import type { TrafficLightStatus } from "@/types/database";
 import { getValueOptionsForKpi } from "@/modules/dashboard/utils/chart-data";
+import {
+  resolveSemaforoCalculado,
+  type TrafficLightRangeInput,
+} from "@/lib/kpis/compute-semaforo";
 
 export interface KpiValueRow {
   id: string;
@@ -19,6 +23,7 @@ export interface KpiValueRow {
   valor_meta: number | null;
   cumplimiento_pct: number | null;
   semaforo?: TrafficLightStatus | null;
+  variable_inputs?: Record<string, number> | null;
 }
 
 interface KpiValuesAnalyticsPanelProps {
@@ -28,6 +33,7 @@ interface KpiValuesAnalyticsPanelProps {
   unidadMedida: string;
   values: KpiValueRow[];
   initialSelectedFecha?: string;
+  trafficLightRanges?: TrafficLightRangeInput | null;
 }
 
 export function KpiValuesAnalyticsPanel({
@@ -37,6 +43,7 @@ export function KpiValuesAnalyticsPanel({
   unidadMedida,
   values,
   initialSelectedFecha,
+  trafficLightRanges = null,
 }: KpiValuesAnalyticsPanelProps) {
   const [selectedKey, setSelectedKey] = useState<string>(
     initialSelectedFecha
@@ -46,8 +53,16 @@ export function KpiValuesAnalyticsPanel({
   const [compareMode, setCompareMode] = useState<"month" | "year">("month");
 
   const history = useMemo(
-    () => valuesToDashboardRows(kpiId, kpiCodigo, kpiNombre, unidadMedida, values),
-    [kpiId, kpiCodigo, kpiNombre, unidadMedida, values]
+    () =>
+      valuesToDashboardRows(
+        kpiId,
+        kpiCodigo,
+        kpiNombre,
+        unidadMedida,
+        values,
+        trafficLightRanges
+      ),
+    [kpiId, kpiCodigo, kpiNombre, unidadMedida, values, trafficLightRanges]
   );
 
   const valueOptions = useMemo(
@@ -135,7 +150,7 @@ export function KpiValuesAnalyticsPanel({
           />
           <div className="rounded-lg bg-slate-50 px-4 py-3">
             <p className="text-xs text-slate-500">Semáforo</p>
-            {displayRow?.semaforo_calculado ? (
+            {displayRow?.semaforo_calculado != null ? (
               <TrafficLightGlow
                 status={displayRow.semaforo_calculado}
                 className="mt-1"
@@ -237,7 +252,8 @@ function valuesToDashboardRows(
   kpiCodigo: string,
   kpiNombre: string,
   unidadMedida: string,
-  values: KpiValueRow[]
+  values: KpiValueRow[],
+  trafficLightRanges?: TrafficLightRangeInput | null
 ): DashboardKpiRow[] {
   return [...values]
     .sort((a, b) => a.fecha.localeCompare(b.fecha))
@@ -255,7 +271,11 @@ function valuesToDashboardRows(
       valor_real: Number(v.valor_real),
       valor_meta: v.valor_meta != null ? Number(v.valor_meta) : null,
       cumplimiento_pct: v.cumplimiento_pct,
-      semaforo_calculado: v.semaforo ?? null,
+      semaforo_calculado: resolveSemaforoCalculado(
+        v.semaforo,
+        v.cumplimiento_pct,
+        trafficLightRanges ?? undefined
+      ),
       fuente: "manual",
     }));
 }
