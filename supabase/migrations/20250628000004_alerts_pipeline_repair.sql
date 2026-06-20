@@ -1,8 +1,6 @@
--- =============================================================================
--- Fase 4: Trigger automático de alertas (HU-KPI-008) + seed integración demo
--- =============================================================================
+-- Reparación pipeline de alertas (HU-KPI-008)
+-- Aplica si fn_calc_semaforo / triggers no existen en el proyecto remoto.
 
--- Calcula semáforo para un valor KPI
 CREATE OR REPLACE FUNCTION fn_calc_semaforo(
   p_kpi_id UUID,
   p_fecha DATE,
@@ -40,7 +38,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Genera alerta cuando un valor queda en riesgo o incumplimiento
+CREATE OR REPLACE FUNCTION fn_kpi_values_set_semaforo()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.cumplimiento_pct IS NOT NULL THEN
+    NEW.semaforo := fn_calc_semaforo(NEW.kpi_id, NEW.fecha, NEW.cumplimiento_pct);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION fn_kpi_values_create_alert()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -54,6 +61,8 @@ DECLARE
   v_severidad alert_severity;
   v_mensaje TEXT;
   v_existe BOOLEAN;
+  v_estado alert_status;
+  v_escalada BOOLEAN;
 BEGIN
   v_semaforo := COALESCE(
     NEW.semaforo,
@@ -67,7 +76,7 @@ BEGIN
   SELECT EXISTS (
     SELECT 1 FROM alerts
     WHERE kpi_id = NEW.kpi_id
-      AND estado = 'activa'
+      AND estado IN ('activa', 'escalada')
       AND (hotel_id IS NOT DISTINCT FROM NEW.hotel_id)
       AND kpi_value_id = NEW.id
   ) INTO v_existe;
@@ -81,8 +90,12 @@ BEGIN
 
   IF v_semaforo = 'incumplimiento' THEN
     v_severidad := 'critico';
+    v_estado := 'escalada';
+    v_escalada := true;
   ELSE
     v_severidad := 'riesgo';
+    v_estado := 'activa';
+    v_escalada := false;
   END IF;
 
   v_mensaje := format(
@@ -96,25 +109,15 @@ BEGIN
   );
 
   INSERT INTO alerts (
-    kpi_id, kpi_value_id, hotel_id, region_id, severidad, estado, mensaje
+    kpi_id, kpi_value_id, hotel_id, region_id, severidad, estado, mensaje, escalada, escalada_at
   ) VALUES (
-    NEW.kpi_id, NEW.id, NEW.hotel_id, NEW.region_id, v_severidad, 'activa', v_mensaje
+    NEW.kpi_id, NEW.id, NEW.hotel_id, NEW.region_id, v_severidad, v_estado, v_mensaje,
+    v_escalada, CASE WHEN v_escalada THEN now() ELSE NULL END
   );
 
   RETURN NULL;
 END;
 $$;
-
--- Actualizar semáforo y alertar en BEFORE INSERT/UPDATE
-CREATE OR REPLACE FUNCTION fn_kpi_values_set_semaforo()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.cumplimiento_pct IS NOT NULL THEN
-    NEW.semaforo := fn_calc_semaforo(NEW.kpi_id, NEW.fecha, NEW.cumplimiento_pct);
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_kpi_values_set_semaforo ON kpi_values;
 CREATE TRIGGER trg_kpi_values_set_semaforo
@@ -126,52 +129,18 @@ CREATE TRIGGER trg_kpi_values_create_alert
   AFTER INSERT OR UPDATE ON kpi_values
   FOR EACH ROW EXECUTE FUNCTION fn_kpi_values_create_alert();
 
--- Integración demo PMS (HU-KPI-005)
-INSERT INTO external_integrations (id, nombre, sistema_tipo, endpoint_url, auth_config, mapeo_campos, frecuencia_cron, activa)
-VALUES (
-  'e5000000-0000-4000-8000-000000000001',
-  'PMS Estelar Demo',
-  'pms',
-  'https://api.demo-pms.estelar.local/sync',
-  '{"tipo": "api_key", "header": "X-API-Key"}'::jsonb,
-  '{"ocupacion": "OCP-001", "revpar": "RVP-001"}'::jsonb,
-  '0 6 * * *',
-  true
-) ON CONFLICT (id) DO NOTHING;
+-- Semáforo en valores históricos
+UPDATE kpi_values
+SET semaforo = fn_calc_semaforo(kpi_id, fecha, cumplimiento_pct)
+WHERE cumplimiento_pct IS NOT NULL
+  AND (semaforo IS NULL OR semaforo <> fn_calc_semaforo(kpi_id, fecha, cumplimiento_pct));
 
--- Bucket de storage para importaciones (si no existe)
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('imports', 'imports', false)
-ON CONFLICT (id) DO NOTHING;
-
--- Políticas storage imports
-DROP POLICY IF EXISTS imports_upload ON storage.objects;
-DROP POLICY IF EXISTS imports_read ON storage.objects;
-
-CREATE POLICY imports_upload ON storage.objects FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'imports' AND (storage.foldername(name))[1] = auth.uid()::text);
-
-CREATE POLICY imports_read ON storage.objects FOR SELECT TO authenticated
-  USING (bucket_id = 'imports' AND (storage.foldername(name))[1] = auth.uid()::text);
-
--- RLS action_plan_items
-ALTER TABLE action_plan_items ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS action_plan_items_select ON action_plan_items;
-DROP POLICY IF EXISTS action_plan_items_insert ON action_plan_items;
-
-CREATE POLICY action_plan_items_select ON action_plan_items FOR SELECT USING (
-  fn_user_has_full_access()
-  OR fn_current_user_role() IS DISTINCT FROM 'consulta'
-);
-
-CREATE POLICY action_plan_items_insert ON action_plan_items FOR INSERT WITH CHECK (
-  fn_current_user_role() IS DISTINCT FROM 'consulta'
-);
-
--- Actualizar alertas (resolver / escalar)
-DROP POLICY IF EXISTS alerts_update ON alerts;
-CREATE POLICY alerts_update ON alerts FOR UPDATE USING (
-  fn_user_has_full_access()
-  OR fn_current_user_role() IN ('director_comercial', 'director_mercadeo', 'gerente_hotel', 'analista')
-);
+-- Requiere fn_sync_kpi_value_alerts (migración 20250628000003)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc WHERE proname = 'fn_sync_kpi_value_alerts'
+  ) THEN
+    PERFORM fn_sync_kpi_value_alerts();
+  END IF;
+END $$;

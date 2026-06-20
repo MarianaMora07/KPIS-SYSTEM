@@ -130,6 +130,8 @@ export interface Database {
           cumplimiento_pct: number | null;
           semaforo: TrafficLightStatus | null;
           fuente: string;
+          integration_id: string | null;
+          variable_inputs?: Record<string, number> | null;
           calculated_at: string;
           created_at: string;
         };

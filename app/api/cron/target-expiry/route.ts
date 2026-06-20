@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
-import { syncExpiredTargetAlerts } from "@/modules/metas/services/target-expiry-service";
+import { syncAllAlerts } from "@/modules/alertas/services/alert-sync-service";
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -14,10 +14,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const created = await syncExpiredTargetAlerts();
-    return NextResponse.json({ created });
+    const result = await syncAllAlerts();
+    return NextResponse.json({
+      created: result.expiredTargets + result.kpiValues,
+      expiredTargets: result.expiredTargets,
+      kpiValues: result.kpiValues,
+    });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error al sincronizar metas vencidas";
+    const message = err instanceof Error ? err.message : "Error al sincronizar alertas";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

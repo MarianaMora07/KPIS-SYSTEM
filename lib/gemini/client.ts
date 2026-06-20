@@ -1,9 +1,11 @@
 import {
   GoogleGenerativeAI,
+  type GenerateContentResult,
   type ResponseSchema,
 } from "@google/generative-ai";
 
-const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+/** Modelos verificados en API v1beta (jun 2026) */
+const MODEL_CANDIDATES = ["gemini-2.5-flash-lite", "gemini-2.5-flash"] as const;
 
 type GeminiGenerationConfig = {
   maxOutputTokens?: number;
@@ -14,7 +16,14 @@ type GeminiGenerationConfig = {
 };
 
 export function getGeminiModel(): string {
-  return process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
+  const configured = process.env.GEMINI_MODEL?.trim();
+  if (configured && MODEL_CANDIDATES.includes(configured as (typeof MODEL_CANDIDATES)[number])) {
+    return configured;
+  }
+  if (configured && !MODEL_CANDIDATES.includes(configured as (typeof MODEL_CANDIDATES)[number])) {
+    return MODEL_CANDIDATES[0];
+  }
+  return MODEL_CANDIDATES[0];
 }
 
 export function isGeminiConfigured(): boolean {
@@ -22,65 +31,56 @@ export function isGeminiConfigured(): boolean {
 }
 
 function buildGenerationConfig(
+  modelName: string,
   options?: { maxTokens?: number; temperature?: number },
   extra?: Pick<GeminiGenerationConfig, "responseMimeType" | "responseSchema">
 ): GeminiGenerationConfig {
-  const model = getGeminiModel();
   const config: GeminiGenerationConfig = {
     maxOutputTokens: options?.maxTokens ?? 1024,
     temperature: options?.temperature ?? 0.4,
     ...extra,
   };
 
-  if (/gemini-2\.5-flash(?!-lite)/.test(model)) {
+  if (/gemini-2\.5-flash(?!-lite)/.test(modelName)) {
     config.thinkingConfig = { thinkingBudget: 0 };
   }
 
   return config;
 }
 
-function toUserFacingError(error: unknown): Error {
-  const message = error instanceof Error ? error.message : String(error);
-
-  if (message.includes("429") || /quota exceeded/i.test(message)) {
-    if (/limit:\s*0/i.test(message) || /gemini-2\.0/i.test(message)) {
-      return new Error(
-        "El modelo Gemini configurado ya no está disponible en el plan gratuito. Actualice GEMINI_MODEL (p. ej. gemini-2.5-flash-lite) en .env.local."
-      );
-    }
-    return new Error(
-      "Cuota de Gemini agotada. Espere un minuto o revise su plan en Google AI Studio."
-    );
-  }
-
-  if (message.includes("503") || /high demand/i.test(message)) {
-    return new Error(
-      "Gemini está saturado temporalmente. Intente de nuevo en unos segundos."
-    );
-  }
-
-  if (message.includes("404") || /not found/i.test(message)) {
-    return new Error(
-      `Modelo Gemini no encontrado (${getGeminiModel()}). Verifique GEMINI_MODEL en .env.local.`
-    );
-  }
-
-  return error instanceof Error ? error : new Error(message);
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getModel() {
+function isRetryableGeminiError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("503") ||
+    /high demand/i.test(message) ||
+    message.includes("429") ||
+    /quota exceeded/i.test(message) ||
+    /resource exhausted/i.test(message)
+  );
+}
+
+function getModelWithName(modelName: string) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY no configurada");
   }
-
   const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ model: getGeminiModel() });
+  return genAI.getGenerativeModel({ model: modelName });
 }
 
-function assertCompleteResponse(
-  result: Awaited<ReturnType<ReturnType<typeof getModel>["generateContent"]>>
-) {
+function getModelCandidates(): string[] {
+  const configured = process.env.GEMINI_MODEL?.trim();
+  const ordered = configured
+    ? [configured, ...MODEL_CANDIDATES.filter((m) => m !== configured)]
+    : [...MODEL_CANDIDATES];
+  return [...new Set(ordered)];
+}
+
+function assertCompleteResponse(result: GenerateContentResult) {
   const finishReason = result.response.candidates?.[0]?.finishReason;
   if (finishReason === "MAX_TOKENS") {
     throw new Error(
@@ -89,25 +89,54 @@ function assertCompleteResponse(
   }
 }
 
+async function generateContentWithRetry(
+  request: Parameters<ReturnType<typeof getModelWithName>["generateContent"]>[0],
+  options?: { maxTokens?: number; temperature?: number },
+  extra?: Pick<GeminiGenerationConfig, "responseMimeType" | "responseSchema">
+): Promise<GenerateContentResult> {
+  const models = getModelCandidates();
+  let lastError: unknown;
+
+  for (const modelName of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const model = getModelWithName(modelName);
+        const result = await model.generateContent({
+          ...request,
+          generationConfig: buildGenerationConfig(modelName, options, extra),
+        });
+        assertCompleteResponse(result);
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (!isRetryableGeminiError(error) || attempt === 2) break;
+        await sleep(600 * (attempt + 1));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+function extractJsonObject(text: string): string {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) return fenced[1].trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
+  return trimmed;
+}
+
 export async function generateText(
   prompt: string,
   options?: { maxTokens?: number }
 ): Promise<string> {
-  const model = getModel();
-
-  try {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: buildGenerationConfig({
-        maxTokens: options?.maxTokens ?? 1024,
-      }),
-    });
-
-    assertCompleteResponse(result);
-    return result.response.text();
-  } catch (error) {
-    throw toUserFacingError(error);
-  }
+  const result = await generateContentWithRetry(
+    { contents: [{ role: "user", parts: [{ text: prompt }] }] },
+    { maxTokens: options?.maxTokens ?? 1024 }
+  );
+  return result.response.text();
 }
 
 export async function generateJson<T>(
@@ -115,29 +144,26 @@ export async function generateJson<T>(
   schema: ResponseSchema,
   options?: { maxTokens?: number }
 ): Promise<T> {
-  const model = getModel();
-
   try {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: buildGenerationConfig(
-        { maxTokens: options?.maxTokens ?? 1024 },
-        { responseMimeType: "application/json", responseSchema: schema }
-      ),
-    });
-
-    assertCompleteResponse(result);
-
+    const result = await generateContentWithRetry(
+      { contents: [{ role: "user", parts: [{ text: prompt }] }] },
+      { maxTokens: options?.maxTokens ?? 1024 },
+      { responseMimeType: "application/json", responseSchema: schema }
+    );
     const raw = result.response.text().trim();
-    if (!raw) {
-      throw new Error("Respuesta IA vacía");
-    }
-
+    if (!raw) throw new Error("Respuesta IA vacía");
     return JSON.parse(raw) as T;
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      throw new Error("Respuesta IA inválida");
+  } catch (structuredError) {
+    try {
+      const plain = await generateText(
+        `${prompt}\n\nResponde únicamente con JSON válido, sin markdown.`,
+        options
+      );
+      return JSON.parse(extractJsonObject(plain)) as T;
+    } catch {
+      throw structuredError instanceof Error
+        ? structuredError
+        : new Error("Error al generar JSON con Gemini");
     }
-    throw toUserFacingError(error);
   }
 }

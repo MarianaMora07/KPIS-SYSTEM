@@ -17,7 +17,7 @@ import {
 } from "@/modules/dashboard/data/demo-data";
 import { getWorstPerformers as getWorstFromCards } from "@/modules/dashboard/utils/chart-data";
 import { listTargetsForDashboard } from "@/modules/metas/services/targets-service";
-import { syncExpiredTargetAlerts } from "@/modules/metas/services/target-expiry-service";
+import { syncAllAlerts } from "@/modules/alertas/services/alert-sync-service";
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import type { MetasDashboardRow } from "@/modules/metas/types";
 import { Suspense } from "react";
@@ -50,7 +50,7 @@ async function DashboardData({ searchParams }: PageProps) {
 
   if (isSupabaseConfigured()) {
     try {
-      await syncExpiredTargetAlerts().catch(() => {});
+      await syncAllAlerts().catch(() => {});
       const results = await Promise.allSettled([
         getLatestKpiCards(filters),
         getDashboardKpis(filters),

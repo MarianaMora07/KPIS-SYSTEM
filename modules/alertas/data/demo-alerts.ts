@@ -37,4 +37,22 @@ export const DEMO_ALERTS: AlertRow[] = [
     hotel_nombre: "Estelar Bogotá",
     region_nombre: "Región Andina",
   },
+  {
+    id: "alert-demo-3",
+    kpi_id: "d2",
+    kpi_value_id: null,
+    hotel_id: "h1",
+    region_id: "r1",
+    severidad: "critico",
+    estado: "escalada",
+    mensaje:
+      'KPI "RevPAR" en estado incumplimiento — Estelar Bogotá. Valor: 95, Meta: 97, Cumplimiento: 97.83%',
+    escalada: true,
+    escalada_at: "2026-06-01T08:00:00Z",
+    resuelta_at: null,
+    created_at: "2026-06-01T08:00:00Z",
+    kpi_nombre: "RevPAR",
+    hotel_nombre: "Estelar Bogotá",
+    region_nombre: "Región Andina",
+  },
 ];

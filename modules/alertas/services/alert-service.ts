@@ -1,8 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { dispatchActivepiecesEvent } from "@/lib/activepieces/dispatch";
-import type { AlertRow } from "../types";
+import type { AlertRow, AlertStatus } from "../types";
 
-export async function listAlerts(estado?: "activa" | "escalada" | "resuelta") {
+export type AlertStatusFilter = AlertStatus | "abiertas";
+
+export interface AlertListFilters {
+  hotelId?: string;
+  regionId?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+}
+
+const OPEN_ALERT_STATUSES: AlertStatus[] = ["activa", "escalada"];
+
+export async function listAlerts(
+  estado?: AlertStatusFilter,
+  filters?: AlertListFilters
+) {
   const supabase = await createClient();
   let query = supabase
     .from("alerts")
@@ -17,12 +31,28 @@ export async function listAlerts(estado?: "activa" | "escalada" | "resuelta") {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  if (estado) query = query.eq("estado", estado);
+  if (estado === "abiertas") {
+    query = query.in("estado", OPEN_ALERT_STATUSES);
+  } else if (estado) {
+    query = query.eq("estado", estado);
+  }
+
+  if (filters?.hotelId) query = query.eq("hotel_id", filters.hotelId);
+  if (filters?.regionId) query = query.eq("region_id", filters.regionId);
+  if (filters?.fechaDesde) query = query.gte("created_at", filters.fechaDesde);
+  if (filters?.fechaHasta) {
+    query = query.lte("created_at", `${filters.fechaHasta}T23:59:59.999Z`);
+  }
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
   return (data ?? []).map((row) => mapAlertRow(row));
+}
+
+/** Alertas activas y escaladas (no resueltas). */
+export async function listOpenAlerts(filters?: AlertListFilters) {
+  return listAlerts("abiertas", filters);
 }
 
 export async function getAlertById(id: string) {
@@ -136,6 +166,12 @@ export async function listActionPlans() {
     kpi_nombre: (p.kpis as { nombre?: string } | null)?.nombre,
     items: (p.action_plan_items as { id: string; descripcion: string; completado: boolean }[]) ?? [],
   }));
+}
+
+export async function deleteActionPlan(planId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("action_plans").delete().eq("id", planId);
+  if (error) throw new Error(error.message);
 }
 
 export async function updatePlanStatus(planId: string, estado: string) {

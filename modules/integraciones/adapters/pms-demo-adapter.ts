@@ -20,6 +20,9 @@ export class PmsDemoAdapter implements IntegrationAdapter {
           kpi_codigo: String(row.kpi_codigo ?? row.codigo ?? ""),
           valor: Number(row.valor ?? row.valor_real ?? 0),
           fecha: String(row.fecha ?? new Date().toISOString().slice(0, 10)),
+          ...(row.variables && typeof row.variables === "object"
+            ? { variables: row.variables as Record<string, number> }
+            : {}),
         }));
       }
     }
@@ -28,7 +31,7 @@ export class PmsDemoAdapter implements IntegrationAdapter {
     const mapping = integration.mapeo_campos ?? {};
     const defaults = [
       { key: "ocupacion", kpi: "OCP-001", base: 78 },
-      { key: "revpar", kpi: "REV-001", base: 1200000 },
+      { key: "revpar", kpi: "RVP-001", base: 138000 },
     ];
 
     return defaults.map(({ key, kpi, base }) => ({

@@ -3,6 +3,110 @@ import { dispatchActivepiecesEvent } from "@/lib/activepieces/dispatch";
 import { getAdapterFor } from "../adapters/pms-demo-adapter";
 import type { IntegrationRecord } from "../adapters/types";
 import { computeKpiValueFromInputs } from "@/lib/kpis/compute-formula-value";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+type IntegrationKpiValueRow = {
+  kpi_id: string;
+  hotel_id: string | null;
+  region_id: string | null;
+  fecha: string;
+  valor_real: number;
+  valor_meta: number | null;
+  variable_inputs: Record<string, number> | null;
+  integration_id: string;
+  fuente: "integracion";
+};
+
+async function upsertIntegrationKpiValue(
+  supabase: SupabaseClient,
+  row: IntegrationKpiValueRow
+): Promise<{ error: { message: string } | null }> {
+  const base = {
+    kpi_id: row.kpi_id,
+    hotel_id: row.hotel_id,
+    region_id: row.region_id,
+    fecha: row.fecha,
+    valor_real: row.valor_real,
+    valor_meta: row.valor_meta,
+    integration_id: row.integration_id,
+    fuente: row.fuente,
+  };
+
+  const payloads: Array<
+    typeof base & { variable_inputs?: Record<string, number> | null; integration_id?: string }
+  > = row.variable_inputs != null ? [{ ...base, variable_inputs: row.variable_inputs }, base] : [base];
+
+  let lastError: { message: string } | null = null;
+
+  for (const payload of payloads) {
+    const { error } = await supabase
+      .from("kpi_values")
+      .upsert(payload, { onConflict: "kpi_id,hotel_id,fecha" });
+
+    if (!error) return { error: null };
+    lastError = error;
+    if (
+      !error.message.includes("variable_inputs") &&
+      !error.message.includes("integration_id")
+    ) {
+      break;
+    }
+  }
+
+  const withoutOptional = {
+    kpi_id: row.kpi_id,
+    hotel_id: row.hotel_id,
+    region_id: row.region_id,
+    fecha: row.fecha,
+    valor_real: row.valor_real,
+    valor_meta: row.valor_meta,
+    fuente: row.fuente,
+  };
+
+  if (
+    lastError?.message.includes("variable_inputs") ||
+    lastError?.message.includes("integration_id")
+  ) {
+    const { error } = await supabase
+      .from("kpi_values")
+      .upsert(withoutOptional, { onConflict: "kpi_id,hotel_id,fecha" });
+    if (!error) return { error: null };
+    lastError = error;
+  }
+
+  if (
+    !lastError?.message.includes("ON CONFLICT") &&
+    !lastError?.message.includes("unique or exclusion constraint")
+  ) {
+    return { error: lastError };
+  }
+
+  let query = supabase
+    .from("kpi_values")
+    .select("id")
+    .eq("kpi_id", row.kpi_id)
+    .eq("fecha", row.fecha);
+
+  query =
+    row.hotel_id != null ? query.eq("hotel_id", row.hotel_id) : query.is("hotel_id", null);
+
+  const { data: existing } = await query.maybeSingle();
+  const writePayload = payloads[payloads.length - 1];
+
+  if (existing?.id) {
+    let { error } = await supabase.from("kpi_values").update(writePayload).eq("id", existing.id);
+    if (error?.message.includes("variable_inputs") || error?.message.includes("integration_id")) {
+      ({ error } = await supabase.from("kpi_values").update(withoutOptional).eq("id", existing.id));
+    }
+    return { error };
+  }
+
+  let { error } = await supabase.from("kpi_values").insert(writePayload);
+  if (error?.message.includes("variable_inputs") || error?.message.includes("integration_id")) {
+    ({ error } = await supabase.from("kpi_values").insert(withoutOptional));
+  }
+  return { error };
+}
 
 export async function processIntegrationSync(
   integrationId: string,
@@ -77,19 +181,17 @@ export async function processIntegrationSync(
           continue;
         }
 
-        const { error: upsertError } = await supabase.from("kpi_values").upsert(
-          {
-            kpi_id: kpi.id,
-            hotel_id: kpi.hotel_id,
-            region_id: kpi.region_id,
-            fecha: rec.fecha,
-            valor_real: valorReal,
-            valor_meta: kpi.meta,
-            variable_inputs: variableInputs,
-            fuente: "integracion",
-          },
-          { onConflict: "kpi_id,hotel_id,fecha" }
-        );
+        const { error: upsertError } = await upsertIntegrationKpiValue(supabase, {
+          kpi_id: kpi.id,
+          hotel_id: kpi.hotel_id,
+          region_id: kpi.region_id,
+          fecha: rec.fecha,
+          valor_real: valorReal,
+          valor_meta: kpi.meta,
+          variable_inputs: variableInputs,
+          integration_id: integrationId,
+          fuente: "integracion",
+        });
 
         if (upsertError) {
           err++;

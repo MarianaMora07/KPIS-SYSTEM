@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { PERMISSION_CATALOG } from "@/lib/auth/role-matrix";
 import type { AppRole } from "@/types/database";
 import type { AuditLogRow, PermissionRow, UserWithScopes } from "../types";
 
@@ -84,7 +85,12 @@ export async function listPermissions(): Promise<PermissionRow[]> {
     .order("modulo");
 
   if (error) throw new Error(error.message);
-  return data ?? [];
+  if ((data ?? []).length > 0) return data ?? [];
+
+  console.warn(
+    "[listPermissions] Sin filas en permissions — usando catálogo estático (¿falta política RLS?)"
+  );
+  return PERMISSION_CATALOG;
 }
 
 export async function listRolePermissions(rol: AppRole) {

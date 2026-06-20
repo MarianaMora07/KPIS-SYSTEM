@@ -88,3 +88,11 @@ export async function togglePlanItemAction(itemId: string, completado: boolean) 
   await togglePlanItem(itemId, completado);
   revalidatePath("/alertas");
 }
+
+export async function deleteActionPlanAction(planId: string) {
+  await assertPermission("planes.gestionar");
+  const { deleteActionPlan } = await import("../services/alert-service");
+  await deleteActionPlan(planId);
+  revalidatePath("/alertas");
+  revalidatePath("/dashboard");
+}

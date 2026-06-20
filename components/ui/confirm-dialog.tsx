@@ -13,7 +13,9 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   variant?: "danger" | "warning" | "default";
   loading?: boolean;
+  confirmDisabled?: boolean;
   showCancel?: boolean;
+  children?: React.ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -26,7 +28,9 @@ export function ConfirmDialog({
   cancelLabel = "Cancelar",
   variant = "default",
   loading = false,
+  confirmDisabled = false,
   showCancel = true,
+  children,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -81,7 +85,8 @@ export function ConfirmDialog({
             transition={{ duration: 0.18 }}
             className={cn(
               "relative z-10 w-full max-w-md rounded-2xl border border-slate-200/80",
-              "bg-white p-6 shadow-xl shadow-slate-300/40"
+              "bg-white p-6 shadow-xl shadow-slate-300/40",
+              children ? "max-w-lg" : undefined
             )}
           >
             <div className="flex gap-4">
@@ -102,6 +107,7 @@ export function ConfirmDialog({
                     {description}
                   </p>
                 )}
+                {children}
               </div>
             </div>
 
@@ -120,7 +126,7 @@ export function ConfirmDialog({
                 ref={confirmRef}
                 type="button"
                 onClick={onConfirm}
-                disabled={loading}
+                disabled={loading || confirmDisabled}
                 className={cn(
                   "rounded-xl px-4 py-2 text-sm font-medium text-white transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2",

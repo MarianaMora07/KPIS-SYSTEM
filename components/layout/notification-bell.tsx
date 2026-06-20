@@ -10,7 +10,7 @@ export function NotificationBell() {
   useEffect(() => {
     async function poll() {
       try {
-        const res = await fetch("/api/alertas?estado=activa");
+        const res = await fetch("/api/alertas?abiertas=1");
         if (res.ok) {
           const data = await res.json();
           setCount(Array.isArray(data) ? data.length : 0);

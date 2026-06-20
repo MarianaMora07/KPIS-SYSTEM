@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Copy, Pencil } from "lucide-react";
+import { ArrowLeft, Copy } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { duplicateKpiAction, deleteKpiValueAction } from "@/modules/kpis/actions/kpi-actions";
+import { KpiEditForm } from "@/modules/kpis/components/kpi-edit-form";
+import type { KpiCreateInput } from "@/lib/validations/schemas";
+import type { KpiFormCatalogs } from "@/modules/kpis/components/kpi-form-fields";
 import { TargetsPanel } from "@/modules/metas/components/targets-panel";
 import { TrafficLightPanel } from "@/modules/metas/components/traffic-light-panel";
 import { FormulaPanel } from "@/modules/formulas/components/formula-panel";
@@ -41,6 +44,8 @@ interface KpiDetailViewProps {
   initialFormula?: string;
   formulaVariableCodes?: string[];
   initialSelectedFecha?: string;
+  editDefaultValues?: KpiCreateInput;
+  editCatalogs?: KpiFormCatalogs;
 }
 
 export function KpiDetailView({
@@ -55,6 +60,8 @@ export function KpiDetailView({
   initialFormula = "",
   formulaVariableCodes = [],
   initialSelectedFecha,
+  editDefaultValues,
+  editCatalogs,
 }: KpiDetailViewProps) {
   const { can, canManageUsers } = usePermissions();
   const canEdit = can("kpis.editar");
@@ -119,14 +126,13 @@ export function KpiDetailView({
               formulaVariableCodes={formulaVariableCodes}
             />
           )}
-          {canEdit && (
-            <Link
-              href={`/kpis/${id}/editar`}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
-            >
-              <Pencil className="h-4 w-4" />
-              Editar
-            </Link>
+          {canEdit && editDefaultValues && editCatalogs && (
+            <KpiEditForm
+              kpiId={id}
+              defaultValues={editDefaultValues}
+              catalogs={editCatalogs}
+              variant="modal"
+            />
           )}
           {canCreate && (
             <button

@@ -11,7 +11,9 @@ import {
   getKpiFormula,
 } from "@/modules/formulas/services/formula-service";
 import { getRequiredInputVariableCodes } from "@/lib/kpis/compute-formula-value";
-import { listRegions, listHotels } from "@/modules/catalog";
+import { listRegions, listHotels, listKpiCategories, listBusinessUnits, listSalesChannels, listMarketingCampaigns, listCommercialTeams } from "@/modules/catalog";
+import { listUsers } from "@/modules/seguridad/services/security-service";
+import type { KpiCreateInput } from "@/lib/validations/schemas";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import type { TrafficLightStatus } from "@/types/database";
 
@@ -27,25 +29,81 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
   const { valor: initialSelectedFecha } = await searchParams;
 
   try {
-    const [kpi, versions, values, targets, trafficRanges, variables, formula, regions, hotels] =
-      await Promise.all([
-        getKpiById(id),
-        listKpiVersions(id),
-        listKpiValues(id),
-        listTargets(id),
-        listTrafficLightRanges(id),
-        listVariables(),
-        getKpiFormula(id),
-        listRegions(),
-        listHotels(),
-      ]);
+    const [
+      kpi,
+      versions,
+      values,
+      targets,
+      trafficRanges,
+      variables,
+      formula,
+      regions,
+      hotels,
+      categories,
+      businessUnits,
+      salesChannels,
+      campaigns,
+      teams,
+      users,
+    ] = await Promise.all([
+      getKpiById(id),
+      listKpiVersions(id),
+      listKpiValues(id),
+      listTargets(id),
+      listTrafficLightRanges(id),
+      listVariables(),
+      getKpiFormula(id),
+      listRegions(),
+      listHotels(),
+      listKpiCategories(),
+      listBusinessUnits(),
+      listSalesChannels(),
+      listMarketingCampaigns(),
+      listCommercialTeams(),
+      listUsers().catch(() => []),
+    ]);
 
     const formulaVariableCodes = await getRequiredInputVariableCodes(id);
     const latestRange = trafficRanges[0] ?? null;
 
+    const editDefaultValues: KpiCreateInput = {
+      nombre: kpi.nombre,
+      codigo: kpi.codigo,
+      categoria_id: kpi.categoria_id,
+      area_responsable: kpi.area_responsable,
+      responsable_id: kpi.responsable_id,
+      frecuencia: kpi.frecuencia,
+      formula: kpi.formula,
+      unidad_medida: kpi.unidad_medida,
+      meta: kpi.meta,
+      fuente_informacion: kpi.fuente_informacion,
+      tipo_indicador: kpi.tipo_indicador,
+      hotel_id: kpi.hotel_id,
+      region_id: kpi.region_id,
+      business_unit_id: kpi.business_unit_id,
+      sales_channel_id: kpi.sales_channel_id,
+      marketing_campaign_id: kpi.marketing_campaign_id,
+      commercial_team_id: kpi.commercial_team_id,
+      estado: (kpi.estado as "activo" | "inactivo") ?? "activo",
+    };
+
     return (
       <KpiDetailView
         kpi={kpi}
+        editDefaultValues={editDefaultValues}
+        editCatalogs={{
+          categories,
+          regions,
+          hotels,
+          users: users.map((u) => ({
+            id: u.id,
+            nombre: [u.nombre, u.apellido].filter(Boolean).join(" ") || u.email,
+          })),
+          businessUnits,
+          salesChannels,
+          campaigns,
+          teams,
+        }}
         versions={versions}
         values={values.map((v) => ({
           id: v.id,

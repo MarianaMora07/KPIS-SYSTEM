@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plug, RefreshCw, CheckCircle, XCircle, Plus, ChevronDown } from "lucide-react";
+import { Plug, RefreshCw, CheckCircle, XCircle, Plus, ChevronDown, Trash2, Loader2 } from "lucide-react";
 import { usePermissions } from "@/components/layout/permissions-context";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { IntegrationDeleteImpact } from "@/modules/integraciones/services/integration-service";
 
 interface Integration {
   id: string;
@@ -58,6 +60,9 @@ export function IntegracionesView({ integrations: initial }: IntegracionesViewPr
               key={integration.id}
               integration={integration}
               canManage={canManage}
+              onDeleted={(id) =>
+                setIntegrations((prev) => prev.filter((i) => i.id !== id))
+              }
             />
           ))}
         </ul>
@@ -121,11 +126,17 @@ function CreateIntegrationForm({
 function IntegrationCard({
   integration,
   canManage,
+  onDeleted,
 }: {
   integration: Integration;
   canManage: boolean;
+  onDeleted: (id: string) => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteImpact, setDeleteImpact] = useState<IntegrationDeleteImpact | null>(null);
+  const [loadingImpact, setLoadingImpact] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [jobs, setJobs] = useState<
     {
@@ -180,6 +191,61 @@ function IntegrationCard({
     setJobLogs([]);
   }
 
+  async function openDeleteConfirm() {
+    setLoadingImpact(true);
+    setDeleteImpact(null);
+    try {
+      const res = await fetch(`/api/integraciones/${integration.id}/impact`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "No se pudo consultar el impacto");
+      }
+      const data = (await res.json()) as IntegrationDeleteImpact;
+      setDeleteImpact(data);
+      setConfirmDelete(true);
+    } catch (e) {
+      setLastResult({
+        ok: false,
+        message: e instanceof Error ? e.message : "Error al preparar eliminación",
+      });
+    } finally {
+      setLoadingImpact(false);
+    }
+  }
+
+  function deleteDescription() {
+    return `¿Desea eliminar «${integration.nombre}»? Se borrarán también sus jobs y logs de sincronización. Esta acción no se puede deshacer.`;
+  }
+
+  function handleDelete() {
+    setDeleting(true);
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/integraciones/${integration.id}`, {
+          method: "DELETE",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Error al eliminar");
+        onDeleted(integration.id);
+        if (data.kpiValuesDeleted > 0) {
+          setLastResult({
+            ok: true,
+            message: `Integración eliminada. Se borraron ${data.kpiValuesDeleted} valor(es) de KPI.`,
+          });
+        }
+      } catch (e) {
+        setLastResult({
+          ok: false,
+          message: e instanceof Error ? e.message : "Error al eliminar",
+        });
+      } finally {
+        setDeleting(false);
+        setConfirmDelete(false);
+        setDeleteImpact(null);
+      }
+    });
+  }
+
   return (
     <li className="glass rounded-xl border border-slate-200/60 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -222,15 +288,31 @@ function IntegrationCard({
             Jobs <ChevronDown className="h-3 w-3" />
           </button>
           {canManage && (
-            <button
-              type="button"
-              onClick={handleSync}
-              disabled={pending || !integration.activa}
-              className="flex items-center gap-1.5 rounded-lg bg-imperial-900 px-4 py-2 text-sm font-medium text-white hover:bg-imperial-800 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} />
-              Sincronizar
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleSync}
+                disabled={pending || deleting || !integration.activa}
+                className="flex items-center gap-1.5 rounded-lg bg-imperial-900 px-4 py-2 text-sm font-medium text-white hover:bg-imperial-800 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} />
+                Sincronizar
+              </button>
+              <button
+                type="button"
+                onClick={openDeleteConfirm}
+                disabled={pending || deleting || loadingImpact}
+                className="flex items-center gap-1 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                title="Eliminar integración"
+              >
+                {loadingImpact ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Eliminar
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -272,6 +354,47 @@ function IntegrationCard({
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Eliminar integración"
+        description={deleteDescription()}
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => {
+          if (!deleting) {
+            setConfirmDelete(false);
+            setDeleteImpact(null);
+          }
+        }}
+      >
+        {deleteImpact && deleteImpact.kpiValuesCount > 0 ? (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-900">
+              Valores de KPI que se eliminarán ({deleteImpact.kpiValuesCount})
+            </p>
+            <ul className="mt-2 max-h-40 space-y-1.5 overflow-y-auto text-sm text-amber-950">
+              {deleteImpact.values.map((value) => (
+                <li
+                  key={value.id}
+                  className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded bg-white/70 px-2 py-1"
+                >
+                  <span className="font-mono text-xs">{value.kpi_codigo}</span>
+                  <span className="text-slate-700">{value.kpi_nombre}</span>
+                  <span className="text-xs text-slate-500">{value.fecha}</span>
+                  <span className="font-medium tabular-nums">{value.valor_real}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : deleteImpact ? (
+          <p className="mt-3 text-sm text-slate-500">
+            No hay valores de KPI vinculados a esta integración.
+          </p>
+        ) : null}
+      </ConfirmDialog>
     </li>
   );
 }

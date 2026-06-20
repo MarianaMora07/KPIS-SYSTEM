@@ -21,6 +21,55 @@ export const PERMISSION_CODES = [
 
 export type PermissionCode = (typeof PERMISSION_CODES)[number];
 
+export interface PermissionCatalogRow {
+  codigo: PermissionCode;
+  descripcion: string;
+  modulo: string;
+}
+
+/** Catálogo estático — fallback si RLS bloquea lectura en Supabase */
+export const PERMISSION_CATALOG: PermissionCatalogRow[] = [
+  { codigo: "kpis.crear", descripcion: "Crear KPIs", modulo: "kpis" },
+  { codigo: "kpis.editar", descripcion: "Editar KPIs", modulo: "kpis" },
+  { codigo: "kpis.inactivar", descripcion: "Inactivar KPIs", modulo: "kpis" },
+  { codigo: "kpis.ver", descripcion: "Ver KPIs (solo lectura)", modulo: "kpis" },
+  { codigo: "metas.configurar", descripcion: "Configurar metas", modulo: "metas" },
+  { codigo: "dashboard.ver", descripcion: "Ver dashboards", modulo: "dashboard" },
+  { codigo: "import.cargar", descripcion: "Importar archivos", modulo: "import" },
+  {
+    codigo: "integraciones.gestionar",
+    descripcion: "Gestionar integraciones",
+    modulo: "integraciones",
+  },
+  { codigo: "reportes.exportar", descripcion: "Exportar reportes", modulo: "reportes" },
+  {
+    codigo: "catalogo.ver",
+    descripcion: "Ver catálogo organizacional",
+    modulo: "catalogo",
+  },
+  {
+    codigo: "catalogo.gestionar",
+    descripcion: "Gestionar catálogo organizacional",
+    modulo: "catalogo",
+  },
+  { codigo: "alertas.ver", descripcion: "Ver alertas", modulo: "alertas" },
+  {
+    codigo: "planes.gestionar",
+    descripcion: "Gestionar planes de acción",
+    modulo: "alertas",
+  },
+  {
+    codigo: "usuarios.gestionar",
+    descripcion: "Gestionar usuarios",
+    modulo: "seguridad",
+  },
+  {
+    codigo: "auditoria.ver",
+    descripcion: "Ver bitácora auditoría",
+    modulo: "seguridad",
+  },
+];
+
 const ADMIN_PERMISSIONS: PermissionCode[] = [...PERMISSION_CODES];
 
 const DIRECTOR_PERMISSIONS: PermissionCode[] = [

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, Loader2 } from "lucide-react";
 import { createActionPlanAction } from "@/modules/alertas/actions/alert-actions";
 import { FormField, FormActions } from "@/components/ui/form-modal";
+import type { AlertSeverity } from "../types";
 
 interface UserOption {
   id: string;
@@ -16,14 +17,18 @@ interface ActionPlanFormProps {
   kpiNombre: string;
   hotelNombre?: string;
   alertId?: string;
+  severidad?: AlertSeverity;
   defaultTitulo?: string;
   users?: UserOption[];
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 interface SuggestedPlan {
   titulo: string;
   descripcion: string;
   items: { descripcion: string }[];
+  fallback?: boolean;
 }
 
 export function ActionPlanForm({
@@ -31,13 +36,17 @@ export function ActionPlanForm({
   kpiNombre,
   hotelNombre,
   alertId,
+  severidad = "riesgo",
   defaultTitulo,
   users = [],
+  onSuccess,
+  onCancel,
 }: ActionPlanFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestNote, setSuggestNote] = useState<string | null>(null);
   const [titulo, setTitulo] = useState(
     defaultTitulo ?? `Plan de mejora — ${kpiNombre}${hotelNombre ? ` (${hotelNombre})` : ""}`
   );
@@ -51,6 +60,7 @@ export function ActionPlanForm({
   async function handleSuggest() {
     setSuggesting(true);
     setError(null);
+    setSuggestNote(null);
     try {
       const res = await fetch("/api/alertas/suggest-plan", {
         method: "POST",
@@ -58,17 +68,36 @@ export function ActionPlanForm({
         body: JSON.stringify({
           kpi_nombre: kpiNombre,
           hotel: hotelNombre,
-          semaforo: "incumplimiento",
+          semaforo: severidad === "critico" ? "incumplimiento" : "riesgo",
         }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "No se pudo generar sugerencia");
+      const data = (await res.json().catch(() => ({}))) as SuggestedPlan & {
+        error?: string;
+      };
+      if (!res.ok && data.error) {
+        throw new Error(data.error);
       }
-      const data: SuggestedPlan = await res.json();
-      setTitulo(data.titulo);
-      setDescripcion(data.descripcion);
-      setItems(data.items.map((i) => i.descripcion).join("\n"));
+      const titulo = data.titulo ?? `Plan correctivo — ${kpiNombre}`;
+      const descripcion = data.descripcion ?? "";
+      const itemLines = (data.items ?? []).map((i) => i.descripcion).filter(Boolean);
+      setTitulo(titulo);
+      setDescripcion(descripcion);
+      setItems(
+        itemLines.length > 0
+          ? itemLines.join("\n")
+          : [
+              `Revisar desempeño de ${kpiNombre}`,
+              "Definir acciones correctivas con responsable",
+              "Monitorear avance semanal",
+            ].join("\n")
+      );
+      if (data.fallback || !res.ok) {
+        setSuggestNote(
+          res.ok
+            ? "Plantilla local aplicada (Gemini no disponible). Puede editar el texto antes de guardar."
+            : "Sugerencia local aplicada. Gemini no respondió; puede editar antes de guardar."
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al sugerir plan");
     } finally {
@@ -95,12 +124,20 @@ export function ActionPlanForm({
           responsable_id: responsableId || null,
           items: itemLines.map((descripcion) => ({ descripcion })),
         });
-        router.push("/alertas");
-        router.refresh();
+        if (onSuccess) onSuccess();
+        else {
+          router.push("/alertas");
+          router.refresh();
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Error al guardar");
       }
     });
+  }
+
+  function handleCancel() {
+    if (onCancel) onCancel();
+    else router.push("/alertas");
   }
 
   return (
@@ -120,6 +157,12 @@ export function ActionPlanForm({
           Sugerir con IA
         </button>
       </div>
+
+      {suggestNote && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {suggestNote}
+        </p>
+      )}
 
       <FormField label="Título del plan" required>
         <input
@@ -185,7 +228,7 @@ export function ActionPlanForm({
       )}
 
       <FormActions
-        onCancel={() => router.push("/alertas")}
+        onCancel={handleCancel}
         submitLabel="Guardar plan"
         pending={pending}
         pendingLabel="Guardando…"

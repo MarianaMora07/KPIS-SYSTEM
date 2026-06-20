@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
 import { SchemaType, type ResponseSchema } from "@google/generative-ai";
 import { z } from "zod";
 import { generateJson, isGeminiConfigured } from "@/lib/gemini/client";
 import { checkRateLimit } from "@/lib/gemini/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 const actionPlanSchema: ResponseSchema = {
   type: SchemaType.OBJECT,
@@ -30,27 +30,27 @@ const suggestSchema = z.object({
   semaforo: z.enum(["cumplimiento", "riesgo", "incumplimiento"]).optional(),
 });
 
+function buildFallbackPlan(
+  kpiNombre: string,
+  hotel?: string,
+  semaforo?: string
+) {
+  const scope = hotel ? ` en ${hotel}` : "";
+  const estado = semaforo ?? "incumplimiento";
+  return {
+    titulo: `Plan correctivo — ${kpiNombre}`.slice(0, 200),
+    descripcion: `Acciones para revertir el estado de ${estado} del KPI ${kpiNombre}${scope}. Priorizar diagnóstico de causas, medidas inmediatas y seguimiento semanal hasta recuperar la meta.`,
+    items: [
+      { descripcion: `Revisar datos y validar el valor reportado de ${kpiNombre}` },
+      { descripcion: "Identificar causas raíz con el equipo responsable del área" },
+      { descripcion: "Definir acciones correctivas con responsable y fecha límite" },
+      { descripcion: "Monitorear avance semanal hasta volver a zona de cumplimiento" },
+    ],
+    fallback: true,
+  };
+}
+
 export async function POST(request: Request) {
-  if (!isGeminiConfigured()) {
-    return NextResponse.json(
-      { error: "Gemini no configurado. Añada GEMINI_API_KEY en .env.local" },
-      { status: 503 }
-    );
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
-
-  const rateKey = user?.id ?? request.headers.get("x-forwarded-for") ?? "anon";
-  if (!checkRateLimit(rateKey)) {
-    return NextResponse.json(
-      { error: "Límite de solicitudes IA alcanzado. Intente en 1 minuto." },
-      { status: 429 }
-    );
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -64,6 +64,20 @@ export async function POST(request: Request) {
   }
 
   const { kpi_nombre, hotel, valor_real, valor_meta, semaforo } = parsed.data;
+
+  if (!isGeminiConfigured()) {
+    return NextResponse.json(buildFallbackPlan(kpi_nombre, hotel, semaforo));
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+
+  const rateKey = user?.id ?? request.headers.get("x-forwarded-for") ?? "anon";
+  if (!checkRateLimit(rateKey)) {
+    return NextResponse.json(buildFallbackPlan(kpi_nombre, hotel, semaforo));
+  }
 
   const prompt = `Eres un consultor de hotelería para Hoteles Estelar en Colombia.
 Genera un plan de acción correctivo en JSON válido (sin markdown) para el siguiente KPI en incumplimiento o riesgo:
@@ -96,11 +110,11 @@ Incluye 3 a 5 ítems accionables. No inventes cifras ni datos no proporcionados.
       items: (plan.items ?? []).slice(0, 8).map((i) => ({
         descripcion: String(i.descripcion).slice(0, 500),
       })),
+      fallback: false,
     });
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "Error al generar sugerencia";
+    const message = e instanceof Error ? e.message : "Error al generar sugerencia";
     console.error("[alertas/suggest-plan] Gemini error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(buildFallbackPlan(kpi_nombre, hotel, semaforo));
   }
 }

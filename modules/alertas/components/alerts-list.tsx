@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { AlertTriangle, ChevronRight, CheckCircle, ArrowUpCircle } from "lucide-react";
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -16,16 +15,23 @@ import { usePermissions } from "@/components/layout/permissions-context";
 interface AlertsListProps {
   alerts: AlertRow[];
   isDemo?: boolean;
+  onOpenPlan?: (params: {
+    kpiId: string;
+    kpiNombre: string;
+    hotelNombre?: string;
+    alertId?: string;
+    severidad?: AlertRow["severidad"];
+  }) => void;
 }
 
 type PendingAction = { type: "resolve" | "escalate"; alert: AlertRow };
 
-export function AlertsList({ alerts, isDemo }: AlertsListProps) {
+export function AlertsList({ alerts, isDemo, onOpenPlan }: AlertsListProps) {
   if (alerts.length === 0) {
     return (
       <div className="glass rounded-xl border border-dashed border-slate-200 p-12 text-center">
         <CheckCircle className="mx-auto mb-3 h-8 w-8 text-green-500" />
-        <p className="text-sm text-slate-600">No hay alertas activas en este momento.</p>
+        <p className="text-sm text-slate-600">No hay alertas abiertas en este momento.</p>
       </div>
     );
   }
@@ -33,13 +39,21 @@ export function AlertsList({ alerts, isDemo }: AlertsListProps) {
   return (
     <ul className="space-y-3">
       {alerts.map((alert) => (
-        <AlertCard key={alert.id} alert={alert} isDemo={isDemo} />
+        <AlertCard key={alert.id} alert={alert} isDemo={isDemo} onOpenPlan={onOpenPlan} />
       ))}
     </ul>
   );
 }
 
-function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
+function AlertCard({
+  alert,
+  isDemo,
+  onOpenPlan,
+}: {
+  alert: AlertRow;
+  isDemo?: boolean;
+  onOpenPlan?: AlertsListProps["onOpenPlan"];
+}) {
   const { can } = usePermissions();
   const canManageAlerts = can("alertas.ver");
   const canManagePlans = can("planes.gestionar");
@@ -48,7 +62,14 @@ function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
   const status: TrafficLightStatus =
     alert.severidad === "critico" ? "incumplimiento" : "riesgo";
 
-  const planUrl = buildPlanUrl(alert);
+  const planParams = {
+    kpiId: alert.kpi_id,
+    kpiNombre: alert.kpi_nombre ?? "KPI",
+    hotelNombre: alert.hotel_nombre,
+    alertId: alert.id,
+    severidad: alert.severidad,
+  };
+  const isEscalada = alert.estado === "escalada" || alert.escalada;
   const isTargetAlert =
     !!alert.kpi_target_id || alert.mensaje.startsWith("Meta finalizada:");
 
@@ -92,6 +113,11 @@ function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                   {alert.severidad}
                 </span>
+                {isEscalada && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                    Escalada
+                  </span>
+                )}
                 {isTargetAlert && (
                   <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
                     Meta finalizada
@@ -117,25 +143,28 @@ function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
                 >
                   Resolver
                 </button>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setPendingAction({ type: "escalate", alert })}
-                  className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 hover:bg-amber-100 disabled:opacity-60"
-                >
-                  <ArrowUpCircle className="h-3.5 w-3.5" />
-                  Escalar
-                </button>
+                {!isEscalada && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setPendingAction({ type: "escalate", alert })}
+                    className="flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+                  >
+                    <ArrowUpCircle className="h-3.5 w-3.5" />
+                    Escalar
+                  </button>
+                )}
               </>
             )}
             {canManagePlans && (
-              <Link
-                href={planUrl}
+              <button
+                type="button"
+                onClick={() => onOpenPlan?.(planParams)}
                 className="flex items-center gap-1 rounded-lg bg-imperial-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-imperial-800"
               >
                 Plan de acción
                 <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -154,16 +183,4 @@ function AlertCard({ alert, isDemo }: { alert: AlertRow; isDemo?: boolean }) {
       />
     </>
   );
-}
-
-function buildPlanUrl(alert: AlertRow): string {
-  const params = new URLSearchParams({
-    accion: "plan",
-    kpi_id: alert.kpi_id,
-    kpi: alert.kpi_nombre ?? "",
-  });
-  if (alert.id) params.set("alert_id", alert.id);
-  if (alert.hotel_id) params.set("hotel_id", alert.hotel_id);
-  if (alert.hotel_nombre) params.set("hotel", alert.hotel_nombre);
-  return `/alertas?${params.toString()}`;
 }

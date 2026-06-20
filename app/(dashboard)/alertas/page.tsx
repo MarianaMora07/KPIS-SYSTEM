@@ -1,10 +1,16 @@
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { listAlerts, listActionPlans } from "@/modules/alertas/services/alert-service";
-import { syncExpiredTargetAlerts } from "@/modules/metas/services/target-expiry-service";
+import {
+  listOpenAlerts,
+  listActionPlans,
+  type AlertListFilters,
+} from "@/modules/alertas/services/alert-service";
+import { syncAllAlerts } from "@/modules/alertas/services/alert-sync-service";
+import { filterAlertsClient } from "@/modules/alertas/utils/filter-alerts";
 import { listUsers } from "@/modules/seguridad/services/security-service";
 import { DEMO_ALERTS } from "@/modules/alertas/data/demo-alerts";
 import { AlertasTabsView } from "@/modules/alertas/components/alertas-tabs-view";
+import { Suspense } from "react";
 
 interface AlertasPageProps {
   searchParams: Promise<{
@@ -15,6 +21,9 @@ interface AlertasPageProps {
     hotel_id?: string;
     hotel?: string;
     tab?: string;
+    region?: string;
+    desde?: string;
+    hasta?: string;
   }>;
 }
 
@@ -22,19 +31,28 @@ export default async function AlertasPage({ searchParams }: AlertasPageProps) {
   const params = await searchParams;
   const isDemo = !isSupabaseConfigured();
 
+  const alertFilters: AlertListFilters = {
+    regionId: params.region,
+    hotelId: params.hotel,
+    fechaDesde: params.desde,
+    fechaHasta: params.hasta,
+  };
+
   if (!isDemo) {
     await requirePermission("alertas.ver");
   }
 
-  let alerts = DEMO_ALERTS;
+  let alerts: typeof DEMO_ALERTS = isDemo
+    ? filterAlertsClient(DEMO_ALERTS, alertFilters)
+    : [];
   let plans: Awaited<ReturnType<typeof listActionPlans>> = [];
   let users: { id: string; nombre: string }[] = [];
 
   if (!isDemo) {
     try {
-      await syncExpiredTargetAlerts().catch(() => {});
+      await syncAllAlerts().catch(() => {});
       const [alertsData, plansData, usersData] = await Promise.all([
-        listAlerts("activa"),
+        listOpenAlerts(alertFilters),
         listActionPlans(),
         listUsers(),
       ]);
@@ -50,22 +68,24 @@ export default async function AlertasPage({ searchParams }: AlertasPageProps) {
   }
 
   return (
-    <AlertasTabsView
-      alerts={alerts}
-      plans={plans}
-      users={users}
-      isDemo={isDemo}
-      planFormParams={
-        params.accion === "plan" && params.kpi_id && params.kpi
-          ? {
-              kpiId: params.kpi_id,
-              kpiNombre: params.kpi,
-              hotelNombre: params.hotel,
-              alertId: params.alert_id,
-            }
-          : null
-      }
-      initialTab={params.tab === "planes" ? "planes" : "alertas"}
-    />
+    <Suspense fallback={<div className="h-32 animate-pulse rounded-xl bg-slate-100" />}>
+      <AlertasTabsView
+        alerts={alerts}
+        plans={plans}
+        users={users}
+        isDemo={isDemo}
+        planFormParams={
+          params.accion === "plan" && params.kpi_id && params.kpi
+            ? {
+                kpiId: params.kpi_id,
+                kpiNombre: params.kpi,
+                hotelNombre: params.hotel,
+                alertId: params.alert_id,
+              }
+            : null
+        }
+        initialTab={params.tab === "planes" ? "planes" : "alertas"}
+      />
+    </Suspense>
   );
 }

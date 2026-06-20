@@ -162,13 +162,13 @@ export function ImportUploadView() {
         </p>
       )}
       <div className="flex justify-end">
-        <a
+        <link
           href="/api/import/template"
           className="flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900"
         >
           <Download className="h-4 w-4" />
           Plantilla Excel
-        </a>
+        </link>
       </div>
       <div
         onDragOver={(e) => {
