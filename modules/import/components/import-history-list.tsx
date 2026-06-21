@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 
 export interface ImportHistoryItem {
   id: string;
@@ -16,6 +17,7 @@ export interface ImportHistoryItem {
 
 export function ImportHistoryList({ jobs }: { jobs: ImportHistoryItem[] }) {
   const router = useRouter();
+  const { showSuccess } = useSuccessToast();
   const [jobToDelete, setJobToDelete] = useState<ImportHistoryItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,7 @@ export function ImportHistoryList({ jobs }: { jobs: ImportHistoryItem[] }) {
       }
 
       setJobToDelete(null);
+      showSuccess(SUCCESS_MESSAGES.deleted);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al eliminar");

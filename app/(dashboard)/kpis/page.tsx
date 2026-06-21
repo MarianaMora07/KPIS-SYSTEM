@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { listKpis } from "@/modules/kpis/services/kpi-service";
 import {
@@ -10,11 +11,15 @@ import {
   listCommercialTeams,
 } from "@/modules/catalog";
 import { listUsers } from "@/modules/seguridad/services/security-service";
-import { KpiList } from "@/modules/kpis/components/kpi-list";
-import { KpisPageToolbar } from "@/modules/kpis/components/kpis-page-toolbar";
+import { listVariables } from "@/modules/formulas/services/formula-service";
+import { KpisTabsView } from "@/modules/kpis/components/kpis-tabs-view";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 
-export default async function KpisPage() {
+interface KpisPageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function KpisPage({ searchParams }: KpisPageProps) {
   if (!isSupabaseConfigured()) {
     return (
       <div className="glass rounded-xl border border-amber-200 bg-amber-50 p-8">
@@ -32,6 +37,8 @@ export default async function KpisPage() {
 
   await requirePermission("kpis.ver");
 
+  const params = await searchParams;
+
   const [
     kpis,
     categories,
@@ -42,6 +49,7 @@ export default async function KpisPage() {
     salesChannels,
     campaigns,
     teams,
+    variables,
   ] = await Promise.all([
     listKpis(),
     listKpiCategories(),
@@ -52,15 +60,20 @@ export default async function KpisPage() {
     listSalesChannels(),
     listMarketingCampaigns(),
     listCommercialTeams(),
+    listVariables(),
   ]);
 
   return (
-    <div className="space-y-6">
-      <KpisPageToolbar
-        kpis={kpis.map((k) => ({
-          id: k.id,
-          codigo: k.codigo,
-          nombre: k.nombre,
+    <Suspense fallback={<div className="h-32 animate-pulse rounded-xl bg-slate-100" />}>
+      <KpisTabsView
+        kpis={kpis}
+        variables={variables.map((v) => ({
+          id: v.id,
+          codigo: v.codigo,
+          nombre: v.nombre,
+          tipo: v.tipo,
+          unidad_medida: v.unidad_medida,
+          formula_compuesta: v.formula_compuesta,
         }))}
         categories={categories}
         regions={regions}
@@ -73,8 +86,8 @@ export default async function KpisPage() {
         salesChannels={salesChannels}
         campaigns={campaigns}
         teams={teams}
+        initialTab={params.tab === "variables" ? "variables" : "indicadores"}
       />
-      <KpiList kpis={kpis} />
-    </div>
+    </Suspense>
   );
 }

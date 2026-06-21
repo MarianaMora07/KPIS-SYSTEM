@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Copy } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -12,14 +12,17 @@ import type { KpiFormCatalogs } from "@/modules/kpis/components/kpi-form-fields"
 import { TargetsPanel } from "@/modules/metas/components/targets-panel";
 import { TrafficLightPanel } from "@/modules/metas/components/traffic-light-panel";
 import { FormulaPanel } from "@/modules/formulas/components/formula-panel";
-import { VariablesPanel } from "@/modules/formulas/components/variables-panel";
+import { KpiFormulaSetupPanel } from "@/modules/formulas/components/kpi-formula-setup-panel";
 import { RegisterValueForm } from "@/modules/kpis/components/register-value-form";
 import {
   KpiValuesAnalyticsPanel,
   type KpiValueRow,
 } from "@/modules/kpis/components/kpi-values-analytics-panel";
+import { KpiRegisteredValuesPanel } from "@/modules/kpis/components/kpi-registered-values-panel";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { formatKpiValue } from "@/modules/dashboard/types";
+import type { DimensionCatalogs } from "@/lib/kpis/dimension-scope";
 
 interface KpiDetailViewProps {
   kpi: Record<string, unknown>;
@@ -46,6 +49,7 @@ interface KpiDetailViewProps {
   initialSelectedFecha?: string;
   editDefaultValues?: KpiCreateInput;
   editCatalogs?: KpiFormCatalogs;
+  dimensionCatalogs?: DimensionCatalogs;
 }
 
 export function KpiDetailView({
@@ -62,24 +66,58 @@ export function KpiDetailView({
   initialSelectedFecha,
   editDefaultValues,
   editCatalogs,
+  dimensionCatalogs = {},
 }: KpiDetailViewProps) {
   const { can, canManageUsers } = usePermissions();
   const canEdit = can("kpis.editar");
   const canCreate = can("kpis.crear");
   const canConfigureMetas = can("metas.configurar");
+  const { showSuccess } = useSuccessToast();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [valueToDelete, setValueToDelete] = useState<KpiValueRow | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const id = kpi.id as string;
   const unidadMedida = (kpi.unidad_medida as string) ?? "";
+
+  const kpiScopeDefaults = useMemo(
+    () => ({
+      hotel_id: (kpi.hotel_id as string | null) ?? null,
+      region_id: (kpi.region_id as string | null) ?? null,
+      business_unit_id: (kpi.business_unit_id as string | null) ?? null,
+      sales_channel_id: (kpi.sales_channel_id as string | null) ?? null,
+      marketing_campaign_id: (kpi.marketing_campaign_id as string | null) ?? null,
+      commercial_team_id: (kpi.commercial_team_id as string | null) ?? null,
+    }),
+    [
+      kpi.hotel_id,
+      kpi.region_id,
+      kpi.business_unit_id,
+      kpi.sales_channel_id,
+      kpi.marketing_campaign_id,
+      kpi.commercial_team_id,
+    ]
+  );
+
+  const registerKpis = useMemo(
+    () => [
+      {
+        id,
+        codigo: kpi.codigo as string,
+        nombre: kpi.nombre as string,
+      },
+    ],
+    [id, kpi.codigo, kpi.nombre]
+  );
 
   function handleDuplicate() {
     startTransition(async () => {
       try {
         const copy = await duplicateKpiAction(id);
         setShowDuplicateConfirm(false);
+        showSuccess(SUCCESS_MESSAGES.created);
         if (copy?.id) router.push(`/kpis/${copy.id}`);
       } catch (err) {
         setShowDuplicateConfirm(false);
@@ -94,6 +132,7 @@ export function KpiDetailView({
       try {
         await deleteKpiValueAction(id, valueToDelete.id);
         setValueToDelete(null);
+        showSuccess(SUCCESS_MESSAGES.deleted);
         router.refresh();
       } catch (err) {
         setValueToDelete(null);
@@ -115,15 +154,13 @@ export function KpiDetailView({
         <div className="flex gap-2">
           {canConfigureMetas && (
             <RegisterValueForm
-              kpis={[
-                {
-                  id,
-                  codigo: kpi.codigo as string,
-                  nombre: kpi.nombre as string,
-                },
-              ]}
+              kpis={registerKpis}
               defaultKpiId={id}
               formulaVariableCodes={formulaVariableCodes}
+              kpiScopeDefaults={kpiScopeDefaults}
+              dimensionCatalogs={dimensionCatalogs}
+              open={registerOpen}
+              onOpenChange={setRegisterOpen}
             />
           )}
           {canEdit && editDefaultValues && editCatalogs && (
@@ -131,6 +168,8 @@ export function KpiDetailView({
               kpiId={id}
               defaultValues={editDefaultValues}
               catalogs={editCatalogs}
+              variables={variables}
+              initialFormula={initialFormula}
               variant="modal"
             />
           )}
@@ -169,63 +208,36 @@ export function KpiDetailView({
 
       {canConfigureMetas && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <TargetsPanel kpiId={id} targets={targets} regions={regions} hotels={hotels} />
+          <TargetsPanel
+            kpiId={id}
+            targets={targets}
+            regions={regions}
+            hotels={hotels}
+            campaigns={dimensionCatalogs.campaigns}
+          />
           <TrafficLightPanel kpiId={id} initialRanges={trafficLightRanges} />
         </div>
       )}
 
       {(canManageUsers || variables.length > 0 || initialFormula) && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <VariablesPanel variables={variables} />
-          <FormulaPanel
-            kpiId={id}
-            kpiNombre={kpi.nombre as string}
-            variableCodes={variables.map((v) => v.codigo)}
-            initialExpresion={initialFormula}
-          />
-        </div>
+        <KpiFormulaSetupPanel
+          kpiId={id}
+          kpiNombre={kpi.nombre as string}
+          allVariables={variables}
+          initialExpresion={initialFormula}
+          onFormulaSaved={() => router.refresh()}
+          onRequestRegisterValue={
+            canConfigureMetas ? () => setRegisterOpen(true) : undefined
+          }
+        />
       )}
 
-      <section className="glass rounded-xl border border-slate-200/60 p-6">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">
-          Valores registrados
-        </h2>
-        <ul className="space-y-2 text-sm">
-          {values.map((v) => (
-            <li
-              key={v.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 px-3 py-2"
-            >
-              <span className="text-slate-600">{v.fecha}</span>
-              <span className="font-medium">
-                {formatKpiValue(Number(v.valor_real), unidadMedida)}
-              </span>
-              <span className="text-slate-500">{v.cumplimiento_pct ?? "—"}%</span>
-              {v.variable_inputs && Object.keys(v.variable_inputs).length > 0 && (
-                <span className="w-full text-xs text-slate-400">
-                  Entradas:{" "}
-                  {Object.entries(v.variable_inputs)
-                    .map(([k, val]) => `${k}=${val}`)
-                    .join(", ")}
-                </span>
-              )}
-              {canManageUsers && (
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setValueToDelete(v)}
-                  className="text-xs text-red-600 hover:text-red-800"
-                >
-                  Eliminar
-                </button>
-              )}
-            </li>
-          ))}
-          {values.length === 0 && (
-            <li className="text-slate-500">Sin valores registrados.</li>
-          )}
-        </ul>
-      </section>
+      <KpiRegisteredValuesPanel
+        values={values}
+        unidadMedida={unidadMedida}
+        pending={pending}
+        onDelete={setValueToDelete}
+      />
 
       <section className="glass rounded-xl border border-slate-200/60 p-6">
         <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">

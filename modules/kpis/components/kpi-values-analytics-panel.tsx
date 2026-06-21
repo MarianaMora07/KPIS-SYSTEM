@@ -24,6 +24,13 @@ export interface KpiValueRow {
   cumplimiento_pct: number | null;
   semaforo?: TrafficLightStatus | null;
   variable_inputs?: Record<string, number> | null;
+  hotel_id?: string | null;
+  region_id?: string | null;
+  business_unit_id?: string | null;
+  sales_channel_id?: string | null;
+  marketing_campaign_id?: string | null;
+  commercial_team_id?: string | null;
+  scope_label?: string | null;
 }
 
 interface KpiValuesAnalyticsPanelProps {

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { createTargetAction, deleteTargetAction } from "../actions/targets-actions";
 import { TargetExpiredBadge } from "./target-expired-badge";
@@ -11,6 +12,7 @@ interface TargetsPanelProps {
   targets: Record<string, unknown>[];
   regions?: { id: string; nombre: string }[];
   hotels?: { id: string; nombre: string }[];
+  campaigns?: { id: string; nombre: string }[];
 }
 
 const PERIODOS = [
@@ -26,8 +28,10 @@ export function TargetsPanel({
   targets,
   regions = [],
   hotels = [],
+  campaigns = [],
 }: TargetsPanelProps) {
   const { can } = usePermissions();
+  const { showSuccess } = useSuccessToast();
   const canConfigure = can("metas.configurar");
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -38,6 +42,7 @@ export function TargetsPanel({
     startTransition(async () => {
       await deleteTargetAction(kpiId, toDelete);
       setToDelete(null);
+      showSuccess(SUCCESS_MESSAGES.deleted);
     });
   }
 
@@ -69,6 +74,7 @@ export function TargetsPanel({
                 valor_meta: Number(fd.get("valor_meta")),
                 region_id: (fd.get("region_id") as string) || null,
                 hotel_id: (fd.get("hotel_id") as string) || null,
+                marketing_campaign_id: (fd.get("marketing_campaign_id") as string) || null,
               });
               setOpen(false);
             });
@@ -100,6 +106,16 @@ export function TargetsPanel({
               {hotels.map((h) => (
                 <option key={h.id} value={h.id}>
                   {h.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+          {campaigns.length > 0 && (
+            <select name="marketing_campaign_id" className="rounded border px-2 py-1 text-sm">
+              <option value="">Todas las campañas</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
                 </option>
               ))}
             </select>

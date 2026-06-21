@@ -48,7 +48,8 @@ export async function createActionPlanAction(input: ActionPlanInput) {
     await supabase
       .from("alerts")
       .update({ estado: "resuelta", resuelta_at: new Date().toISOString() })
-      .eq("id", parsed.alert_id);
+      .eq("id", parsed.alert_id)
+      .in("estado", ["activa", "escalada"]);
   }
 
   revalidatePath("/alertas");
@@ -59,13 +60,21 @@ export async function createActionPlanAction(input: ActionPlanInput) {
 export async function resolveAlertAction(alertId: string) {
   await assertPermission("alertas.ver");
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("alerts")
     .update({ estado: "resuelta", resuelta_at: new Date().toISOString() })
-    .eq("id", alertId);
+    .eq("id", alertId)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!data) {
+    throw new Error(
+      "No se pudo resolver la alerta. Verifique permisos o que la alerta exista."
+    );
+  }
   revalidatePath("/alertas");
+  revalidatePath("/dashboard");
 }
 
 export async function escalateAlertAction(alertId: string) {
@@ -79,7 +88,23 @@ export async function updatePlanStatusAction(planId: string, estado: string) {
   await assertPermission("planes.gestionar");
   const { updatePlanStatus } = await import("../services/alert-service");
   await updatePlanStatus(planId, estado);
+  if (estado === "completado") {
+    const supabase = await createClient();
+    const { data: plan } = await supabase
+      .from("action_plans")
+      .select("alert_id")
+      .eq("id", planId)
+      .maybeSingle();
+    if (plan?.alert_id) {
+      await supabase
+        .from("alerts")
+        .update({ estado: "resuelta", resuelta_at: new Date().toISOString() })
+        .eq("id", plan.alert_id)
+        .in("estado", ["activa", "escalada"]);
+    }
+  }
   revalidatePath("/alertas");
+  revalidatePath("/dashboard");
 }
 
 export async function togglePlanItemAction(itemId: string, completado: boolean) {

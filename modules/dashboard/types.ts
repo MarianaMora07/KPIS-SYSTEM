@@ -27,12 +27,27 @@ export interface DashboardFilters {
 
 export function formatKpiValue(valor: number, unidad: string): string {
   if (unidad === "%") return `${valor.toFixed(1)}%`;
-  if (unidad === "COP")
+  if (unidad === "COP") {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
       currency: "COP",
       maximumFractionDigits: 0,
     }).format(valor);
+  }
+  if (unidad === "USD") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(valor);
+  }
+  if (unidad === "EUR") {
+    return new Intl.NumberFormat("es-ES", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    }).format(valor);
+  }
   return `${valor.toFixed(1)} ${unidad}`;
 }
 

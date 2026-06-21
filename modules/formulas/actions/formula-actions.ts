@@ -19,5 +19,6 @@ export async function saveFormulaAction(kpiId: string, expresion: string) {
 
   const result = await saveKpiFormula(kpiId, expresion, user.id);
   revalidatePath(`/kpis/${kpiId}`);
+  revalidatePath("/kpis", "layout");
   return result;
 }

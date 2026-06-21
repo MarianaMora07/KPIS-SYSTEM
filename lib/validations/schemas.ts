@@ -51,6 +51,7 @@ export const kpiTargetSchema = z.object({
   valor_meta: z.number(),
   hotel_id: z.string().uuid().optional().nullable(),
   region_id: z.string().uuid().optional().nullable(),
+  marketing_campaign_id: z.string().uuid().optional().nullable(),
   descripcion: z.string().max(500).optional().nullable(),
 });
 
@@ -66,9 +67,13 @@ export const kpiValueSchema = z
     fecha: z.string().date(),
     valor_real: z.number().optional(),
     valor_meta: z.number().optional().nullable(),
-    hotel_id: z.string().uuid().optional().nullable(),
-    region_id: z.string().uuid().optional().nullable(),
-    variable_inputs: z.record(z.string(), z.number()).optional(),
+  hotel_id: z.string().uuid().optional().nullable(),
+  region_id: z.string().uuid().optional().nullable(),
+  business_unit_id: z.string().uuid().optional().nullable(),
+  sales_channel_id: z.string().uuid().optional().nullable(),
+  marketing_campaign_id: z.string().uuid().optional().nullable(),
+  commercial_team_id: z.string().uuid().optional().nullable(),
+  variable_inputs: z.record(z.string(), z.number()).optional(),
   })
   .refine(
     (data) =>

@@ -49,7 +49,7 @@ export function AlertasTabsView({
     if (planFormParams) setPlanModal(planFormParams);
   }, [planFormParams]);
 
-  function closePlanModal() {
+  function closePlanModal(refresh = false) {
     setPlanModal(null);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("accion");
@@ -60,6 +60,7 @@ export function AlertasTabsView({
     params.delete("hotel");
     const qs = params.toString();
     router.replace(qs ? `/alertas?${qs}` : "/alertas", { scroll: false });
+    if (refresh) router.refresh();
   }
 
   return (
@@ -112,8 +113,8 @@ export function AlertasTabsView({
               alertId={planModal.alertId}
               severidad={planModal.severidad}
               users={users}
-              onSuccess={closePlanModal}
-              onCancel={closePlanModal}
+              onSuccess={() => closePlanModal(true)}
+              onCancel={() => closePlanModal()}
             />
           )}
         </FormModal>

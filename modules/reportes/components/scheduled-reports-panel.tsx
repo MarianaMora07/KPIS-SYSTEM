@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  FormModal,
+  FormField,
+  FormSelect,
+  FormActions,
+  FormPrimaryButton,
+} from "@/components/ui/form-modal";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import {
   createScheduledReportAction,
@@ -16,6 +25,7 @@ export function ScheduledReportsPanel({
   schedules: ScheduledReportRow[];
 }) {
   const { can } = usePermissions();
+  const { showSuccess } = useSuccessToast();
   const canExport = can("reportes.exportar");
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -27,19 +37,23 @@ export function ScheduledReportsPanel({
         <h2 className="text-sm font-medium uppercase tracking-wider text-slate-500">
           Reportes programados
         </h2>
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          disabled={!canExport}
-          className="text-xs text-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          + Programar reporte
-        </button>
+        {canExport && (
+          <FormPrimaryButton onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Programar reporte
+          </FormPrimaryButton>
+        )}
       </div>
 
-      {open && canExport && (
+      <FormModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Programar reporte"
+        subtitle="Configure la frecuencia y destinatarios del envío automático"
+        maxWidth="md"
+      >
         <form
-          className="mb-4 grid gap-2 sm:grid-cols-2"
+          className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
@@ -51,43 +65,46 @@ export function ScheduledReportsPanel({
                 emails: fd.get("emails") as string,
               });
               setOpen(false);
+              showSuccess(SUCCESS_MESSAGES.created);
             });
           }}
         >
-          <input
+          <FormField
+            label="Nombre del reporte"
             name="nombre"
-            placeholder="Nombre del reporte"
+            required
             defaultValue="Reporte semanal KPIs"
-            required
-            className="rounded border px-2 py-1 text-sm sm:col-span-2"
           />
-          <input
+          <FormField
+            label="Expresión cron"
             name="frecuencia_cron"
-            placeholder="Cron (ej: 0 8 * * 1)"
+            required
             defaultValue="0 8 * * 1"
-            required
-            className="rounded border px-2 py-1 text-sm font-mono"
+            placeholder="0 8 * * 1"
           />
-          <select name="formato" className="rounded border px-2 py-1 text-sm">
-            <option value="pdf">PDF</option>
-            <option value="excel">Excel</option>
-            <option value="pptx">PowerPoint</option>
-          </select>
-          <input
+          <FormSelect
+            label="Formato"
+            name="formato"
+            defaultValue="pdf"
+            options={[
+              { id: "pdf", nombre: "PDF" },
+              { id: "excel", nombre: "Excel" },
+              { id: "pptx", nombre: "PowerPoint" },
+            ]}
+          />
+          <FormField
+            label="Correos destinatarios"
             name="emails"
-            placeholder="Correos (separados por coma)"
             required
-            className="rounded border px-2 py-1 text-sm sm:col-span-2"
+            placeholder="correo1@empresa.com, correo2@empresa.com"
           />
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded bg-imperial-900 px-3 py-1 text-sm text-white sm:col-span-2"
-          >
-            Guardar programación
-          </button>
+          <FormActions
+            onCancel={() => setOpen(false)}
+            submitLabel="Guardar programación"
+            pending={pending}
+          />
         </form>
-      )}
+      </FormModal>
 
       <ul className="space-y-2 text-sm">
         {schedules.map((s) => (
@@ -113,7 +130,10 @@ export function ScheduledReportsPanel({
                     type="button"
                     disabled={pending}
                     onClick={() =>
-                      startTransition(() => toggleScheduledReportAction(s.id, !s.activo))
+                      startTransition(async () => {
+                        await toggleScheduledReportAction(s.id, !s.activo);
+                        showSuccess(SUCCESS_MESSAGES.updated);
+                      })
                     }
                     className="text-xs text-slate-600"
                   >
@@ -149,6 +169,7 @@ export function ScheduledReportsPanel({
           startTransition(async () => {
             await deleteScheduledReportAction(toDelete);
             setToDelete(null);
+            showSuccess(SUCCESS_MESSAGES.deleted);
           });
         }}
         onCancel={() => setToDelete(null)}

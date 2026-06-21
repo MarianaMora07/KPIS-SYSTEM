@@ -12,6 +12,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import {
   DEMO_DASHBOARD_DATA,
   DEMO_METAS_DATA,
+  DEMO_KPI_CREATION_ORDER,
   filterDemoData,
   filterDemoMetas,
 } from "@/modules/dashboard/data/demo-data";
@@ -121,7 +122,14 @@ function getLatestFromDemo(data: DashboardKpiRow[]) {
       map.set(row.kpi_id, row);
     }
   }
-  return Array.from(map.values());
+  const cards = Array.from(map.values());
+  const order = new Map(DEMO_KPI_CREATION_ORDER.map((id, index) => [id, index]));
+  cards.sort(
+    (a, b) =>
+      (order.get(a.kpi_id) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(b.kpi_id) ?? Number.MAX_SAFE_INTEGER)
+  );
+  return cards;
 }
 
 export default function ExecutiveDashboardPage(props: PageProps) {

@@ -124,6 +124,10 @@ export interface Database {
           kpi_id: string;
           hotel_id: string | null;
           region_id: string | null;
+          business_unit_id: string | null;
+          sales_channel_id: string | null;
+          marketing_campaign_id: string | null;
+          commercial_team_id: string | null;
           fecha: string;
           valor_real: number;
           valor_meta: number | null;

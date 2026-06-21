@@ -1,5 +1,6 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { PermissionsProvider } from "@/components/layout/permissions-context";
+import { SuccessToastProvider } from "@/components/ui/success-toast";
 import { listRegions, listHotels } from "@/modules/catalog";
 import { getSessionUser } from "@/lib/auth/get-session-user";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
@@ -38,7 +39,8 @@ export default async function DashboardLayout({
 
   return (
     <PermissionsProvider permissions={permissions} rol={effectiveRol} isDemoMode={isDemoMode}>
-      <DashboardShell
+      <SuccessToastProvider>
+        <DashboardShell
         regions={regions}
         hotels={hotels.map((h) => ({
           id: h.id,
@@ -51,6 +53,7 @@ export default async function DashboardLayout({
       >
         {children}
       </DashboardShell>
+      </SuccessToastProvider>
     </PermissionsProvider>
   );
 }

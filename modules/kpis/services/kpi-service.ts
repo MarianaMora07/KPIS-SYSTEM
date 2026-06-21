@@ -26,6 +26,19 @@ export async function getKpiById(id: string) {
   return data;
 }
 
+export async function generateNextKpiCodigo(): Promise<string> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("kpis").select("codigo");
+  if (error) throw new Error(error.message);
+
+  const used = new Set((data ?? []).map((row) => String(row.codigo).toUpperCase()));
+  for (let n = 1; n < 100000; n += 1) {
+    const candidate = `KPI-${String(n).padStart(3, "0")}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  throw new Error("No se pudo generar un código único para el KPI");
+}
+
 export async function createKpi(input: KpiCreateInput) {
   const parsed = kpiCreateSchema.parse(input);
   const supabase = await createClient();
@@ -160,9 +173,11 @@ export async function listKpiVersions(kpiId: string) {
 
 export async function listKpiValues(kpiId: string, limit = 100) {
   const supabase = await createClient();
+  const dimensionSelect =
+    "id, fecha, valor_real, valor_meta, cumplimiento_pct, semaforo, variable_inputs, hotel_id, region_id, business_unit_id, sales_channel_id, marketing_campaign_id, commercial_team_id";
   const withInputs = await supabase
     .from("kpi_values")
-    .select("id, fecha, valor_real, valor_meta, cumplimiento_pct, semaforo, variable_inputs")
+    .select(dimensionSelect)
     .eq("kpi_id", kpiId)
     .order("fecha", { ascending: false })
     .limit(limit);
@@ -170,9 +185,11 @@ export async function listKpiValues(kpiId: string, limit = 100) {
   if (!withInputs.error) return withInputs.data ?? [];
 
   if (withInputs.error.message.includes("variable_inputs")) {
+    const fallbackSelect =
+      "id, fecha, valor_real, valor_meta, cumplimiento_pct, semaforo, hotel_id, region_id, business_unit_id, sales_channel_id, marketing_campaign_id, commercial_team_id";
     const { data, error } = await supabase
       .from("kpi_values")
-      .select("id, fecha, valor_real, valor_meta, cumplimiento_pct, semaforo")
+      .select(fallbackSelect)
       .eq("kpi_id", kpiId)
       .order("fecha", { ascending: false })
       .limit(limit);

@@ -6,6 +6,7 @@ import {
   FormError,
   FormActions,
 } from "@/components/ui/form-modal";
+import { FormUnitSelect } from "@/components/ui/form-unit-select";
 import type { KpiCreateInput } from "@/lib/validations/schemas";
 
 const FRECUENCIAS = [
@@ -36,6 +37,8 @@ interface KpiFormFieldsProps {
   error?: string | null;
   pending?: boolean;
   showEstado?: boolean;
+  hideFormula?: boolean;
+  hideCodigo?: boolean;
   onCancel: () => void;
   submitLabel: string;
   onSubmit: (input: KpiCreateInput) => void;
@@ -49,6 +52,8 @@ export function KpiFormFields({
   error,
   pending,
   showEstado = false,
+  hideFormula = false,
+  hideCodigo = false,
   onCancel,
   submitLabel,
   onSubmit,
@@ -58,7 +63,7 @@ export function KpiFormFields({
     const fd = new FormData(e.currentTarget);
     const input: KpiCreateInput = {
       nombre: fd.get("nombre") as string,
-      codigo: fd.get("codigo") as string,
+      codigo: hideCodigo ? "" : (fd.get("codigo") as string),
       categoria_id: fd.get("categoria_id") as string,
       area_responsable: fd.get("area_responsable") as string,
       responsable_id: (fd.get("responsable_id") as string) || null,
@@ -67,7 +72,7 @@ export function KpiFormFields({
       fuente_informacion: fd.get("fuente_informacion") as string,
       tipo_indicador: fd.get("tipo_indicador") as KpiCreateInput["tipo_indicador"],
       meta: fd.get("meta") ? Number(fd.get("meta")) : null,
-      formula: (fd.get("formula") as string) || null,
+      formula: hideFormula ? null : (fd.get("formula") as string) || null,
       estado: showEstado
         ? (fd.get("estado") as "activo" | "inactivo")
         : undefined,
@@ -86,7 +91,14 @@ export function KpiFormFields({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <FormField label="Nombre *" name="nombre" required defaultValue={dv.nombre} />
-      <FormField label="Código *" name="codigo" required defaultValue={dv.codigo} placeholder="OCP-002" />
+      {!hideCodigo && (
+        <FormField label="Código *" name="codigo" required defaultValue={dv.codigo} placeholder="OCP-002" />
+      )}
+      {hideCodigo && (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          El código del indicador se asignará automáticamente al crearlo (formato KPI-001, KPI-002…).
+        </p>
+      )}
       <FormSelect
         label="Categoría *"
         name="categoria_id"
@@ -120,11 +132,18 @@ export function KpiFormFields({
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Unidad medida *" name="unidad_medida" required defaultValue={dv.unidad_medida} placeholder="%" />
+        <FormUnitSelect
+          label="Unidad medida *"
+          name="unidad_medida"
+          required
+          defaultValue={dv.unidad_medida}
+        />
         <FormField label="Meta" name="meta" type="number" step="any" defaultValue={dv.meta != null ? String(dv.meta) : undefined} />
       </div>
       <FormField label="Fuente información *" name="fuente_informacion" required defaultValue={dv.fuente_informacion} />
-      <FormField label="Fórmula" name="formula" defaultValue={dv.formula ?? undefined} />
+      {!hideFormula && (
+        <FormField label="Fórmula" name="formula" defaultValue={dv.formula ?? undefined} />
+      )}
       <FormSelect
         label="Región"
         name="region_id"

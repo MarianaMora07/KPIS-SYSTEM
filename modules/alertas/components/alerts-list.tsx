@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, ChevronRight, CheckCircle, ArrowUpCircle } from "lucide-react";
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import {
   resolveAlertAction,
   escalateAlertAction,
@@ -55,10 +57,13 @@ function AlertCard({
   onOpenPlan?: AlertsListProps["onOpenPlan"];
 }) {
   const { can } = usePermissions();
+  const { showSuccess } = useSuccessToast();
   const canManageAlerts = can("alertas.ver");
   const canManagePlans = can("planes.gestionar");
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const status: TrafficLightStatus =
     alert.severidad === "critico" ? "incumplimiento" : "riesgo";
 
@@ -76,10 +81,18 @@ function AlertCard({
   function handleConfirm() {
     if (!pendingAction) return;
     const { type, alert: a } = pendingAction;
+    setActionError(null);
     startTransition(async () => {
-      if (type === "resolve") await resolveAlertAction(a.id);
-      else await escalateAlertAction(a.id);
-      setPendingAction(null);
+      try {
+        if (type === "resolve") await resolveAlertAction(a.id);
+        else await escalateAlertAction(a.id);
+        setPendingAction(null);
+        showSuccess(SUCCESS_MESSAGES.updated);
+        router.refresh();
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : "No se pudo completar la acción");
+        setPendingAction(null);
+      }
     });
   }
 
@@ -129,6 +142,9 @@ function AlertCard({
                 {alert.hotel_nombre && `${alert.hotel_nombre} · `}
                 {new Date(alert.created_at).toLocaleString("es-CO")}
               </p>
+              {actionError && (
+                <p className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-600">{actionError}</p>
+              )}
             </div>
           </div>
 

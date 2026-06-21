@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { assertPermission } from "@/lib/auth/require-permission";
-import { createVariable } from "../services/formula-service";
+import {
+  createVariable,
+  deleteVariable,
+  getVariableUsage,
+} from "../services/formula-service";
 
 function assertAdministrator(rol: string) {
   if (rol !== "administrador") {
@@ -21,7 +25,16 @@ export async function createVariableAction(input: {
   assertAdministrator(rol);
 
   try {
-    await createVariable(input);
+    const data = await createVariable(input);
+    revalidatePath("/kpis", "layout");
+    return {
+      id: data.id as string,
+      codigo: data.codigo as string,
+      nombre: data.nombre as string,
+      tipo: data.tipo as string,
+      unidad_medida: data.unidad_medida as string | null,
+      formula_compuesta: data.formula_compuesta as string | null,
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Error";
     if (msg.includes("duplicate") || msg.includes("unique")) {
@@ -34,5 +47,29 @@ export async function createVariableAction(input: {
     }
     throw e;
   }
-  revalidatePath("/kpis", "layout");
+}
+
+export async function getVariableUsageAction(variableId: string) {
+  const { rol } = await assertPermission("kpis.ver");
+  assertAdministrator(rol);
+  return getVariableUsage(variableId);
+}
+
+export async function deleteVariableAction(variableId: string) {
+  const { rol } = await assertPermission("kpis.editar");
+  assertAdministrator(rol);
+
+  try {
+    const usage = await deleteVariable(variableId);
+    revalidatePath("/kpis", "layout");
+    return usage;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Error";
+    if (msg.includes("row-level security")) {
+      throw new Error(
+        "No tiene permiso en base de datos para eliminar variables. Contacte al administrador."
+      );
+    }
+    throw e;
+  }
 }

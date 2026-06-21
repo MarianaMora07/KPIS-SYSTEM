@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Plug, RefreshCw, CheckCircle, XCircle, Plus, ChevronDown, Trash2, Loader2 } from "lucide-react";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import type { IntegrationDeleteImpact } from "@/modules/integraciones/services/integration-service";
 
 interface Integration {
@@ -132,6 +133,7 @@ function IntegrationCard({
   canManage: boolean;
   onDeleted: (id: string) => void;
 }) {
+  const { showSuccess } = useSuccessToast();
   const [pending, startTransition] = useTransition();
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -227,6 +229,7 @@ function IntegrationCard({
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Error al eliminar");
         onDeleted(integration.id);
+        showSuccess(SUCCESS_MESSAGES.deleted);
         if (data.kpiValuesDeleted > 0) {
           setLastResult({
             ok: true,

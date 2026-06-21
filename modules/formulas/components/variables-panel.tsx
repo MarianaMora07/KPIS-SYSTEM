@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/components/layout/permissions-context";
+import { FormUnitSelect } from "@/components/ui/form-unit-select";
 import { createVariableAction } from "../actions/variable-actions";
 
 interface VariableRow {
@@ -93,7 +94,14 @@ export function VariablesPanel({ variables }: { variables: VariableRow[] }) {
             <option value="simple">Simple</option>
             <option value="compuesta">Compuesta</option>
           </select>
-          <input name="unidad_medida" placeholder="Unidad" className="rounded border px-2 py-1 text-sm" />
+          <div className="sm:col-span-2">
+            <FormUnitSelect
+              label="Unidad de medida"
+              name="unidad_medida"
+              optional
+              placeholder="Opcional"
+            />
+          </div>
           {tipo === "compuesta" && (
             <textarea
               name="formula_compuesta"

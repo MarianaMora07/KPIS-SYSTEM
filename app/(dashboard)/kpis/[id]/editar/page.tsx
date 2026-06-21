@@ -4,6 +4,10 @@ import { requireKpiEditAccess } from "@/lib/auth/require-permission";
 import { getKpiById } from "@/modules/kpis/services/kpi-service";
 import { KpiEditForm } from "@/modules/kpis/components/kpi-edit-form";
 import {
+  listVariables,
+  getKpiFormula,
+} from "@/modules/formulas/services/formula-service";
+import {
   listKpiCategories,
   listRegions,
   listHotels,
@@ -36,6 +40,8 @@ export default async function KpiEditPage({ params }: PageProps) {
       salesChannels,
       campaigns,
       teams,
+      variables,
+      formula,
     ] = await Promise.all([
       listKpiCategories(),
       listRegions(),
@@ -45,6 +51,8 @@ export default async function KpiEditPage({ params }: PageProps) {
       listSalesChannels(),
       listMarketingCampaigns(),
       listCommercialTeams(),
+      listVariables(),
+      getKpiFormula(id),
     ]);
 
     const defaultValues: KpiCreateInput = {
@@ -85,6 +93,15 @@ export default async function KpiEditPage({ params }: PageProps) {
           campaigns,
           teams,
         }}
+        variables={variables.map((v) => ({
+          id: v.id,
+          codigo: v.codigo,
+          nombre: v.nombre,
+          tipo: v.tipo,
+          unidad_medida: v.unidad_medida,
+          formula_compuesta: v.formula_compuesta,
+        }))}
+        initialFormula={formula?.expresion ?? ""}
       />
     );
   } catch {

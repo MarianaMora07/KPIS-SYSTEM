@@ -3,22 +3,20 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { KpiCard } from "@/components/ui/kpi-card";
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import { TrendsLineChart } from "@/modules/dashboard/components/trends-line-chart";
 import { VarianceBarChart } from "@/modules/dashboard/components/variance-bar-chart";
 import { ComparativesChart } from "@/modules/dashboard/components/comparatives-chart";
 import { CriticalIndicatorsPanel } from "@/modules/dashboard/components/critical-indicators-panel";
+import { KpiCardsCarousel } from "@/modules/dashboard/components/kpi-cards-carousel";
 import {
   formatKpiValue,
-  formatVariacion,
   type DashboardKpiRow,
 } from "@/modules/dashboard/types";
 import {
   getKpiOptions,
   getValueOptionsForKpi,
 } from "@/modules/dashboard/utils/chart-data";
-import type { TrafficLightStatus } from "@/types/database";
 
 interface DashboardViewProps {
   kpiCards: DashboardKpiRow[];
@@ -98,30 +96,7 @@ export function DashboardView({
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {kpiCards.map((kpi, index) => (
-              <KpiCard
-                key={kpi.kpi_id}
-                nombre={kpi.kpi_nombre}
-                valor={formatKpiValue(Number(kpi.valor_real), kpi.unidad_medida)}
-                meta={
-                  kpi.valor_meta != null
-                    ? formatKpiValue(Number(kpi.valor_meta), kpi.unidad_medida)
-                    : undefined
-                }
-                variacion={formatVariacion(
-                  Number(kpi.valor_real),
-                  kpi.valor_meta != null ? Number(kpi.valor_meta) : null,
-                  kpi.unidad_medida
-                )}
-                semaforo={
-                  (kpi.semaforo_calculado ?? "riesgo") as TrafficLightStatus
-                }
-                index={index}
-                onClick={() => handleKpiCardClick(kpi)}
-              />
-            ))}
-          </div>
+          <KpiCardsCarousel cards={kpiCards} onCardClick={handleKpiCardClick} />
         )}
       </motion.section>
 

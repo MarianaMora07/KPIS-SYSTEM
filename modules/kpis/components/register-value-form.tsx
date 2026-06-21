@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { registerKpiValueAction } from "@/modules/kpis/actions/kpi-actions";
+import {
+  getKpiFormulaVariableCodesAction,
+  registerKpiValueAction,
+} from "@/modules/kpis/actions/kpi-actions";
+import { KpiDimensionFields } from "@/modules/kpis/components/kpi-dimension-fields";
+import type { DimensionCatalogs, KpiDimensionScope } from "@/lib/kpis/dimension-scope";
 import { usePermissions } from "@/components/layout/permissions-context";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import {
   FormModal,
   FormSelect,
@@ -13,28 +19,73 @@ import {
   FormSecondaryButton,
 } from "@/components/ui/form-modal";
 
+const EMPTY_VARIABLE_CODES: string[] = [];
+const EMPTY_SCOPE: Partial<KpiDimensionScope> = {};
+const EMPTY_CATALOGS: DimensionCatalogs = {};
+
 interface RegisterValueFormProps {
   kpis: { id: string; codigo: string; nombre: string }[];
   defaultKpiId?: string;
   /** Variables simples requeridas por la fórmula del KPI (si aplica). */
   formulaVariableCodes?: string[];
+  /** Defaults de desglose heredados del KPI. */
+  kpiScopeDefaults?: Partial<KpiDimensionScope>;
+  /** Catálogos para seleccionar dimensiones no fijadas en el KPI. */
+  dimensionCatalogs?: DimensionCatalogs;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function RegisterValueForm({
   kpis,
   defaultKpiId,
-  formulaVariableCodes = [],
+  formulaVariableCodes = EMPTY_VARIABLE_CODES,
+  kpiScopeDefaults = EMPTY_SCOPE,
+  dimensionCatalogs = EMPTY_CATALOGS,
+  open: controlledOpen,
+  onOpenChange,
 }: RegisterValueFormProps) {
   const { can } = usePermissions();
+  const { showSuccess } = useSuccessToast();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [variableCodes, setVariableCodes] = useState<string[]>(formulaVariableCodes);
+  const [loadingVariables, setLoadingVariables] = useState(false);
+
+  const kpiId = defaultKpiId ?? kpis[0]?.id;
+  const singleKpi = kpis.length === 1;
+  const fallbackCodesRef = useRef(formulaVariableCodes);
+  fallbackCodesRef.current = formulaVariableCodes;
+
+  useEffect(() => {
+    if (!open || !singleKpi || !kpiId) return;
+
+    let cancelled = false;
+    setLoadingVariables(true);
+
+    getKpiFormulaVariableCodesAction(kpiId)
+      .then((codes) => {
+        if (!cancelled) setVariableCodes(codes);
+      })
+      .catch(() => {
+        if (!cancelled) setVariableCodes(fallbackCodesRef.current);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingVariables(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, singleKpi, kpiId]);
 
   if (!can("metas.configurar") || kpis.length === 0) return null;
 
-  const singleKpi = kpis.length === 1;
-  const usesFormula = formulaVariableCodes.length > 0;
+  const usesFormula = variableCodes.length > 0;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -45,7 +96,7 @@ export function RegisterValueForm({
 
     const variable_inputs: Record<string, number> = {};
     if (usesFormula) {
-      for (const code of formulaVariableCodes) {
+      for (const code of variableCodes) {
         const raw = fd.get(`var_${code}`);
         if (raw != null && String(raw).trim() !== "") {
           variable_inputs[code] = Number(raw);
@@ -57,6 +108,11 @@ export function RegisterValueForm({
     const valor_real =
       valorRaw != null && String(valorRaw).trim() !== "" ? Number(valorRaw) : undefined;
 
+    const pickDimension = (name: string) => {
+      const raw = fd.get(name);
+      return raw != null && String(raw).trim() !== "" ? (String(raw) as string) : null;
+    };
+
     startTransition(async () => {
       try {
         await registerKpiValueAction({
@@ -65,8 +121,15 @@ export function RegisterValueForm({
           valor_real,
           variable_inputs: usesFormula ? variable_inputs : undefined,
           valor_meta: fd.get("valor_meta") ? Number(fd.get("valor_meta")) : null,
+          hotel_id: pickDimension("hotel_id"),
+          region_id: pickDimension("region_id"),
+          business_unit_id: pickDimension("business_unit_id"),
+          sales_channel_id: pickDimension("sales_channel_id"),
+          marketing_campaign_id: pickDimension("marketing_campaign_id"),
+          commercial_team_id: pickDimension("commercial_team_id"),
         });
         setOpen(false);
+        showSuccess(SUCCESS_MESSAGES.created);
         (e.target as HTMLFormElement).reset();
         router.push(`/kpis/${kpiId}?valor=${fecha}`);
         router.refresh();
@@ -120,17 +183,27 @@ export function RegisterValueForm({
             required
             defaultValue={new Date().toISOString().slice(0, 10)}
           />
+          {singleKpi && (
+            <KpiDimensionFields
+              kpiDefaults={kpiScopeDefaults}
+              catalogs={dimensionCatalogs}
+            />
+          )}
           {usesFormula ? (
-            formulaVariableCodes.map((code) => (
-              <FormField
-                key={code}
-                label={`${code} *`}
-                name={`var_${code}`}
-                type="number"
-                step="any"
-                required
-              />
-            ))
+            loadingVariables ? (
+              <p className="text-sm text-slate-500">Cargando variables de la fórmula…</p>
+            ) : (
+              variableCodes.map((code) => (
+                <FormField
+                  key={code}
+                  label={`${code} *`}
+                  name={`var_${code}`}
+                  type="number"
+                  step="any"
+                  required
+                />
+              ))
+            )
           ) : (
             <FormField
               label="Valor real *"

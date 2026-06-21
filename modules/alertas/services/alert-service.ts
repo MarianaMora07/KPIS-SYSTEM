@@ -76,12 +76,15 @@ export async function getAlertById(id: string) {
 
 export async function resolveAlert(id: string) {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("alerts")
     .update({ estado: "resuelta", resuelta_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
+  if (!data) throw new Error("No se pudo resolver la alerta");
 }
 
 export async function escalateAlert(id: string) {
@@ -163,6 +166,7 @@ export async function listActionPlans() {
     titulo: p.titulo,
     estado: p.estado,
     fecha_compromiso: p.fecha_compromiso,
+    alert_id: p.alert_id as string | null,
     kpi_nombre: (p.kpis as { nombre?: string } | null)?.nombre,
     items: (p.action_plan_items as { id: string; descripcion: string; completado: boolean }[]) ?? [],
   }));

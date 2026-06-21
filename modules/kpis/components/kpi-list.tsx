@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Eye } from "lucide-react";
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { inactivateKpiAction } from "@/modules/kpis/actions/kpi-actions";
 import { usePermissions } from "@/components/layout/permissions-context";
 import type { TrafficLightStatus } from "@/types/database";
@@ -30,6 +31,7 @@ export function KpiList({ kpis }: KpiListProps) {
   const [pending, startTransition] = useTransition();
   const [toInactivate, setToInactivate] = useState<KpiRow | null>(null);
   const { can } = usePermissions();
+  const { showSuccess } = useSuccessToast();
   const canInactivate = can("kpis.inactivar");
 
   function handleConfirmInactivate() {
@@ -37,6 +39,7 @@ export function KpiList({ kpis }: KpiListProps) {
     startTransition(async () => {
       await inactivateKpiAction(toInactivate.id);
       setToInactivate(null);
+      showSuccess(SUCCESS_MESSAGES.deleted);
     });
   }
 

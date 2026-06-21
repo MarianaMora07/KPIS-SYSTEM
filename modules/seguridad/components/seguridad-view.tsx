@@ -15,6 +15,7 @@ import {
   filterAuditLogsAction,
 } from "@/modules/seguridad/actions/security-actions";
 import { RoleBadge } from "@/components/ui/role-badge";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { ScopeSelectorPanel } from "./scope-selector-panel";
 
@@ -327,12 +328,18 @@ function RolesTab({ permissions }: { permissions: PermissionRow[] }) {
 }
 
 function AuditTab({ logs: initialLogs }: { logs: AuditLogRow[] }) {
+  const PAGE_SIZE = 10;
   const [logs, setLogs] = useState(initialLogs);
+  const [page, setPage] = useState(0);
   const [entidad, setEntidad] = useState("");
   const [usuarioEmail, setUsuarioEmail] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [pending, startTransition] = useTransition();
+
+  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageLogs = logs.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   function handleFilter(e: React.FormEvent) {
     e.preventDefault();
@@ -344,6 +351,7 @@ function AuditTab({ logs: initialLogs }: { logs: AuditLogRow[] }) {
         fechaHasta: fechaHasta || undefined,
       });
       setLogs(filtered);
+      setPage(0);
     });
   }
 
@@ -397,7 +405,7 @@ function AuditTab({ logs: initialLogs }: { logs: AuditLogRow[] }) {
           </tr>
         </thead>
         <tbody>
-          {logs.map((log) => (
+          {pageLogs.map((log) => (
             <tr key={log.id} className="border-b border-slate-100">
               <td className="px-4 py-3 text-slate-600">
                 {log.fecha} {String(log.hora).slice(0, 5)}
@@ -417,6 +425,15 @@ function AuditTab({ logs: initialLogs }: { logs: AuditLogRow[] }) {
         </tbody>
       </table>
       </div>
+
+      <PaginationControls
+        page={safePage}
+        totalPages={totalPages}
+        totalItems={logs.length}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+        itemLabel="registros"
+      />
     </div>
   );
 }

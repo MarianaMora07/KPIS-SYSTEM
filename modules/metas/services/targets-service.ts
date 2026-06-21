@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { KpiTargetInput } from "@/lib/validations/schemas";
 import { kpiTargetSchema } from "@/lib/validations/schemas";
 import type { DashboardFilters } from "@/modules/dashboard/types";
+import { matchesTargetScope as dimensionMatchesTarget } from "@/lib/kpis/dimension-scope";
 import type { MetasDashboardRow } from "../types";
 import type { TrafficLightStatus } from "@/types/database";
 import { isTargetExpired } from "@/lib/metas/target-status";
@@ -18,6 +19,7 @@ type KpiValueRow = {
   kpi_id: string;
   hotel_id: string | null;
   region_id: string | null;
+  marketing_campaign_id: string | null;
   fecha: string;
   valor_real: number;
 };
@@ -39,12 +41,14 @@ function computeSemaforo(
 }
 
 function matchesTargetScope(
-  target: { hotel_id: string | null; region_id: string | null },
+  target: {
+    hotel_id: string | null;
+    region_id: string | null;
+    marketing_campaign_id?: string | null;
+  },
   value: KpiValueRow
 ): boolean {
-  if (target.hotel_id) return value.hotel_id === target.hotel_id;
-  if (target.region_id) return value.region_id === target.region_id;
-  return true;
+  return dimensionMatchesTarget(target, value);
 }
 
 function findLatestValueInPeriod(
@@ -52,6 +56,7 @@ function findLatestValueInPeriod(
     kpi_id: string;
     hotel_id: string | null;
     region_id: string | null;
+    marketing_campaign_id?: string | null;
     fecha_inicio: string;
     fecha_fin: string;
   },
@@ -78,7 +83,7 @@ export async function listTargetsForDashboard(
     .select(
       `
       id, kpi_id, periodo_tipo, fecha_inicio, fecha_fin, valor_meta,
-      hotel_id, region_id,
+      hotel_id, region_id, marketing_campaign_id,
       kpis(codigo, nombre, unidad_medida, estado),
       hotels(nombre),
       regions(nombre)
@@ -108,7 +113,7 @@ export async function listTargetsForDashboard(
   const [{ data: values }, { data: ranges }] = await Promise.all([
     supabase
       .from("kpi_values")
-      .select("kpi_id, hotel_id, region_id, fecha, valor_real")
+      .select("kpi_id, hotel_id, region_id, marketing_campaign_id, fecha, valor_real")
       .in("kpi_id", kpiIds),
     supabase
       .from("kpi_traffic_light_ranges")

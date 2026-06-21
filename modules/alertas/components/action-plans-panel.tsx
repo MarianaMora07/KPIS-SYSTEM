@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle, Circle, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import {
   togglePlanItemAction,
   updatePlanStatusAction,
   deleteActionPlanAction,
+  resolveAlertAction,
 } from "../actions/alert-actions";
 
 export interface ActionPlanRow {
@@ -14,6 +17,7 @@ export interface ActionPlanRow {
   titulo: string;
   estado: string;
   fecha_compromiso: string;
+  alert_id?: string | null;
   kpi_nombre?: string;
   responsable_nombre?: string;
   items?: { id: string; descripcion: string; completado: boolean }[];
@@ -38,9 +42,13 @@ export function ActionPlansPanel({ plans }: { plans: ActionPlanRow[] }) {
 }
 
 function PlanCard({ plan }: { plan: ActionPlanRow }) {
+  const router = useRouter();
+  const { showSuccess } = useSuccessToast();
   const [pending, startTransition] = useTransition();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmResolve, setConfirmResolve] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const total = plan.items?.length ?? 0;
   const done = plan.items?.filter((i) => i.completado).length ?? 0;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -51,9 +59,27 @@ function PlanCard({ plan }: { plan: ActionPlanRow }) {
       try {
         await deleteActionPlanAction(plan.id);
         setConfirmDelete(false);
+        showSuccess(SUCCESS_MESSAGES.deleted);
+        router.refresh();
       } catch (e) {
         setDeleteError(e instanceof Error ? e.message : "No se pudo eliminar");
         setConfirmDelete(false);
+      }
+    });
+  }
+
+  function handleResolveAlert() {
+    if (!plan.alert_id) return;
+    setActionError(null);
+    startTransition(async () => {
+      try {
+        await resolveAlertAction(plan.alert_id!);
+        setConfirmResolve(false);
+        showSuccess(SUCCESS_MESSAGES.updated);
+        router.refresh();
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : "No se pudo resolver la alerta");
+        setConfirmResolve(false);
       }
     });
   }
@@ -73,9 +99,19 @@ function PlanCard({ plan }: { plan: ActionPlanRow }) {
             <select
               value={plan.estado}
               disabled={pending}
-              onChange={(e) =>
-                startTransition(() => updatePlanStatusAction(plan.id, e.target.value))
-              }
+              onChange={(e) => {
+                setActionError(null);
+                startTransition(async () => {
+                  try {
+                    await updatePlanStatusAction(plan.id, e.target.value);
+                    router.refresh();
+                  } catch (err) {
+                    setActionError(
+                      err instanceof Error ? err.message : "No se pudo actualizar el plan"
+                    );
+                  }
+                });
+              }}
               className="rounded border border-slate-200 px-2 py-1 text-xs"
             >
               <option value="abierto">Abierto</option>
@@ -83,6 +119,16 @@ function PlanCard({ plan }: { plan: ActionPlanRow }) {
               <option value="completado">Completado</option>
               <option value="cancelado">Cancelado</option>
             </select>
+            {plan.alert_id && plan.estado !== "completado" && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setConfirmResolve(true)}
+                className="rounded-lg border border-green-200 bg-green-50 px-2 py-1 text-xs text-green-800 hover:bg-green-100 disabled:opacity-60"
+              >
+                Resolver alerta
+              </button>
+            )}
             <button
               type="button"
               disabled={pending}
@@ -119,9 +165,16 @@ function PlanCard({ plan }: { plan: ActionPlanRow }) {
                   type="button"
                   disabled={pending}
                   onClick={() =>
-                    startTransition(() =>
-                      togglePlanItemAction(item.id, !item.completado)
-                    )
+                    startTransition(async () => {
+                      try {
+                        await togglePlanItemAction(item.id, !item.completado);
+                        router.refresh();
+                      } catch (err) {
+                        setActionError(
+                          err instanceof Error ? err.message : "No se pudo actualizar el ítem"
+                        );
+                      }
+                    })
                   }
                   className="text-slate-400 hover:text-green-600"
                 >
@@ -139,6 +192,9 @@ function PlanCard({ plan }: { plan: ActionPlanRow }) {
           </ul>
         )}
 
+        {actionError && (
+          <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{actionError}</p>
+        )}
         {deleteError && (
           <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{deleteError}</p>
         )}
@@ -154,6 +210,18 @@ function PlanCard({ plan }: { plan: ActionPlanRow }) {
         loading={pending}
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmResolve}
+        title="Resolver alerta vinculada"
+        description={`¿Marcar como resuelta la alerta asociada a "${plan.titulo}"? Desaparecerá de la lista de alertas abiertas.`}
+        confirmLabel="Resolver"
+        cancelLabel="Cancelar"
+        variant="default"
+        loading={pending}
+        onConfirm={handleResolveAlert}
+        onCancel={() => setConfirmResolve(false)}
       />
     </>
   );

@@ -2,6 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { Building2, Plus } from "lucide-react";
+import {
+  FormModal,
+  FormField,
+  FormSelect,
+  FormActions,
+  FormPrimaryButton,
+} from "@/components/ui/form-modal";
+import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { createRegionAction, createHotelAction } from "../actions/catalog-actions";
 
@@ -12,10 +20,11 @@ interface CatalogViewProps {
 
 export function CatalogView({ regions, hotels }: CatalogViewProps) {
   const { can } = usePermissions();
+  const { showSuccess } = useSuccessToast();
   const canManage = can("catalogo.gestionar");
   const [pending, startTransition] = useTransition();
-  const [showRegion, setShowRegion] = useState(false);
-  const [showHotel, setShowHotel] = useState(false);
+  const [regionOpen, setRegionOpen] = useState(false);
+  const [hotelOpen, setHotelOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -26,38 +35,13 @@ export function CatalogView({ regions, hotels }: CatalogViewProps) {
             Regiones
           </h2>
           {canManage && (
-            <button
-              type="button"
-              onClick={() => setShowRegion(!showRegion)}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs"
-            >
-              <Plus className="h-3.5 w-3.5" />
+            <FormPrimaryButton onClick={() => setRegionOpen(true)}>
+              <Plus className="h-4 w-4" />
               Nueva región
-            </button>
+            </FormPrimaryButton>
           )}
         </div>
-        {showRegion && (
-          <form
-            className="mb-4 grid gap-3 sm:grid-cols-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              startTransition(async () => {
-                await createRegionAction({
-                  codigo: fd.get("codigo") as string,
-                  nombre: fd.get("nombre") as string,
-                });
-                setShowRegion(false);
-              });
-            }}
-          >
-            <input name="codigo" placeholder="Código" required className="rounded-lg border px-3 py-2 text-sm" />
-            <input name="nombre" placeholder="Nombre" required className="rounded-lg border px-3 py-2 text-sm" />
-            <button type="submit" disabled={pending} className="rounded-lg bg-imperial-900 px-4 py-2 text-sm text-white">
-              Guardar
-            </button>
-          </form>
-        )}
+
         <ul className="space-y-2">
           {regions.map((r) => (
             <li key={r.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
@@ -71,45 +55,13 @@ export function CatalogView({ regions, hotels }: CatalogViewProps) {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-medium uppercase tracking-wider text-slate-500">Hoteles</h2>
           {canManage && (
-            <button
-              type="button"
-              onClick={() => setShowHotel(!showHotel)}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs"
-            >
-              <Plus className="h-3.5 w-3.5" />
+            <FormPrimaryButton onClick={() => setHotelOpen(true)}>
+              <Plus className="h-4 w-4" />
               Nuevo hotel
-            </button>
+            </FormPrimaryButton>
           )}
         </div>
-        {showHotel && (
-          <form
-            className="mb-4 grid gap-3 sm:grid-cols-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              startTransition(async () => {
-                await createHotelAction({
-                  region_id: fd.get("region_id") as string,
-                  codigo: fd.get("codigo") as string,
-                  nombre: fd.get("nombre") as string,
-                  ciudad: (fd.get("ciudad") as string) || undefined,
-                });
-                setShowHotel(false);
-              });
-            }}
-          >
-            <select name="region_id" required className="rounded-lg border px-3 py-2 text-sm">
-              {regions.map((r) => (
-                <option key={r.id} value={r.id}>{r.nombre}</option>
-              ))}
-            </select>
-            <input name="codigo" placeholder="Código" required className="rounded-lg border px-3 py-2 text-sm" />
-            <input name="nombre" placeholder="Nombre" required className="rounded-lg border px-3 py-2 text-sm" />
-            <button type="submit" disabled={pending} className="rounded-lg bg-imperial-900 px-4 py-2 text-sm text-white">
-              Guardar
-            </button>
-          </form>
-        )}
+
         <ul className="space-y-2">
           {hotels.map((h) => (
             <li key={h.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
@@ -118,6 +70,79 @@ export function CatalogView({ regions, hotels }: CatalogViewProps) {
           ))}
         </ul>
       </section>
+
+      <FormModal
+        open={regionOpen}
+        onClose={() => setRegionOpen(false)}
+        title="Nueva región"
+        subtitle="Agregue una región al catálogo organizacional"
+        maxWidth="md"
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            startTransition(async () => {
+              await createRegionAction({
+                codigo: fd.get("codigo") as string,
+                nombre: fd.get("nombre") as string,
+              });
+              setRegionOpen(false);
+              showSuccess(SUCCESS_MESSAGES.created);
+            });
+          }}
+        >
+          <FormField label="Código" name="codigo" required placeholder="REG-AND" />
+          <FormField label="Nombre" name="nombre" required placeholder="Región Andina" />
+          <FormActions
+            onCancel={() => setRegionOpen(false)}
+            submitLabel="Guardar región"
+            pending={pending}
+          />
+        </form>
+      </FormModal>
+
+      <FormModal
+        open={hotelOpen}
+        onClose={() => setHotelOpen(false)}
+        title="Nuevo hotel"
+        subtitle="Registre un hotel y asígnelo a una región"
+        maxWidth="md"
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            startTransition(async () => {
+              await createHotelAction({
+                region_id: fd.get("region_id") as string,
+                codigo: fd.get("codigo") as string,
+                nombre: fd.get("nombre") as string,
+                ciudad: (fd.get("ciudad") as string) || undefined,
+              });
+              setHotelOpen(false);
+              showSuccess(SUCCESS_MESSAGES.created);
+            });
+          }}
+        >
+          <FormSelect
+            label="Región"
+            name="region_id"
+            required
+            options={regions.map((r) => ({ id: r.id, nombre: r.nombre }))}
+          />
+          <FormField label="Código" name="codigo" required placeholder="HTL-BOG" />
+          <FormField label="Nombre" name="nombre" required placeholder="Estelar Bogotá" />
+          <FormField label="Ciudad" name="ciudad" placeholder="Opcional" />
+          <FormActions
+            onCancel={() => setHotelOpen(false)}
+            submitLabel="Guardar hotel"
+            pending={pending}
+          />
+        </form>
+      </FormModal>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   getKpiFormula,
 } from "@/modules/formulas/services/formula-service";
 import { getRequiredInputVariableCodes } from "@/lib/kpis/compute-formula-value";
+import { formatDimensionScopeLabel } from "@/lib/kpis/dimension-scope";
 import { listRegions, listHotels, listKpiCategories, listBusinessUnits, listSalesChannels, listMarketingCampaigns, listCommercialTeams } from "@/modules/catalog";
 import { listUsers } from "@/modules/seguridad/services/security-service";
 import type { KpiCreateInput } from "@/lib/validations/schemas";
@@ -87,6 +88,15 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
       estado: (kpi.estado as "activo" | "inactivo") ?? "activo",
     };
 
+    const dimensionCatalogs = {
+      regions: regions.map((r) => ({ id: r.id, nombre: r.nombre })),
+      hotels: hotels.map((h) => ({ id: h.id, nombre: h.nombre })),
+      businessUnits: businessUnits.map((b) => ({ id: b.id, nombre: b.nombre })),
+      salesChannels: salesChannels.map((s) => ({ id: s.id, nombre: s.nombre })),
+      campaigns: campaigns.map((c) => ({ id: c.id, nombre: c.nombre })),
+      teams: teams.map((t) => ({ id: t.id, nombre: t.nombre })),
+    };
+
     return (
       <KpiDetailView
         kpi={kpi}
@@ -104,6 +114,7 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
           campaigns,
           teams,
         }}
+        dimensionCatalogs={dimensionCatalogs}
         versions={versions}
         values={values.map((v) => ({
           id: v.id,
@@ -112,6 +123,13 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
           valor_meta: v.valor_meta != null ? Number(v.valor_meta) : null,
           cumplimiento_pct: v.cumplimiento_pct != null ? Number(v.cumplimiento_pct) : null,
           semaforo: (v.semaforo as TrafficLightStatus | null) ?? null,
+          hotel_id: v.hotel_id ?? null,
+          region_id: v.region_id ?? null,
+          business_unit_id: v.business_unit_id ?? null,
+          sales_channel_id: v.sales_channel_id ?? null,
+          marketing_campaign_id: v.marketing_campaign_id ?? null,
+          commercial_team_id: v.commercial_team_id ?? null,
+          scope_label: formatDimensionScopeLabel(v, dimensionCatalogs),
           variable_inputs:
             v.variable_inputs && typeof v.variable_inputs === "object"
               ? (v.variable_inputs as Record<string, number>)

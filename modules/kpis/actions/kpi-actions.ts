@@ -10,14 +10,17 @@ import {
   type KpiValueInput,
 } from "@/lib/validations/schemas";
 import { formatZodError } from "@/lib/validations/format-zod-error";
-import { computeKpiValueFromInputs } from "@/lib/kpis/compute-formula-value";
+import { computeKpiValueFromInputs, getRequiredInputVariableCodes } from "@/lib/kpis/compute-formula-value";
+import { resolveValueDimensions } from "@/lib/kpis/dimension-scope";
 import { invalidateCache } from "@/lib/cache/dashboard-cache";
+import { generateNextKpiCodigo } from "../services/kpi-service";
 
 export async function createKpiAction(input: KpiCreateInput) {
   await assertPermission("kpis.crear");
+  const codigo = input.codigo?.trim() ? input.codigo.trim() : await generateNextKpiCodigo();
   let parsed: KpiCreateInput;
   try {
-    parsed = kpiCreateSchema.parse(input);
+    parsed = kpiCreateSchema.parse({ ...input, codigo });
   } catch (e) {
     throw new Error(formatZodError(e));
   }
@@ -108,7 +111,9 @@ export async function registerKpiValueAction(input: KpiValueInput) {
 
   const { data: kpi } = await supabase
     .from("kpis")
-    .select("hotel_id, region_id, meta, formula")
+    .select(
+      "hotel_id, region_id, business_unit_id, sales_channel_id, marketing_campaign_id, commercial_team_id, meta, formula"
+    )
     .eq("id", parsed.kpi_id)
     .single();
 
@@ -122,10 +127,11 @@ export async function registerKpiValueAction(input: KpiValueInput) {
     rawInputs
   );
 
+  const dimensions = resolveValueDimensions(parsed, kpi ?? {});
+
   const insertPayload = {
     kpi_id: parsed.kpi_id,
-    hotel_id: parsed.hotel_id ?? kpi?.hotel_id ?? null,
-    region_id: parsed.region_id ?? kpi?.region_id ?? null,
+    ...dimensions,
     fecha: parsed.fecha,
     valor_real: valorReal,
     valor_meta: parsed.valor_meta ?? kpi?.meta ?? null,
@@ -140,17 +146,10 @@ export async function registerKpiValueAction(input: KpiValueInput) {
     .single();
 
   if (error?.message.includes("variable_inputs")) {
+    const { variable_inputs: _vi, ...fallbackPayload } = insertPayload;
     const retry = await supabase
       .from("kpi_values")
-      .insert({
-        kpi_id: insertPayload.kpi_id,
-        hotel_id: insertPayload.hotel_id,
-        region_id: insertPayload.region_id,
-        fecha: insertPayload.fecha,
-        valor_real: insertPayload.valor_real,
-        valor_meta: insertPayload.valor_meta,
-        fuente: insertPayload.fuente,
-      })
+      .insert(fallbackPayload)
       .select()
       .single();
     data = retry.data;
@@ -184,4 +183,9 @@ export async function deleteKpiValueAction(kpiId: string, valueId: string) {
   revalidatePath("/dashboard");
   revalidatePath("/kpis");
   revalidatePath(`/kpis/${kpiId}`);
+}
+
+export async function getKpiFormulaVariableCodesAction(kpiId: string) {
+  await assertPermission("metas.configurar");
+  return getRequiredInputVariableCodes(kpiId);
 }

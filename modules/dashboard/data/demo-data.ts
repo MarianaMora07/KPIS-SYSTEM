@@ -100,6 +100,8 @@ const KPI_DEFS: KpiDef[] = [
   },
 ];
 
+export const DEMO_KPI_CREATION_ORDER = KPI_DEFS.map((kpi) => kpi.kpi_id);
+
 function buildDemoRows(): DashboardKpiRow[] {
   const rows: DashboardKpiRow[] = [];
   let id = 1;

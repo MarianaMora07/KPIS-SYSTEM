@@ -92,7 +92,7 @@ export interface ComputeResult {
   variableInputs: Record<string, number> | null;
 }
 
-/** Calcula valor_real aplicando fórmula del KPI y resolviendo variables compuestas. */
+/** Calcula valor_real aplicando la fórmula vigente del KPI (una por indicador, sin variación por dimensión). */
 export async function computeKpiValueFromInputs(
   kpiId: string,
   rawInputs: FormulaInputs

@@ -30,7 +30,7 @@ export async function getDashboardKpis(
   });
 }
 
-/** Último valor por KPI (para tarjetas principales) */
+/** Último valor por KPI (para tarjetas principales), ordenados por fecha de creación del KPI */
 export async function getLatestKpiCards(filters: DashboardFilters = {}) {
   return withCache(cacheKey("cards", filters), async () => {
     const rows = await getDashboardKpis(filters);
@@ -40,7 +40,21 @@ export async function getLatestKpiCards(filters: DashboardFilters = {}) {
         latestByKpi.set(row.kpi_id, row);
       }
     }
-    return Array.from(latestByKpi.values());
+    const cards = Array.from(latestByKpi.values());
+
+    const supabase = await createClient();
+    const { data: kpis } = await supabase
+      .from("kpis")
+      .select("id, created_at")
+      .eq("estado", "activo")
+      .order("created_at", { ascending: true });
+
+    const order = new Map((kpis ?? []).map((kpi, index) => [kpi.id, index]));
+    cards.sort(
+      (a, b) => (order.get(a.kpi_id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.kpi_id) ?? Number.MAX_SAFE_INTEGER)
+    );
+
+    return cards;
   });
 }
 
