@@ -15,10 +15,25 @@ import {
   AlertCircle,
   MessageSquare,
   CheckCircle,
+  Shield,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 import { processApprovalRequest } from "@/modules/kpis/actions/kpi-actions";
 import { cn } from "@/lib/utils/cn";
 import { useSuccessToast } from "@/components/ui/success-toast";
+
+type ApproverRole =
+  | "administrador"
+  | "director_comercial"
+  | "director_mercadeo"
+  | "gerente_hotel";
+
+interface Gerente {
+  nombre: string;
+  apellido: string;
+  email: string;
+}
 
 interface RequestRow {
   id: string;
@@ -40,9 +55,19 @@ interface RequestRow {
 
 interface AprobacionesClientProps {
   initialRequests: RequestRow[];
+  userRole: ApproverRole;
+  /** Nombre del hotel del gerente (solo si userRole === "gerente_hotel") */
+  gerenteHotelNombre: string | null;
+  /** Mapa hotel_id → lista de gerentes responsables (solo para admins/directores) */
+  gerentesMap: Record<string, Gerente[]>;
 }
 
-export function AprobacionesClient({ initialRequests }: AprobacionesClientProps) {
+export function AprobacionesClient({
+  initialRequests,
+  userRole,
+  gerenteHotelNombre,
+  gerentesMap,
+}: AprobacionesClientProps) {
   const router = useRouter();
   const { showSuccess } = useSuccessToast();
   const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
@@ -51,6 +76,9 @@ export function AprobacionesClient({ initialRequests }: AprobacionesClientProps)
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [pending, startTransition] = useTransition();
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const isGlobalApprover = ["administrador", "director_comercial", "director_mercadeo"].includes(userRole);
+  const isGerente = userRole === "gerente_hotel";
 
   const pendingRequests = initialRequests.filter((r) => r.estado === "pendiente");
   const historyRequests = initialRequests.filter((r) => r.estado !== "pendiente");
@@ -107,8 +135,33 @@ export function AprobacionesClient({ initialRequests }: AprobacionesClientProps)
     });
   }
 
+  // Encabezado dinámico según rol
+  const pageTitle = isGerente
+    ? `Bandeja de Aprobaciones${gerenteHotelNombre ? ` — ${gerenteHotelNombre}` : ""}`
+    : "Supervisión Global de Aprobaciones";
+
+  const pageSubtitle = isGerente
+    ? "Solicitudes de los analistas de tu hotel pendientes de tu aprobación."
+    : "Revisa todas las solicitudes de aprobación de KPIs de todos los hoteles.";
+
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            isGerente ? "bg-emerald-100 text-emerald-700" : "bg-imperial-100 text-imperial-900"
+          )}
+        >
+          {isGerente ? <UserCheck className="h-5 w-5" /> : <Shield className="h-5 w-5" />}
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">{pageTitle}</h1>
+          <p className="mt-0.5 text-sm text-slate-500">{pageSubtitle}</p>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex border-b border-slate-200">
         <button
@@ -149,7 +202,9 @@ export function AprobacionesClient({ initialRequests }: AprobacionesClientProps)
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               {activeTab === "pending"
-                ? "No hay solicitudes de aprobación pendientes."
+                ? isGerente
+                  ? "No hay solicitudes pendientes en tu hotel."
+                  : "No hay solicitudes de aprobación pendientes."
                 : "No se han procesado solicitudes de aprobación todavía."}
             </p>
           </div>
@@ -161,77 +216,116 @@ export function AprobacionesClient({ initialRequests }: AprobacionesClientProps)
                   <th className="px-6 py-4">Hotel de Origen</th>
                   <th className="px-6 py-4">Tipo de Acción</th>
                   <th className="px-6 py-4">Solicitante</th>
+                  {/* Columna "Gerente Responsable" solo visible para admins/directores */}
+                  {isGlobalApprover && activeTab === "pending" && (
+                    <th className="px-6 py-4">
+                      <span className="flex items-center gap-1.5">
+                        <UserCheck className="h-3.5 w-3.5" />
+                        Gerente Responsable
+                      </span>
+                    </th>
+                  )}
                   <th className="px-6 py-4">Fecha</th>
                   {activeTab === "history" && <th className="px-6 py-4">Estado</th>}
                   <th className="px-6 py-4 text-right">Detalle</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {displayRequests.map((req) => (
-                  <tr key={req.id} className="group hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-slate-400" />
-                        {req.hotel?.nombre || "Global / Sin hotel"}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-700">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                          req.tipo === "creacion" && "bg-blue-50 text-blue-700 border border-blue-100",
-                          req.tipo === "edicion" && "bg-amber-50 text-amber-700 border border-amber-100",
-                          req.tipo === "medicion" && "bg-purple-50 text-purple-700 border border-purple-100"
-                        )}
-                      >
-                        {actionLabels[req.tipo]}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-slate-900">
-                          {req.solicitante
-                            ? `${req.solicitante.nombre} ${req.solicitante.apellido}`
-                            : "Usuario"}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {req.solicitante?.email}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-500">
-                      {new Date(req.created_at).toLocaleString("es-ES", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    {activeTab === "history" && (
-                      <td className="px-6 py-4">
+                {displayRequests.map((req) => {
+                  const responsibleManagers = isGlobalApprover
+                    ? (gerentesMap[req.hotel_id] ?? [])
+                    : [];
+
+                  return (
+                    <tr key={req.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-slate-400" />
+                          {req.hotel?.nombre || "Global / Sin hotel"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-700">
                         <span
                           className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                            req.estado === "aprobado" && "bg-green-50 text-green-700 border border-green-100",
-                            req.estado === "rechazado" && "bg-red-50 text-red-700 border border-red-100"
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                            req.tipo === "creacion" && "bg-blue-50 text-blue-700 border border-blue-100",
+                            req.tipo === "edicion" && "bg-amber-50 text-amber-700 border border-amber-100",
+                            req.tipo === "medicion" && "bg-purple-50 text-purple-700 border border-purple-100"
                           )}
                         >
-                          {statusLabels[req.estado]}
+                          {actionLabels[req.tipo]}
                         </span>
                       </td>
-                    )}
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleOpenDetails(req)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-imperial-900 group-hover:border-slate-300"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Ver detalle
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-900">
+                            {req.solicitante
+                              ? `${req.solicitante.nombre} ${req.solicitante.apellido}`
+                              : "Usuario"}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {req.solicitante?.email}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Celda Gerente Responsable — solo para admins/directores en tab pendientes */}
+                      {isGlobalApprover && activeTab === "pending" && (
+                        <td className="px-6 py-4">
+                          {responsibleManagers.length === 0 ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 border border-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+                              <UserX className="h-3 w-3" />
+                              Sin gerente asignado
+                            </span>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              {responsibleManagers.map((g) => (
+                                <div key={g.email} className="flex flex-col">
+                                  <span className="text-xs font-semibold text-slate-800">
+                                    {g.nombre} {g.apellido}
+                                  </span>
+                                  <span className="text-xs text-slate-400">{g.email}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      )}
+
+                      <td className="px-6 py-4 text-slate-500">
+                        {new Date(req.created_at).toLocaleString("es-ES", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      {activeTab === "history" && (
+                        <td className="px-6 py-4">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                              req.estado === "aprobado" && "bg-green-50 text-green-700 border border-green-100",
+                              req.estado === "rechazado" && "bg-red-50 text-red-700 border border-red-100"
+                            )}
+                          >
+                            {statusLabels[req.estado]}
+                          </span>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handleOpenDetails(req)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-imperial-900 group-hover:border-slate-300"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          Ver detalle
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -304,6 +398,35 @@ export function AprobacionesClient({ initialRequests }: AprobacionesClientProps)
                       : "Usuario"}
                   </span>
                 </div>
+
+                {/* Gerente Responsable en el panel de detalle — solo para admins/directores */}
+                {isGlobalApprover && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 col-span-2">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">
+                      Gerente(s) Responsable(s)
+                    </span>
+                    {(gerentesMap[selectedRequest.hotel_id] ?? []).length === 0 ? (
+                      <span className="inline-flex items-center gap-1.5 text-sm text-red-600 font-medium">
+                        <UserX className="h-4 w-4" />
+                        Sin gerente asignado a este hotel
+                      </span>
+                    ) : (
+                      <div className="space-y-2">
+                        {(gerentesMap[selectedRequest.hotel_id] ?? []).map((g) => (
+                          <div key={g.email} className="flex items-center gap-2">
+                            <UserCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                            <div>
+                              <span className="text-sm font-medium text-slate-900">
+                                {g.nombre} {g.apellido}
+                              </span>
+                              <span className="ml-1.5 text-xs text-slate-500">({g.email})</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* proposed payload display */}
@@ -469,7 +592,7 @@ export function AprobacionesClient({ initialRequests }: AprobacionesClientProps)
               )}
             </div>
 
-            {/* Footer Buttons for Pending status */}
+            {/* Footer Buttons — visibles solo si la solicitud está pendiente */}
             {selectedRequest.estado === "pendiente" && (
               <div className="border-t border-slate-200 bg-slate-50/50 p-6 space-y-4">
                 {showRejectForm ? (

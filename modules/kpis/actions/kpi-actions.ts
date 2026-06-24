@@ -232,10 +232,12 @@ export async function createKpiAction(input: KpiCreateInput) {
   if (!user) throw new Error("No autenticado");
 
   const { rol } = await getUserPermissions();
-  const isApprover = ["administrador", "director_comercial", "director_mercadeo"].includes(rol || "");
-  const isCreator = ["gerente_hotel", "analista"].includes(rol || "");
+  // Aprobadores globales + gerentes tienen escritura directa
+  const isDirectWriter = ["administrador", "director_comercial", "director_mercadeo", "gerente_hotel"].includes(rol || "");
+  // Solo los analistas deben ir por el flujo de aprobación
+  const isAnalista = rol === "analista";
 
-  if (isApprover) {
+  if (isDirectWriter) {
     const { estado: _e, ...rest } = parsed;
 
     const { data, error } = await supabase
@@ -249,7 +251,7 @@ export async function createKpiAction(input: KpiCreateInput) {
     revalidatePath("/kpis");
     revalidatePath("/dashboard");
     return data;
-  } else if (isCreator) {
+  } else if (isAnalista) {
     const hotelId = await resolveApprovalHotelId(supabase, user.id, parsed.hotel_id);
     if (!hotelId || !isValidUuid(hotelId)) {
       throw new Error("No se pudo determinar un UUID de hotel de origen válido");
@@ -310,16 +312,18 @@ export async function updateKpiAction(id: string, input: KpiCreateInput) {
   if (!user) throw new Error("No autenticado");
 
   const { rol } = await getUserPermissions();
-  const isApprover = ["administrador", "director_comercial", "director_mercadeo"].includes(rol || "");
-  const isCreator = ["gerente_hotel", "analista"].includes(rol || "");
+  // Aprobadores globales + gerentes tienen escritura directa
+  const isDirectWriter = ["administrador", "director_comercial", "director_mercadeo", "gerente_hotel"].includes(rol || "");
+  // Solo los analistas deben ir por el flujo de aprobación
+  const isAnalista = rol === "analista";
 
-  if (isApprover) {
+  if (isDirectWriter) {
     const { updateKpi } = await import("../services/kpi-service");
     await updateKpi(id, parsed, user.id);
     revalidatePath("/kpis");
     revalidatePath(`/kpis/${id}`);
     revalidatePath("/dashboard");
-  } else if (isCreator) {
+  } else if (isAnalista) {
     const hotelId = await resolveApprovalHotelId(supabase, user.id, parsed.hotel_id, id);
     if (!hotelId || !isValidUuid(hotelId)) {
       throw new Error("No se pudo determinar un UUID de hotel de origen válido");
@@ -379,10 +383,12 @@ export async function registerKpiValueAction(
   if (!user) throw new Error("No autenticado");
 
   const { rol } = await getUserPermissions();
-  const isApprover = ["administrador", "director_comercial", "director_mercadeo"].includes(rol || "");
-  const isCreator = ["gerente_hotel", "analista"].includes(rol || "");
+  // Aprobadores globales + gerentes tienen escritura directa
+  const isDirectWriter = ["administrador", "director_comercial", "director_mercadeo", "gerente_hotel"].includes(rol || "");
+  // Solo los analistas deben ir por el flujo de aprobación
+  const isAnalista = rol === "analista";
 
-  if (isApprover) {
+  if (isDirectWriter) {
     const data = await applyRegisterKpiValue(parsed, supabase, attachments, user.id);
     invalidateCache("dashboard");
     invalidateCache("cards");
@@ -390,7 +396,7 @@ export async function registerKpiValueAction(
     revalidatePath("/kpis");
     revalidatePath(`/kpis/${parsed.kpi_id}`);
     return data;
-  } else if (isCreator) {
+  } else if (isAnalista) {
     const hotelId = await resolveApprovalHotelId(supabase, user.id, parsed.hotel_id, parsed.kpi_id);
     if (!hotelId || !isValidUuid(hotelId)) {
       throw new Error("No se pudo determinar un UUID de hotel de origen válido");
@@ -480,9 +486,11 @@ export async function processApprovalRequest(
   }
 
   const { rol } = await assertPermission("kpis.editar");
-  const isApprover = ["administrador", "director_comercial", "director_mercadeo"].includes(rol || "");
-  if (!isApprover) {
-    throw new Error("Solo los Directores o Administradores pueden procesar solicitudes de aprobación");
+  const isGlobalApprover = ["administrador", "director_comercial", "director_mercadeo"].includes(rol || "");
+  const isGerenteHotel = rol === "gerente_hotel";
+
+  if (!isGlobalApprover && !isGerenteHotel) {
+    throw new Error("Solo los Gerentes de Hotel, Directores o Administradores pueden procesar solicitudes de aprobación");
   }
 
   const supabase = await createClient();
@@ -507,6 +515,19 @@ export async function processApprovalRequest(
 
   if (request.estado !== "pendiente") {
     throw new Error("Esta solicitud ya ha sido procesada");
+  }
+
+  // Validación de alcance para gerentes: solo pueden procesar solicitudes de su propio hotel
+  if (isGerenteHotel) {
+    const { data: gerenteScopes } = await supabase
+      .from("user_hotel_scopes")
+      .select("hotel_id")
+      .eq("user_id", user.id);
+
+    const gerenteHotelIds = (gerenteScopes ?? []).map((s: { hotel_id: string }) => s.hotel_id);
+    if (!gerenteHotelIds.includes(request.hotel_id)) {
+      throw new Error("No puede procesar solicitudes de aprobación de un hotel diferente al suyo");
+    }
   }
 
   let targetKpiId: string | null = request.kpi_id || null;
