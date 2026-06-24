@@ -8,7 +8,7 @@ import {
   FormSecondaryButton,
 } from "@/components/ui/form-modal";
 import { FormUnitSelect } from "@/components/ui/form-unit-select";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { saveFormulaAction } from "@/modules/formulas/actions/formula-actions";
 import { createVariableAction } from "@/modules/formulas/actions/variable-actions";
@@ -35,7 +35,7 @@ export function KpiFormulaEditStep({
   onSaved,
 }: KpiFormulaEditStepProps) {
   const { canManageUsers } = usePermissions();
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess, showSuccess } = useSuccessToast();
   const initialUsed = useMemo(() => extractUsedSymbols(initialExpresion), [initialExpresion]);
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(
     () => new Set(initialUsed.filter((c) => variables.some((v) => v.codigo === c)))
@@ -132,7 +132,7 @@ export function KpiFormulaEditStep({
         setSelectedCodes((prev) => new Set([...prev, created.codigo]));
         setShowCreateVariable(false);
         setVariableTipo("simple");
-        showSuccess(SUCCESS_MESSAGES.created);
+        showGuidedSuccess(GUIDED_SUCCESS.variableCreated);
         e.currentTarget.reset();
       } catch (err) {
         setVariableError(err instanceof Error ? err.message : "Error al crear variable");
@@ -147,7 +147,7 @@ export function KpiFormulaEditStep({
         const res = await saveFormulaAction(kpiId, expresion);
         setResult(res.validation);
         if (res.validation.es_valida) {
-          showSuccess(SUCCESS_MESSAGES.updated);
+          showGuidedSuccess(GUIDED_SUCCESS.formulaValidated);
           onSaved?.();
         }
       } catch (err) {

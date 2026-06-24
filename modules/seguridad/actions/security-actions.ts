@@ -2,12 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertAuditoriaAccess } from "@/lib/auth/require-permission";
 import {
   assignRole,
   setUserActive,
   setUserHotelScopes,
   setUserRegionScopes,
 } from "../services/security-service";
+import type { AuditLogFilters } from "../types";
 import type { AppRole } from "@/types/database";
 
 export async function assignRoleAction(userId: string, rol: AppRole) {
@@ -82,12 +84,18 @@ export async function setScopesAction(
   revalidatePath("/seguridad");
 }
 
-export async function filterAuditLogsAction(filters: {
-  entidad?: string;
-  usuarioEmail?: string;
-  fechaDesde?: string;
-  fechaHasta?: string;
-}) {
+export async function filterAuditLogsAction(filters: AuditLogFilters) {
+  await assertAuditoriaAccess();
   const { listAuditLogs } = await import("../services/security-service");
   return listAuditLogs(filters);
+}
+
+export async function getActionPlanAuditHistoryAction(planId: string) {
+  await assertAuditoriaAccess();
+  const { listAuditLogs } = await import("../services/security-service");
+  return listAuditLogs({
+    entidad: "action_plans",
+    entidadId: planId,
+    limit: 200,
+  });
 }

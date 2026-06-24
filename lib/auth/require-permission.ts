@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/types/database";
 import { getUserPermissions } from "./permissions";
 import {
+  canAccessAuditoriaUi,
   canAccessSeguridadUi,
   hasPermissionInList,
   type PermissionCode,
@@ -36,6 +37,28 @@ export async function requireSeguridadUi(
   const { rol, permissions } = await getUserPermissions();
   if (!canAccessSeguridadUi(rol)) {
     redirect(redirectTo);
+  }
+  return { rol: rol!, permissions };
+}
+
+export async function requireAuditoriaAccess(
+  redirectTo = "/dashboard"
+): Promise<{ rol: AppRole; permissions: string[] }> {
+  const { rol, permissions } = await getUserPermissions();
+  if (!canAccessAuditoriaUi(rol, permissions)) {
+    redirect(redirectTo);
+  }
+  return { rol: rol!, permissions };
+}
+
+/** Lanza error si el usuario no puede ver auditoría (server actions). */
+export async function assertAuditoriaAccess(): Promise<{
+  rol: AppRole;
+  permissions: string[];
+}> {
+  const { rol, permissions } = await getUserPermissions();
+  if (!canAccessAuditoriaUi(rol, permissions)) {
+    throw new Error("No tiene permiso para ver la bitácora de auditoría");
   }
   return { rol: rol!, permissions };
 }

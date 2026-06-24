@@ -3,7 +3,6 @@ import { requireSeguridadUi } from "@/lib/auth/require-permission";
 import { getSessionUser } from "@/lib/auth/get-session-user";
 import {
   listUsers,
-  listAuditLogs,
   listPermissions,
 } from "@/modules/seguridad/services/security-service";
 import { SeguridadView } from "@/modules/seguridad/components/seguridad-view";
@@ -15,7 +14,7 @@ export default async function SeguridadPage() {
     return (
       <div className="glass rounded-xl border border-amber-200 bg-amber-50 p-8">
         <p className="text-sm text-amber-800">
-          Configure Supabase para gestionar seguridad y auditoría.
+          Configure Supabase para gestionar seguridad.
         </p>
       </div>
     );
@@ -25,9 +24,8 @@ export default async function SeguridadPage() {
 
   const sessionUser = await getSessionUser();
 
-  const [users, auditLogs, permissions, regions, hotels] = await Promise.all([
+  const [users, permissions, regions, hotels] = await Promise.all([
     listUsers(),
-    listAuditLogs(),
     listPermissions(),
     listRegions().catch(() => DEMO_REGIONS),
     listHotels().catch(() => DEMO_HOTELS),
@@ -36,7 +34,6 @@ export default async function SeguridadPage() {
   return (
     <SeguridadView
       users={users}
-      auditLogs={auditLogs}
       permissions={permissions}
       regions={regions.map((r) => ({ id: r.id, nombre: r.nombre }))}
       hotels={hotels.map((h) => ({ id: h.id, nombre: h.nombre }))}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle, Circle, Trash2 } from "lucide-react";
+import { CheckCircle, Circle, Trash2, ExternalLink } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import {
@@ -96,6 +97,13 @@ function PlanCard({ plan }: { plan: ActionPlanRow }) {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/alertas/planes/${plan.id}`}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-imperial-900 hover:bg-slate-50"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Ver detalle
+            </Link>
             <select
               value={plan.estado}
               disabled={pending}

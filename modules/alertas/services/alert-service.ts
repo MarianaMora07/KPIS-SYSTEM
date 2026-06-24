@@ -145,6 +145,62 @@ export async function notifyAlertForKpiValue(kpiValueId: string) {
   return data;
 }
 
+export async function getActionPlanById(planId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("action_plans")
+    .select(
+      `
+      *,
+      kpis(nombre, codigo),
+      action_plan_items(id, descripcion, completado)
+    `
+    )
+    .eq("id", planId)
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  let responsable_nombre: string | undefined;
+  let responsable_email: string | undefined;
+
+  if (data.responsable_id) {
+    const { data: responsable } = await supabase
+      .from("user_profiles")
+      .select("nombre, apellido, email")
+      .eq("id", data.responsable_id)
+      .maybeSingle();
+    if (responsable) {
+      responsable_nombre = [responsable.nombre, responsable.apellido]
+        .filter(Boolean)
+        .join(" ");
+      responsable_email = responsable.email ?? undefined;
+    }
+  }
+
+  const kpi = data.kpis as { nombre?: string; codigo?: string } | null;
+
+  return {
+    id: data.id as string,
+    titulo: data.titulo as string,
+    descripcion: (data.descripcion as string | null) ?? null,
+    estado: data.estado as string,
+    fecha_compromiso: data.fecha_compromiso as string,
+    created_at: data.created_at as string,
+    responsable_id: data.responsable_id as string | null,
+    kpi_nombre: kpi?.nombre,
+    kpi_codigo: kpi?.codigo,
+    responsable_nombre,
+    responsable_email,
+    items:
+      (data.action_plan_items as {
+        id: string;
+        descripcion: string;
+        completado: boolean;
+      }[]) ?? [],
+  };
+}
+
 export async function listActionPlans() {
   const supabase = await createClient();
   const { data, error } = await supabase

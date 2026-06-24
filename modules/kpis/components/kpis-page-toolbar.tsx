@@ -3,12 +3,15 @@
 import { FunctionSquare } from "lucide-react";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { KpiCreateForm } from "@/modules/kpis/components/kpi-create-form";
-import { RegisterValueForm } from "@/modules/kpis/components/register-value-form";
+import {
+  RegisterValueForm,
+  type RegisterValueKpi,
+} from "@/modules/kpis/components/register-value-form";
 import type { KpiFormCatalogs } from "@/modules/kpis/components/kpi-form-fields";
 import type { FormulaVariableRow } from "@/modules/kpis/components/kpi-create-formula-step";
 
 interface KpisPageToolbarProps extends KpiFormCatalogs {
-  kpis: { id: string; codigo: string; nombre: string }[];
+  kpis: RegisterValueKpi[];
   variables?: FormulaVariableRow[];
   activeTab?: "indicadores" | "variables";
   onOpenVariables?: () => void;
@@ -19,6 +22,12 @@ export function KpisPageToolbar({
   variables = [],
   activeTab = "indicadores",
   onOpenVariables,
+  regions,
+  hotels,
+  businessUnits,
+  salesChannels,
+  campaigns,
+  teams,
   ...catalogs
 }: KpisPageToolbarProps) {
   const { can } = usePermissions();
@@ -30,8 +39,31 @@ export function KpisPageToolbar({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
-      {showCreate && <KpiCreateForm variables={variables} {...catalogs} />}
-      {showRegister && <RegisterValueForm kpis={kpis} />}
+      {showCreate && (
+        <KpiCreateForm
+          variables={variables}
+          regions={regions}
+          hotels={hotels}
+          businessUnits={businessUnits}
+          salesChannels={salesChannels}
+          campaigns={campaigns}
+          teams={teams}
+          {...catalogs}
+        />
+      )}
+      {showRegister && (
+        <RegisterValueForm
+          kpis={kpis}
+          dimensionCatalogs={{
+            regions,
+            hotels,
+            businessUnits,
+            salesChannels,
+            campaigns,
+            teams,
+          }}
+        />
+      )}
       {showVariables && (
         <button
           type="button"

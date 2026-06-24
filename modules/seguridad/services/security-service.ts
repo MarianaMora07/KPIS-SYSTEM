@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PERMISSION_CATALOG } from "@/lib/auth/role-matrix";
 import type { AppRole } from "@/types/database";
-import type { AuditLogRow, PermissionRow, UserWithScopes } from "../types";
+import type { AuditLogFilters, AuditLogRow, PermissionRow, UserWithScopes } from "../types";
 
 export async function getCurrentUserProfile() {
   const supabase = await createClient();
@@ -53,13 +53,9 @@ export async function listUsers(): Promise<UserWithScopes[]> {
   }));
 }
 
-export async function listAuditLogs(filters?: {
-  entidad?: string;
-  usuarioEmail?: string;
-  fechaDesde?: string;
-  fechaHasta?: string;
-  limit?: number;
-}): Promise<AuditLogRow[]> {
+export async function listAuditLogs(
+  filters?: AuditLogFilters
+): Promise<AuditLogRow[]> {
   const supabase = await createClient();
   let query = supabase
     .from("audit_logs")
@@ -67,14 +63,103 @@ export async function listAuditLogs(filters?: {
     .order("created_at", { ascending: false })
     .limit(filters?.limit ?? 100);
 
-  if (filters?.entidad) query = query.eq("entidad", filters.entidad);
-  if (filters?.usuarioEmail) query = query.ilike("usuario_email", `%${filters.usuarioEmail}%`);
+  if (filters?.entidad) {
+    query = query.ilike("entidad", `%${filters.entidad}%`);
+  }
+  if (filters?.entidadId) query = query.eq("entidad_id", filters.entidadId);
+  if (filters?.usuarioEmail) {
+    query = query.ilike("usuario_email", `%${filters.usuarioEmail}%`);
+  }
   if (filters?.fechaDesde) query = query.gte("fecha", filters.fechaDesde);
   if (filters?.fechaHasta) query = query.lte("fecha", filters.fechaHasta);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []) as AuditLogRow[];
+}
+
+export async function buildAuditNamesMap(): Promise<Record<string, string>> {
+  const supabase = await createClient();
+  const namesMap: Record<string, string> = {};
+
+  const [
+    profilesRes,
+    categoriesRes,
+    hotelsRes,
+    regionsRes,
+    kpisRes,
+    businessUnitsRes,
+    salesChannelsRes,
+    campaignsRes,
+    teamsRes,
+  ] = await Promise.all([
+    supabase.from("user_profiles").select("id, nombre, apellido, email"),
+    supabase.from("kpi_categories").select("id, nombre"),
+    supabase.from("hotels").select("id, nombre"),
+    supabase.from("regions").select("id, nombre"),
+    supabase.from("kpis").select("id, nombre, codigo"),
+    supabase.from("business_units").select("id, nombre"),
+    supabase.from("sales_channels").select("id, nombre"),
+    supabase.from("marketing_campaigns").select("id, nombre"),
+    supabase.from("commercial_teams").select("id, nombre"),
+  ]);
+
+  for (const p of profilesRes.data ?? []) {
+    const name =
+      [p.nombre, p.apellido].filter(Boolean).join(" ").trim() || p.email;
+    if (name) namesMap[p.id] = name;
+  }
+
+  for (const rows of [
+    categoriesRes.data,
+    hotelsRes.data,
+    regionsRes.data,
+    businessUnitsRes.data,
+    salesChannelsRes.data,
+    campaignsRes.data,
+    teamsRes.data,
+  ]) {
+    for (const row of rows ?? []) {
+      const r = row as { id: string; nombre: string };
+      if (r.nombre) namesMap[r.id] = r.nombre;
+    }
+  }
+
+  for (const k of kpisRes.data ?? []) {
+    if (k.nombre) namesMap[k.id] = `${k.nombre} (${k.codigo})`;
+  }
+
+  return namesMap;
+}
+
+export async function listAuditFilterSuggestions(): Promise<{
+  emails: string[];
+  entidades: string[];
+}> {
+  const supabase = await createClient();
+
+  const [profilesRes, logsRes] = await Promise.all([
+    supabase.from("user_profiles").select("email").order("email"),
+    supabase.from("audit_logs").select("usuario_email, entidad").limit(1000),
+  ]);
+
+  const emails = new Set<string>();
+  for (const profile of profilesRes.data ?? []) {
+    if (profile.email) emails.add(profile.email);
+  }
+  for (const log of logsRes.data ?? []) {
+    if (log.usuario_email) emails.add(log.usuario_email);
+  }
+
+  const entidades = new Set<string>();
+  for (const log of logsRes.data ?? []) {
+    if (log.entidad) entidades.add(log.entidad);
+  }
+
+  return {
+    emails: [...emails].sort((a, b) => a.localeCompare(b)),
+    entidades: [...entidades].sort((a, b) => a.localeCompare(b)),
+  };
 }
 
 export async function listPermissions(): Promise<PermissionRow[]> {

@@ -16,7 +16,7 @@ import {
   type FormulaVariableRow,
 } from "./kpi-create-formula-step";
 import { usePermissions } from "@/components/layout/permissions-context";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, useSuccessToast } from "@/components/ui/success-toast";
 import { formatZodError } from "@/lib/validations/format-zod-error";
 
 interface KpiCreateFormProps extends KpiFormCatalogs {
@@ -61,7 +61,7 @@ function StepIndicator({
 export function KpiCreateForm({ variables: initialVariables = [], ...catalogs }: KpiCreateFormProps) {
   const { can } = usePermissions();
   const canCreate = can("kpis.crear");
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess } = useSuccessToast();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -112,7 +112,7 @@ export function KpiCreateForm({ variables: initialVariables = [], ...catalogs }:
         if (usesFormula && expresion.trim() && created?.id) {
           await saveFormulaAction(created.id as string, expresion);
         }
-        showSuccess(SUCCESS_MESSAGES.created);
+        showGuidedSuccess(GUIDED_SUCCESS.kpiCreated);
         handleClose();
         router.push(`/kpis/${created.id}`);
         router.refresh();

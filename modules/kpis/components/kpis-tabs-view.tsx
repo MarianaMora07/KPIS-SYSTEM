@@ -30,6 +30,12 @@ interface KpiListRow {
   meta: number | null;
   tipo_indicador: string;
   estado: string;
+  hotel_id?: string | null;
+  region_id?: string | null;
+  business_unit_id?: string | null;
+  sales_channel_id?: string | null;
+  marketing_campaign_id?: string | null;
+  commercial_team_id?: string | null;
   kpi_categories: { nombre: string } | null;
 }
 
@@ -91,6 +97,12 @@ export function KpisTabsView({
           id: k.id,
           codigo: k.codigo,
           nombre: k.nombre,
+          hotel_id: k.hotel_id ?? null,
+          region_id: k.region_id ?? null,
+          business_unit_id: k.business_unit_id ?? null,
+          sales_channel_id: k.sales_channel_id ?? null,
+          marketing_campaign_id: k.marketing_campaign_id ?? null,
+          commercial_team_id: k.commercial_team_id ?? null,
         }))}
         variables={variables}
         activeTab={activeTab}

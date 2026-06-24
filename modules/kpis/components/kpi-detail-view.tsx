@@ -25,7 +25,7 @@ import {
   KpiDetailFlowGuide,
   type KpiDetailTab,
 } from "@/modules/kpis/components/kpi-detail-flow-guide";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { formatKpiValue } from "@/modules/dashboard/types";
 import type { KpiFrequency } from "@/types/database";
@@ -101,7 +101,7 @@ export function KpiDetailView({
   const canEdit = can("kpis.editar");
   const canCreate = can("kpis.crear");
   const canConfigureMetas = can("metas.configurar");
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess, showSuccess } = useSuccessToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<KpiDetailTab>(initialTab);
@@ -158,7 +158,7 @@ export function KpiDetailView({
       try {
         const copy = await duplicateKpiAction(id);
         setShowDuplicateConfirm(false);
-        showSuccess(SUCCESS_MESSAGES.created);
+        showGuidedSuccess(GUIDED_SUCCESS.kpiDuplicated);
         if (copy?.id) router.push(`/kpis/${copy.id}`);
       } catch (err) {
         setShowDuplicateConfirm(false);

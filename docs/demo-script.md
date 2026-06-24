@@ -73,7 +73,7 @@ Solo **administrador** configura variables y fórmulas en el detalle del KPI.
 ## HU-KPI-012 — Auditoría (1 min)
 
 - Editar KPI / integración / plan → fila en bitácora.
-- Filtros por entidad, usuario y fecha en `/seguridad`.
+- Filtros por entidad, usuario y fecha en `/auditoria`.
 
 ## Cierre
 

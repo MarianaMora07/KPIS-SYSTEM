@@ -137,6 +137,21 @@ export function canAccessSeguridadUi(rol: AppRole | null | undefined): boolean {
   return rol === "administrador";
 }
 
+const AUDITORIA_UI_ROLES: AppRole[] = [
+  "administrador",
+  "director_comercial",
+  "director_mercadeo",
+];
+
+export function canAccessAuditoriaUi(
+  rol: AppRole | null | undefined,
+  permissions: string[] = []
+): boolean {
+  if (!rol) return false;
+  if (AUDITORIA_UI_ROLES.includes(rol)) return true;
+  return hasPermissionInList(permissions, "auditoria.ver");
+}
+
 export function canAccessCatalogoUi(rol: AppRole | null | undefined): boolean {
   return rol != null && CATALOGO_UI_ROLES.includes(rol);
 }

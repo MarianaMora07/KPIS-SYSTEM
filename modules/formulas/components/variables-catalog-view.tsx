@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import {
   FormModal,
   FormField,
@@ -36,7 +36,7 @@ interface VariableRow {
 
 export function VariablesCatalogView({ variables }: { variables: VariableRow[] }) {
   const { canManageUsers } = usePermissions();
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess, showSuccess } = useSuccessToast();
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [tipo, setTipo] = useState<"simple" | "compuesta">("simple");
@@ -71,7 +71,7 @@ export function VariablesCatalogView({ variables }: { variables: VariableRow[] }
               : undefined,
         });
         closeCreateModal();
-        showSuccess(SUCCESS_MESSAGES.created);
+        showGuidedSuccess(GUIDED_SUCCESS.variableCreated);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error");

@@ -10,7 +10,7 @@ import {
   FormActions,
   FormPrimaryButton,
 } from "@/components/ui/form-modal";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import {
   createScheduledReportAction,
@@ -25,7 +25,7 @@ export function ScheduledReportsPanel({
   schedules: ScheduledReportRow[];
 }) {
   const { can } = usePermissions();
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess, showSuccess } = useSuccessToast();
   const canExport = can("reportes.exportar");
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -65,7 +65,7 @@ export function ScheduledReportsPanel({
                 emails: fd.get("emails") as string,
               });
               setOpen(false);
-              showSuccess(SUCCESS_MESSAGES.created);
+              showGuidedSuccess(GUIDED_SUCCESS.scheduledReportCreated);
             });
           }}
         >

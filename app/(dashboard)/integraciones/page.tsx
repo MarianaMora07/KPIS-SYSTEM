@@ -2,6 +2,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { listIntegrations } from "@/modules/integraciones/services/integration-service";
 import { listDatabaseConnections } from "@/modules/sql-data-sources/services/connection-service";
+import { listRecentIntegrationJobs } from "@/modules/integraciones/services/integration-service";
 import { IntegracionesView } from "@/modules/integraciones/components/integraciones-view";
 
 const DEMO_INTEGRATIONS = [
@@ -31,10 +32,12 @@ export default async function IntegracionesPage() {
 
   let integrations = DEMO_INTEGRATIONS;
   let databaseConnections: Awaited<ReturnType<typeof listDatabaseConnections>> = [];
+  let recentJobs: Awaited<ReturnType<typeof listRecentIntegrationJobs>> = [];
   try {
-    [integrations, databaseConnections] = await Promise.all([
+    [integrations, databaseConnections, recentJobs] = await Promise.all([
       listIntegrations(),
       listDatabaseConnections(),
+      listRecentIntegrationJobs(10),
     ]);
   } catch {
     integrations = DEMO_INTEGRATIONS;
@@ -50,6 +53,7 @@ export default async function IntegracionesPage() {
       <IntegracionesView
         integrations={integrations}
         databaseConnections={databaseConnections}
+        recentJobs={recentJobs}
       />
     </div>
   );

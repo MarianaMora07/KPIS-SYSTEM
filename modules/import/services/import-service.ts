@@ -2,6 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import type { ImportFileInput } from "@/lib/validations/schemas";
 import { importFileSchema } from "@/lib/validations/schemas";
 
+/**
+ * Trazabilidad de importación (equiv. estelar-kpi):
+ * - Origen: kpi_measurements.imported_by
+ * - Destino: import_jobs.usuario_id + kpi_values.fuente = 'manual' | 'integracion'
+ */
+
 export async function createImportJob(input: ImportFileInput, userId: string) {
   const parsed = importFileSchema.parse(input);
   const supabase = await createClient();

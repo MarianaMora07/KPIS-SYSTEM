@@ -6,8 +6,22 @@ import { Download, FileSpreadsheet, FileText, ChevronDown, Presentation } from "
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import { exportToExcel, exportToPdf, exportToPptx } from "@/modules/dashboard/utils/export-report";
 import { DEMO_DASHBOARD_DATA, filterDemoData } from "@/modules/dashboard/data/demo-data";
+import {
+  resolveReportFilterLabels,
+  type ReportFilterCatalogItem,
+} from "@/lib/reports/report-filter-labels";
 
-export function ExportReportButton({ disabled }: { disabled?: boolean }) {
+interface ExportReportButtonProps {
+  disabled?: boolean;
+  regions?: ReportFilterCatalogItem[];
+  hotels?: ReportFilterCatalogItem[];
+}
+
+export function ExportReportButton({
+  disabled,
+  regions = [],
+  hotels = [],
+}: ExportReportButtonProps) {
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,9 +58,14 @@ export function ExportReportButton({ disabled }: { disabled?: boolean }) {
     setOpen(false);
     try {
       const rows = await fetchData();
-      const periodo = searchParams.get("periodo") ?? "Jun 2026";
-      const region = searchParams.get("region") ?? "";
-      const hotel = searchParams.get("hotel") ?? "";
+      const filterLabels = resolveReportFilterLabels(
+        {
+          periodo: searchParams.get("periodo"),
+          region: searchParams.get("region"),
+          hotel: searchParams.get("hotel"),
+        },
+        { regions, hotels }
+      );
       const timestamp = new Date().toISOString().slice(0, 10);
 
       let summary: string | null = null;
@@ -57,7 +76,7 @@ export function ExportReportButton({ disabled }: { disabled?: boolean }) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               rows,
-              filters: { periodo, region, hotel },
+              filters: filterLabels,
             }),
           });
           if (summaryRes.ok) {
@@ -72,14 +91,14 @@ export function ExportReportButton({ disabled }: { disabled?: boolean }) {
       if (type === "pdf") {
         exportToPdf(
           rows,
-          { periodo, region, hotel },
+          filterLabels,
           `reporte-ejecutivo-${timestamp}`,
           summary
         );
       } else if (type === "pptx") {
         await exportToPptx(
           rows,
-          { periodo, region, hotel },
+          filterLabels,
           `reporte-ejecutivo-${timestamp}`,
           summary
         );

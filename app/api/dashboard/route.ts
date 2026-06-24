@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import {
   DEMO_DASHBOARD_DATA,
   filterDemoData,
 } from "@/modules/dashboard/data/demo-data";
+import { getDashboardKpis } from "@/modules/dashboard/services/dashboard-service";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -19,24 +19,10 @@ export async function GET(request: Request) {
     return NextResponse.json(filterDemoData(DEMO_DASHBOARD_DATA, filters));
   }
 
-  const supabase = await createClient();
-  let query = supabase
-    .from("v_dashboard_kpis")
-    .select("*")
-    .order("fecha", { ascending: false })
-    .limit(50);
-
-  if (filters.hotelId) query = query.eq("hotel_id", filters.hotelId);
-  if (filters.regionId) query = query.eq("region_id", filters.regionId);
-  if (filters.fechaDesde) query = query.gte("fecha", filters.fechaDesde);
-  if (filters.fechaHasta) query = query.lte("fecha", filters.fechaHasta);
-
-  const { data, error } = await query;
-  if (error) {
-    return NextResponse.json(
-      filterDemoData(DEMO_DASHBOARD_DATA, filters)
-    );
+  try {
+    const rows = await getDashboardKpis(filters);
+    return NextResponse.json(rows);
+  } catch {
+    return NextResponse.json(filterDemoData(DEMO_DASHBOARD_DATA, filters));
   }
-
-  return NextResponse.json(data);
 }

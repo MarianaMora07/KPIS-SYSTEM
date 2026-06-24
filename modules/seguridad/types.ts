@@ -11,8 +11,18 @@ export interface UserWithScopes {
   region_ids: string[];
 }
 
+export interface AuditLogFilters {
+  entidad?: string;
+  entidadId?: string;
+  usuarioEmail?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  limit?: number;
+}
+
 export interface AuditLogRow {
   id: string;
+  usuario_id: string | null;
   usuario_email: string | null;
   fecha: string;
   hora: string;

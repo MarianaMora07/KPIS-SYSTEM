@@ -32,7 +32,9 @@ export async function POST(
 
   try {
     const job = await triggerSync(id);
-    const result = await processIntegrationSync(id, job.id);
+    const result = await processIntegrationSync(id, job.id, {
+      triggeredByUserId: user.id,
+    });
 
     return NextResponse.json({
       jobId: job.id,

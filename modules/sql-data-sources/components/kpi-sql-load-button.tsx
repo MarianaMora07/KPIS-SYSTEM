@@ -73,7 +73,7 @@ function formatPreviewSummary(
             <div className="flex justify-between gap-4 border-t border-slate-200 pt-2">
               <dt className="text-slate-500">Valor calculado</dt>
               <dd className="font-semibold text-imperial-900">
-                {formatKpiValue(valor, unidadMedida)}
+                {formatKpiValue(valor, unidadMedida ?? "")}
               </dd>
             </div>
           )}
@@ -107,7 +107,7 @@ function formatPreviewSummary(
           <dt className="text-slate-500">Primera fila (más reciente)</dt>
           <dd className="mt-0.5 text-xs text-slate-700">
             {first.fecha}
-            {valor != null && ` · ${formatKpiValue(valor, unidadMedida)}`}
+            {valor != null && ` · ${formatKpiValue(valor, unidadMedida ?? "")}`}
           </dd>
         </div>
       </dl>

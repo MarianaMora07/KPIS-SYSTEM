@@ -9,6 +9,7 @@ export {
   canManageActionPlansFromList as canManageActionPlans,
   canManageCatalogFromList as canManageCatalog,
   canAccessSeguridadUi,
+  canAccessAuditoriaUi,
   canAccessCatalogoUi,
   canManageUsers,
   canCreateKpis,

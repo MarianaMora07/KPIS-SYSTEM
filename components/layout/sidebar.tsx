@@ -18,6 +18,7 @@ import {
   ChevronRight,
   LogOut,
   BrainCircuit,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -29,6 +30,13 @@ const navItems = [
   { href: "/alertas", label: "Alertas", icon: Bell, perm: "alertas.ver" },
   { href: "/reportes", label: "Reportes", icon: FileBarChart, perm: "reportes.exportar" },
   { href: "/catalogo", label: "Catálogo", icon: Building2, perm: "catalogo.ver" },
+  {
+    href: "/auditoria",
+    label: "Auditoría",
+    icon: ScrollText,
+    perm: "auditoria.ver",
+    directorAccess: true,
+  },
   { href: "/seguridad", label: "Seguridad", icon: Shield, perm: "usuarios.gestionar" },
   // ── Motores de IA: solo visible para administradores ──────────────────────
   { href: "/admin/ai-settings", label: "Motores de IA", icon: BrainCircuit, adminOnly: true },
@@ -96,11 +104,17 @@ export function Sidebar({
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {navItems
           .filter((item) => {
-            // Ítems exclusivos de administrador
             if (item.adminOnly && rol !== "administrador" && !isDemoMode) {
               return false;
             }
-            // Ítems con permiso explícito
+            if (
+              "directorAccess" in item &&
+              item.directorAccess &&
+              rol &&
+              (rol === "director_comercial" || rol === "director_mercadeo")
+            ) {
+              return true;
+            }
             if (
               item.perm &&
               !isDemoMode &&

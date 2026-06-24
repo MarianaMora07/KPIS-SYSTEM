@@ -17,9 +17,13 @@ import { usePermissions } from "@/components/layout/permissions-context";
 export function ReportesView({
   isDemo,
   schedules = [],
+  regions = [],
+  hotels = [],
 }: {
   isDemo?: boolean;
   schedules?: ScheduledReportRow[];
+  regions?: { id: string; nombre: string }[];
+  hotels?: { id: string; nombre: string }[];
 }) {
   const { can } = usePermissions();
   const canExport = can("reportes.exportar");
@@ -62,7 +66,7 @@ export function ReportesView({
         >
           {loading ? "Cargando…" : "Vista previa"}
         </button>
-        <ExportReportButton disabled={!canExport} />
+        <ExportReportButton disabled={!canExport} regions={regions} hotels={hotels} />
       </div>
 
       {!canExport && (

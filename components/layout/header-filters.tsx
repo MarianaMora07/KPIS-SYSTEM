@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { useCallback, Suspense } from "react";
 import { ExportReportButton } from "@/modules/dashboard/components/export-report-button";
+import { REPORT_PERIODS } from "@/lib/reports/report-filter-labels";
 
 interface FilterOption {
   id: string;
@@ -16,12 +17,12 @@ interface HeaderFiltersProps {
   hotels: FilterOption[];
 }
 
-const PERIODS = [
-  { id: "2026-06", label: "Jun 2026", desde: "2026-06-01", hasta: "2026-06-30" },
-  { id: "2026-05", label: "May 2026", desde: "2026-05-01", hasta: "2026-05-31" },
-  { id: "2026-q2", label: "Q2 2026", desde: "2026-04-01", hasta: "2026-06-30" },
-  { id: "2026", label: "2026", desde: "2026-01-01", hasta: "2026-12-31" },
-];
+const PERIODS = REPORT_PERIODS.map((period) => ({
+  id: period.id,
+  label: period.label,
+  desde: period.desde,
+  hasta: period.hasta,
+}));
 
 export function HeaderFilters({ regions, hotels }: HeaderFiltersProps) {
   const router = useRouter();
@@ -82,7 +83,7 @@ export function HeaderFilters({ regions, hotels }: HeaderFiltersProps) {
       />
       {showExport && (
         <Suspense fallback={null}>
-          <ExportReportButton />
+          <ExportReportButton regions={regions} hotels={hotels} />
         </Suspense>
       )}
     </div>

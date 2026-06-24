@@ -11,7 +11,7 @@ import {
   FormActions,
   FormPrimaryButton,
 } from "@/components/ui/form-modal";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { createTargetAction, deleteTargetAction } from "../actions/targets-actions";
 import { TargetExpiredBadge } from "./target-expired-badge";
@@ -59,7 +59,7 @@ export function TargetsPanel({
 }: TargetsPanelProps) {
   const router = useRouter();
   const { can } = usePermissions();
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess, showSuccess } = useSuccessToast();
   const canConfigure = can("metas.configurar");
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
@@ -91,7 +91,7 @@ export function TargetsPanel({
         valor_avance: valorAvance,
       });
       handleCloseCreate();
-      showSuccess(SUCCESS_MESSAGES.created);
+      showGuidedSuccess(GUIDED_SUCCESS.targetCreated);
       router.refresh();
     });
   }

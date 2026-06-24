@@ -9,7 +9,7 @@ import {
   FormSecondaryButton,
 } from "@/components/ui/form-modal";
 import { FormUnitSelect } from "@/components/ui/form-unit-select";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, useSuccessToast } from "@/components/ui/success-toast";
 import { createVariableAction } from "@/modules/formulas/actions/variable-actions";
 import { validateFormula } from "@/modules/formulas/utils/formula-engine";
 import {
@@ -60,7 +60,7 @@ export function KpiCreateFormulaStep({
   onSubmit,
 }: KpiCreateFormulaStepProps) {
   const { canManageUsers } = usePermissions();
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess } = useSuccessToast();
   const [showCreateVariable, setShowCreateVariable] = useState(false);
   const [variableTipo, setVariableTipo] = useState<"simple" | "compuesta">("simple");
   const [variableError, setVariableError] = useState<string | null>(null);
@@ -105,7 +105,7 @@ export function KpiCreateFormulaStep({
         onSelectedCodesChange(new Set([...selectedCodes, created.codigo]));
         setShowCreateVariable(false);
         setVariableTipo("simple");
-        showSuccess(SUCCESS_MESSAGES.created);
+        showGuidedSuccess(GUIDED_SUCCESS.variableCreated);
         e.currentTarget.reset();
       } catch (err) {
         setVariableError(err instanceof Error ? err.message : "Error al crear variable");

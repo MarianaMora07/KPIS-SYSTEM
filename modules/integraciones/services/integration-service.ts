@@ -201,6 +201,52 @@ export async function listIntegrationLogs(jobId: string) {
   return data ?? [];
 }
 
+export interface RecentIntegrationJobRow {
+  id: string;
+  estado: string;
+  registros_ok: number | null;
+  registros_error: number | null;
+  error_mensaje: string | null;
+  created_at: string;
+  completed_at: string | null;
+  integration_nombre: string;
+  sistema_tipo: string;
+}
+
+export async function listRecentIntegrationJobs(
+  limit = 10
+): Promise<RecentIntegrationJobRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("integration_jobs")
+    .select(
+      "id, estado, registros_ok, registros_error, error_mensaje, created_at, completed_at, external_integrations(nombre, sistema_tipo)"
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => {
+    const integration = row.external_integrations as
+      | { nombre: string; sistema_tipo: string }
+      | { nombre: string; sistema_tipo: string }[]
+      | null;
+    const int = Array.isArray(integration) ? integration[0] : integration;
+    return {
+      id: row.id as string,
+      estado: row.estado as string,
+      registros_ok: row.registros_ok as number | null,
+      registros_error: row.registros_error as number | null,
+      error_mensaje: row.error_mensaje as string | null,
+      created_at: row.created_at as string,
+      completed_at: row.completed_at as string | null,
+      integration_nombre: int?.nombre ?? "—",
+      sistema_tipo: int?.sistema_tipo ?? "—",
+    };
+  });
+}
+
 export async function listIntegrationsDueForCron() {
   const supabase = await createClient();
   const { data, error } = await supabase

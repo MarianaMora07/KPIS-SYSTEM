@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { FormModal, FormSecondaryButton } from "@/components/ui/form-modal";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, useSuccessToast } from "@/components/ui/success-toast";
 import { saveFormulaAction, deleteFormulaAction } from "../actions/formula-actions";
 import { extractUsedSymbols } from "../utils/formula-engine";
 import {
@@ -56,7 +56,7 @@ export function KpiFormulaSetupPanel({
   onRequestRegisterValue?: () => void;
 }) {
   const { canManageUsers } = usePermissions();
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess, showSuccess } = useSuccessToast();
   const initialUsed = useMemo(() => extractUsedSymbols(initialExpresion), [initialExpresion]);
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(
     () => new Set(initialUsed.filter((c) => allVariables.some((v) => v.codigo === c)))
@@ -161,7 +161,7 @@ export function KpiFormulaSetupPanel({
         if (res.validation.es_valida) {
           setSavedBanner(true);
           setEditing(false);
-          showSuccess(SUCCESS_MESSAGES.updated);
+          showGuidedSuccess(GUIDED_SUCCESS.formulaValidated);
           onFormulaSaved?.();
         }
       } catch (err) {

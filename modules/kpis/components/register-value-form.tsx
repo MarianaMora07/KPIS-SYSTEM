@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   getKpiFormulaVariableCodesAction,
@@ -11,15 +11,15 @@ import { KpiDimensionFields } from "@/modules/kpis/components/kpi-dimension-fiel
 import { RegisterValueTargetPreview } from "@/modules/kpis/components/register-value-target-preview";
 import { resolveValueDimensions } from "@/lib/kpis/dimension-scope";
 import type { DimensionCatalogs, KpiDimensionScope } from "@/lib/kpis/dimension-scope";
-import type { TargetRowForMatch } from "@/lib/metas/match-value-to-targets";
 import {
   formatTargetPeriodLabel,
   formatTargetScopeLabel,
+  type TargetRowForMatch,
 } from "@/lib/metas/match-value-to-targets";
 import type { KpiValueInput } from "@/lib/validations/schemas";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, useSuccessToast } from "@/components/ui/success-toast";
 import {
   FormModal,
   FormSelect,
@@ -34,8 +34,20 @@ const EMPTY_VARIABLE_CODES: string[] = [];
 const EMPTY_SCOPE: Partial<KpiDimensionScope> = {};
 const EMPTY_CATALOGS: DimensionCatalogs = {};
 
+export interface RegisterValueKpi {
+  id: string;
+  codigo: string;
+  nombre: string;
+  hotel_id?: string | null;
+  region_id?: string | null;
+  business_unit_id?: string | null;
+  sales_channel_id?: string | null;
+  marketing_campaign_id?: string | null;
+  commercial_team_id?: string | null;
+}
+
 interface RegisterValueFormProps {
-  kpis: { id: string; codigo: string; nombre: string }[];
+  kpis: RegisterValueKpi[];
   defaultKpiId?: string;
   formulaVariableCodes?: string[];
   kpiScopeDefaults?: Partial<KpiDimensionScope>;
@@ -56,7 +68,7 @@ export function RegisterValueForm({
   hasSqlSource = false,
 }: RegisterValueFormProps) {
   const { can } = usePermissions();
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess } = useSuccessToast();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,15 +87,37 @@ export function RegisterValueForm({
   const [pendingRegister, setPendingRegister] = useState<KpiValueInput | null>(null);
   const [prefill, setPrefill] = useState<Record<string, string>>({});
   const [prefillFecha, setPrefillFecha] = useState<string | null>(null);
+  const [selectedKpiId, setSelectedKpiId] = useState(
+    () => defaultKpiId ?? kpis[0]?.id ?? ""
+  );
 
-  const kpiId = defaultKpiId ?? kpis[0]?.id;
-  const singleKpi = kpis.length === 1;
+  const showKpiPicker = kpis.length > 1;
+  const activeKpi = kpis.find((k) => k.id === selectedKpiId) ?? kpis[0];
+  const activeScopeDefaults = useMemo((): Partial<KpiDimensionScope> => {
+    if (
+      defaultKpiId &&
+      selectedKpiId === defaultKpiId &&
+      kpiScopeDefaults !== EMPTY_SCOPE
+    ) {
+      return kpiScopeDefaults;
+    }
+    if (!activeKpi) return EMPTY_SCOPE;
+    return {
+      hotel_id: activeKpi.hotel_id ?? null,
+      region_id: activeKpi.region_id ?? null,
+      business_unit_id: activeKpi.business_unit_id ?? null,
+      sales_channel_id: activeKpi.sales_channel_id ?? null,
+      marketing_campaign_id: activeKpi.marketing_campaign_id ?? null,
+      commercial_team_id: activeKpi.commercial_team_id ?? null,
+    };
+  }, [activeKpi, defaultKpiId, kpiScopeDefaults, selectedKpiId]);
+
   const fallbackCodesRef = useRef(formulaVariableCodes);
   fallbackCodesRef.current = formulaVariableCodes;
 
   const refreshPreview = useCallback(async () => {
     const form = formRef.current;
-    if (!form || !singleKpi || !kpiId) return;
+    if (!form || !selectedKpiId) return;
 
     const fd = new FormData(form);
     const fecha = (fd.get("fecha") as string) || "";
@@ -94,10 +128,10 @@ export function RegisterValueForm({
       return;
     }
 
-    const dimensions = resolveDimensionsFromForm(fd, kpiScopeDefaults);
+    const dimensions = resolveDimensionsFromForm(fd, activeScopeDefaults);
     setLoadingPreview(true);
     try {
-      const result = await previewValueTargetMatchesAction(kpiId, {
+      const result = await previewValueTargetMatchesAction(selectedKpiId, {
         fecha,
         hotel_id: dimensions.hotel_id,
         region_id: dimensions.region_id,
@@ -111,7 +145,7 @@ export function RegisterValueForm({
     } finally {
       setLoadingPreview(false);
     }
-  }, [singleKpi, kpiId, kpiScopeDefaults]);
+  }, [selectedKpiId, activeScopeDefaults]);
 
   const schedulePreview = useCallback(() => {
     if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
@@ -121,12 +155,12 @@ export function RegisterValueForm({
   }, [refreshPreview]);
 
   useEffect(() => {
-    if (!open || !singleKpi || !kpiId) return;
+    if (!open || !selectedKpiId) return;
 
     let cancelled = false;
     setLoadingVariables(true);
 
-    getKpiFormulaVariableCodesAction(kpiId)
+    getKpiFormulaVariableCodesAction(selectedKpiId)
       .then((codes) => {
         if (!cancelled) setVariableCodes(codes);
       })
@@ -140,7 +174,13 @@ export function RegisterValueForm({
     return () => {
       cancelled = true;
     };
-  }, [open, singleKpi, kpiId]);
+  }, [open, selectedKpiId]);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedKpiId(defaultKpiId ?? kpis[0]?.id ?? "");
+    }
+  }, [open, defaultKpiId, kpis]);
 
   useEffect(() => {
     if (open) {
@@ -155,6 +195,11 @@ export function RegisterValueForm({
   }, [open, refreshPreview]);
 
   useEffect(() => {
+    if (!open || !selectedKpiId) return;
+    schedulePreview();
+  }, [open, selectedKpiId, schedulePreview]);
+
+  useEffect(() => {
     return () => {
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
     };
@@ -164,13 +209,40 @@ export function RegisterValueForm({
 
   const usesFormula = variableCodes.length > 0;
 
+  function handleKpiChange(kpiId: string) {
+    setSelectedKpiId(kpiId);
+    setPrefill({});
+    setPrefillFecha(null);
+    setMatchedTargets([]);
+    setNonMatchedTargets([]);
+    setPreviewFecha("");
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const fd = new FormData(e.currentTarget);
     const payload = buildRegisterPayload(fd, usesFormula);
-    setPendingRegister(payload);
-    setConfirmOpen(true);
+    const dimensions = resolveDimensionsFromForm(fd, activeScopeDefaults);
+
+    startTransition(async () => {
+      try {
+        const result = await previewValueTargetMatchesAction(payload.kpi_id, {
+          fecha: payload.fecha,
+          hotel_id: dimensions.hotel_id,
+          region_id: dimensions.region_id,
+          marketing_campaign_id: dimensions.marketing_campaign_id,
+        });
+        setMatchedTargets(result.matches);
+        setNonMatchedTargets(result.nonMatches);
+        setPendingRegister(payload);
+        setConfirmOpen(true);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "No se pudo verificar las metas"
+        );
+      }
+    });
   }
 
   function handleConfirmRegister() {
@@ -182,7 +254,7 @@ export function RegisterValueForm({
         setConfirmOpen(false);
         setPendingRegister(null);
         setOpen(false);
-        showSuccess(SUCCESS_MESSAGES.created);
+        showGuidedSuccess(GUIDED_SUCCESS.valueRegistered);
         formRef.current?.reset();
         router.push(`/kpis/${pendingRegister.kpi_id}?tab=seguimiento&valor=${pendingRegister.fecha}`);
         router.refresh();
@@ -224,23 +296,24 @@ export function RegisterValueForm({
           onChange={schedulePreview}
           className="space-y-4"
         >
-          {singleKpi ? (
-            <input type="hidden" name="kpi_id" value={defaultKpiId ?? kpis[0].id} />
-          ) : (
+          {showKpiPicker ? (
             <FormSelect
               label="KPI *"
               name="kpi_id"
               required
-              defaultValue={defaultKpiId}
+              value={selectedKpiId}
+              onChange={(e) => handleKpiChange(e.target.value)}
               options={kpis.map((k) => ({
                 id: k.id,
                 nombre: `${k.codigo} — ${k.nombre}`,
               }))}
             />
+          ) : (
+            <input type="hidden" name="kpi_id" value={selectedKpiId} />
           )}
-          {singleKpi && (
+          {!showKpiPicker && activeKpi && (
             <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              {kpis[0].codigo} — {kpis[0].nombre}
+              {activeKpi.codigo} — {activeKpi.nombre}
             </p>
           )}
           <FormField
@@ -251,13 +324,13 @@ export function RegisterValueForm({
             defaultValue={prefillFecha ?? new Date().toISOString().slice(0, 10)}
             key={prefillFecha ?? "fecha-default"}
           />
-          {singleKpi && (
+          {selectedKpiId && (
             <KpiDimensionFields
-              kpiDefaults={kpiScopeDefaults}
+              kpiDefaults={activeScopeDefaults}
               catalogs={dimensionCatalogs}
             />
           )}
-          {singleKpi && (
+          {selectedKpiId && (
             <RegisterValueTargetPreview
               fecha={previewFecha}
               matches={matchedTargets}
@@ -292,9 +365,9 @@ export function RegisterValueForm({
             />
           )}
           {error && <FormError message={error} />}
-          {hasSqlSource && kpiId && (
+          {hasSqlSource && selectedKpiId && (
             <KpiSqlLoadButton
-              kpiId={kpiId}
+              kpiId={selectedKpiId}
               variant="form"
               onPrefill={({ fecha, variables }) => {
                 setPrefillFecha(fecha);

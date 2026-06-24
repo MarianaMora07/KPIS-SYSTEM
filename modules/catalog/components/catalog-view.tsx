@@ -9,7 +9,7 @@ import {
   FormActions,
   FormPrimaryButton,
 } from "@/components/ui/form-modal";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
+import { GUIDED_SUCCESS, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { createRegionAction, createHotelAction } from "../actions/catalog-actions";
 
@@ -20,7 +20,7 @@ interface CatalogViewProps {
 
 export function CatalogView({ regions, hotels }: CatalogViewProps) {
   const { can } = usePermissions();
-  const { showSuccess } = useSuccessToast();
+  const { showGuidedSuccess } = useSuccessToast();
   const canManage = can("catalogo.gestionar");
   const [pending, startTransition] = useTransition();
   const [regionOpen, setRegionOpen] = useState(false);
@@ -89,7 +89,7 @@ export function CatalogView({ regions, hotels }: CatalogViewProps) {
                 nombre: fd.get("nombre") as string,
               });
               setRegionOpen(false);
-              showSuccess(SUCCESS_MESSAGES.created);
+              showGuidedSuccess(GUIDED_SUCCESS.regionCreated);
             });
           }}
         >
@@ -123,7 +123,7 @@ export function CatalogView({ regions, hotels }: CatalogViewProps) {
                 ciudad: (fd.get("ciudad") as string) || undefined,
               });
               setHotelOpen(false);
-              showSuccess(SUCCESS_MESSAGES.created);
+              showGuidedSuccess(GUIDED_SUCCESS.hotelCreated);
             });
           }}
         >

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { withAuditUserContext } from "@/lib/supabase/audit-context";
 import { dispatchActivepiecesEvent } from "@/lib/activepieces/dispatch";
 import { getAdapterFor } from "../adapters/pms-demo-adapter";
 import type { IntegrationRecord } from "../adapters/types";
@@ -19,8 +20,10 @@ type IntegrationKpiValueRow = {
 
 async function upsertIntegrationKpiValue(
   supabase: SupabaseClient,
-  row: IntegrationKpiValueRow
+  row: IntegrationKpiValueRow,
+  auditUserId?: string | null
 ): Promise<{ error: { message: string } | null }> {
+  const write = async (): Promise<{ error: { message: string } | null }> => {
   const base = {
     kpi_id: row.kpi_id,
     hotel_id: row.hotel_id,
@@ -106,11 +109,18 @@ async function upsertIntegrationKpiValue(
     ({ error } = await supabase.from("kpi_values").insert(withoutOptional));
   }
   return { error };
+  };
+
+  if (auditUserId) {
+    return withAuditUserContext(supabase, auditUserId, write);
+  }
+  return write();
 }
 
 export async function processIntegrationSync(
   integrationId: string,
-  jobId: string
+  jobId: string,
+  options?: { triggeredByUserId?: string | null }
 ): Promise<{ ok: boolean; registrosOk: number; registrosError: number; error?: string }> {
   const supabase = await createClient();
 
@@ -202,17 +212,21 @@ export async function processIntegrationSync(
             ).data?.id ?? kpi.hotel_id
           : kpi.hotel_id;
 
-        const { error: upsertError } = await upsertIntegrationKpiValue(supabase, {
-          kpi_id: kpi.id,
-          hotel_id: hotelId,
-          region_id: kpi.region_id,
-          fecha: rec.fecha,
-          valor_real: valorReal,
-          valor_meta: null,
-          variable_inputs: variableInputs,
-          integration_id: integrationId,
-          fuente: "integracion",
-        });
+        const { error: upsertError } = await upsertIntegrationKpiValue(
+          supabase,
+          {
+            kpi_id: kpi.id,
+            hotel_id: hotelId,
+            region_id: kpi.region_id,
+            fecha: rec.fecha,
+            valor_real: valorReal,
+            valor_meta: null,
+            variable_inputs: variableInputs,
+            integration_id: integrationId,
+            fuente: "integracion",
+          },
+          options?.triggeredByUserId
+        );
 
         if (upsertError) {
           err++;

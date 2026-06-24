@@ -73,7 +73,12 @@ export async function updateKpi(id: string, input: Partial<KpiCreateInput>, user
   await supabase.from("kpi_versions").insert({
     kpi_id: id,
     version: data.version_actual,
-    snapshot: existing,
+    // _audit_subtype permite distinguir version bumps en historial (equiv. UPDATE_VERSION origen)
+    snapshot: {
+      ...existing,
+      _audit_subtype: "version_bump",
+      version_actual: existing.version_actual ?? 1,
+    },
     changed_by: userId,
   });
 

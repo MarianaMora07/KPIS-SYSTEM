@@ -59,7 +59,8 @@ npm run dev
 | `/integraciones` | 005 | CRUD PMS/CRM, sync con reintentos, cron |
 | `/alertas` | 008/009 | Alertas, planes de acción, escalamiento auto 48h |
 | `/reportes` | 010 | PDF, Excel, PowerPoint, programación cron |
-| `/seguridad` | 011/012 | Usuarios, roles, scopes, bitácora |
+| `/seguridad` | 011 | Usuarios, roles y scopes |
+| `/auditoria` | 012 | Bitácora de trazabilidad |
 | `/catalogo` | — | Regiones, hoteles, canales, campañas |
 
 ## Automatización (Activepieces)

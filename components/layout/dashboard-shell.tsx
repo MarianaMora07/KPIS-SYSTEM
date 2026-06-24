@@ -53,8 +53,13 @@ const PAGE_TITLES: Record<
     showFilters: false,
   },
   "/seguridad": {
-    title: "Seguridad y auditoría",
-    subtitle: "Usuarios, permisos y bitácora (HU-KPI-011 / HU-KPI-012)",
+    title: "Seguridad",
+    subtitle: "Usuarios, roles y permisos (HU-KPI-011)",
+    showFilters: false,
+  },
+  "/auditoria": {
+    title: "Auditoría",
+    subtitle: "Bitácora de trazabilidad del sistema (HU-KPI-012)",
     showFilters: false,
   },
   "/admin/ai-settings": {

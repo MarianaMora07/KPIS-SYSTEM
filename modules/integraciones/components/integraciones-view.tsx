@@ -4,8 +4,11 @@ import { useState, useTransition } from "react";
 import { Plug, RefreshCw, CheckCircle, XCircle, Plus, ChevronDown, Trash2, Loader2 } from "lucide-react";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
-import type { IntegrationDeleteImpact } from "@/modules/integraciones/services/integration-service";
+import { SUCCESS_MESSAGES, GUIDED_SUCCESS, useSuccessToast } from "@/components/ui/success-toast";
+import type {
+  IntegrationDeleteImpact,
+  RecentIntegrationJobRow,
+} from "@/modules/integraciones/services/integration-service";
 import {
   DatabaseConnectionsPanel,
   type DatabaseConnectionListItem,
@@ -23,19 +26,26 @@ interface Integration {
 interface IntegracionesViewProps {
   integrations: Integration[];
   databaseConnections?: DatabaseConnectionListItem[];
+  recentJobs?: RecentIntegrationJobRow[];
 }
 
 export function IntegracionesView({
   integrations: initial,
   databaseConnections = [],
+  recentJobs = [],
 }: IntegracionesViewProps) {
   const [integrations, setIntegrations] = useState(initial);
   const [showForm, setShowForm] = useState(false);
   const { can } = usePermissions();
+  const { showGuidedSuccess } = useSuccessToast();
   const canManage = can("integraciones.gestionar");
 
   return (
     <div className="space-y-8">
+      {recentJobs.length > 0 && (
+        <RecentIntegrationJobsPanel jobs={recentJobs} />
+      )}
+
       <DatabaseConnectionsPanel
         initialConnections={databaseConnections}
         canManage={canManage}
@@ -60,6 +70,7 @@ export function IntegracionesView({
           onCreated={(integration) => {
             setIntegrations((prev) => [...prev, integration]);
             setShowForm(false);
+            showGuidedSuccess(GUIDED_SUCCESS.integrationCreated);
           }}
           onCancel={() => setShowForm(false)}
         />
@@ -458,5 +469,73 @@ function IntegrationCard({
         ) : null}
       </ConfirmDialog>
     </li>
+  );
+}
+
+function RecentIntegrationJobsPanel({
+  jobs,
+}: {
+  jobs: RecentIntegrationJobRow[];
+}) {
+  return (
+    <section className="glass rounded-xl border border-slate-200/60 p-6">
+      <h2 className="mb-1 text-lg font-semibold text-imperial-900">
+        Últimas sincronizaciones
+      </h2>
+      <p className="mb-4 text-xs text-slate-500">
+        Monitoreo HU-005 · jobs recientes de todas las integraciones
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+              <th className="px-3 py-2">Integración</th>
+              <th className="px-3 py-2">Sistema</th>
+              <th className="px-3 py-2">Estado</th>
+              <th className="px-3 py-2">OK / Error</th>
+              <th className="px-3 py-2">Fecha</th>
+              <th className="px-3 py-2">Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jobs.map((job) => (
+              <tr key={job.id} className="border-b border-slate-100">
+                <td className="px-3 py-2 font-medium">{job.integration_nombre}</td>
+                <td className="px-3 py-2 uppercase text-xs text-slate-500">
+                  {job.sistema_tipo}
+                </td>
+                <td className="px-3 py-2">
+                  <JobEstadoBadge estado={job.estado} />
+                </td>
+                <td className="px-3 py-2 tabular-nums text-xs">
+                  {job.registros_ok ?? 0} / {job.registros_error ?? 0}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">
+                  {new Date(job.completed_at ?? job.created_at).toLocaleString("es-CO")}
+                </td>
+                <td className="max-w-xs truncate px-3 py-2 text-xs text-slate-500">
+                  {job.error_mensaje ?? "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function JobEstadoBadge({ estado }: { estado: string }) {
+  const ok = estado === "completado";
+  const partial = estado === "parcial";
+  const cls = ok
+    ? "bg-emerald-100 text-emerald-800"
+    : partial
+      ? "bg-amber-100 text-amber-800"
+      : "bg-red-100 text-red-800";
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${cls}`}>
+      {estado}
+    </span>
   );
 }
