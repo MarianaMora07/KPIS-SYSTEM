@@ -212,15 +212,18 @@ export function FormPrimaryButton({
 export function FormSecondaryButton({
   children,
   onClick,
+  disabled,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-imperial-900 transition-colors hover:border-imperial-700/30 hover:bg-slate-50"
+      disabled={disabled}
+      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-imperial-900 transition-colors hover:border-imperial-700/30 hover:bg-slate-50 disabled:opacity-50"
     >
       {children}
     </button>

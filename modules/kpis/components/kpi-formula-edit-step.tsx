@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Plus } from "lucide-react";
+import { useMemo, useState, useTransition, useEffect } from "react";
+import { Plus, Sparkles, Loader2 } from "lucide-react";
 import {
   FormError,
   FormField,
@@ -49,7 +49,54 @@ export function KpiFormulaEditStep({
   const [pending, startTransition] = useTransition();
   const [creatingVariable, startCreateVariable] = useTransition();
 
+  // ── AI Translator state (HU-KPI-003) ───────────────────────────────────────
+  const [aiDesc, setAiDesc] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!aiError) return;
+    const t = setTimeout(() => setAiError(null), 5000);
+    return () => clearTimeout(t);
+  }, [aiError]);
+
   const selectedVariables = variables.filter((v) => selectedCodes.has(v.codigo));
+
+  async function handleTranslate() {
+    if (!aiDesc.trim() || selectedVariables.length === 0) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/kpis/translate-formula", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          descripcion: aiDesc.trim(),
+          variables: selectedVariables.map((v) => ({
+            codigo: v.codigo,
+            nombre: v.nombre,
+          })),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        formula?: string;
+        error?: string;
+      };
+      if (!res.ok || data.error) {
+        throw new Error(data.error ?? "Error al generar fórmula");
+      }
+      if (data.formula) {
+        setExpresion(data.formula);
+        setAiDesc("");
+      }
+    } catch (e) {
+      setAiError(
+        e instanceof Error ? e.message : "No se pudo generar la fórmula. Intente de nuevo."
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   function toggleVariable(code: string) {
     setSelectedCodes((prev) => {
@@ -212,6 +259,54 @@ export function KpiFormulaEditStep({
               ))}
             </div>
           )}
+        </div>
+
+        {/* ── AI Formula Translator (HU-KPI-003) ───────────────────────── */}
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-3">
+          <div className="flex items-center gap-2 text-indigo-900">
+            <Sparkles className="h-4 w-4 text-indigo-600" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Asistente de Fórmula con IA</span>
+          </div>
+          
+          <textarea
+            value={aiDesc}
+            onChange={(e) => setAiDesc(e.target.value)}
+            disabled={aiLoading}
+            rows={2}
+            placeholder="Describe la fórmula en lenguaje natural... (ej. promedio de camas ocupadas el mes pasado)"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 disabled:opacity-50"
+          />
+
+          {selectedVariables.length === 0 && (
+            <p className="text-xs text-indigo-600 font-medium">
+              ⚠️ Seleccione al menos una variable en el paso 1 para habilitar el asistente de IA.
+            </p>
+          )}
+
+          {aiError && (
+            <div className="text-xs text-red-600 font-medium bg-red-50 p-2.5 rounded-lg border border-red-100">
+              {aiError}
+            </div>
+          )}
+
+          <div className="flex justify-start">
+            <FormSecondaryButton
+              onClick={handleTranslate}
+              disabled={aiLoading || !aiDesc.trim() || selectedVariables.length === 0}
+            >
+              {aiLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                  <span>Generando expresión...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 text-indigo-600" />
+                  <span>Generar expresión con IA</span>
+                </>
+              )}
+            </FormSecondaryButton>
+          </div>
         </div>
 
         <div>

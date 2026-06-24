@@ -56,6 +56,11 @@ const PAGE_TITLES: Record<
     subtitle: "Usuarios, permisos y bitácora (HU-KPI-011 / HU-KPI-012)",
     showFilters: false,
   },
+  "/admin/ai-settings": {
+    title: "Motores de IA",
+    subtitle: "Gestiona proveedores, API Keys cifradas y métricas de consumo",
+    showFilters: false,
+  },
   "/perfil": {
     title: "Mi perfil",
     subtitle: "Información personal y seguridad de la cuenta",
@@ -105,6 +110,7 @@ export function DashboardShell({
         onLogout={handleLogout}
         permissions={permissions}
         isDemoMode={isDemoMode}
+        rol={user?.rol ?? null}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="border-b border-slate-200/80 bg-white/90 px-6 py-3 backdrop-blur-md">

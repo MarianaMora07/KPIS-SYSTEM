@@ -9,6 +9,7 @@ import { VarianceBarChart } from "@/modules/dashboard/components/variance-bar-ch
 import { ComparativesChart } from "@/modules/dashboard/components/comparatives-chart";
 import { CriticalIndicatorsPanel } from "@/modules/dashboard/components/critical-indicators-panel";
 import { KpiCardsCarousel } from "@/modules/dashboard/components/kpi-cards-carousel";
+import { AiTrendSummaryCard } from "@/modules/dashboard/components/ai-trend-summary-card";
 import {
   formatKpiValue,
   type DashboardKpiRow,
@@ -221,30 +222,40 @@ export function DashboardView({
           )}
 
           <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
-                Tendencias históricas
-                {focusedRow && (
-                  <span className="ml-2 normal-case text-amber-600">
-                    (hasta {focusedRow.fecha}
-                    {focusedRow.hotel_nombre
-                      ? ` · ${focusedRow.hotel_nombre}`
-                      : ""}
-                    )
-                  </span>
+            <div className="space-y-4">
+              <div>
+                <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
+                  Tendencias históricas
+                  {focusedRow && (
+                    <span className="ml-2 normal-case text-amber-600">
+                      (hasta {focusedRow.fecha}
+                      {focusedRow.hotel_nombre
+                        ? ` · ${focusedRow.hotel_nombre}`
+                        : ""}
+                      )
+                    </span>
+                  )}
+                </h3>
+                {activeKpi ? (
+                  <TrendsLineChart
+                    history={history}
+                    kpiId={activeKpiId}
+                    unidadMedida={activeKpi.unidad_medida}
+                    showProjection={selectedValueKey === "all"}
+                    highlightFecha={focusedRow?.fecha}
+                    highlightHotel={focusedRow?.hotel_nombre ?? undefined}
+                  />
+                ) : (
+                  <EmptyChart message="Seleccione un KPI para ver tendencias" />
                 )}
-              </h3>
-              {activeKpi ? (
-                <TrendsLineChart
-                  history={history}
-                  kpiId={activeKpiId}
-                  unidadMedida={activeKpi.unidad_medida}
-                  showProjection={selectedValueKey === "all"}
-                  highlightFecha={focusedRow?.fecha}
-                  highlightHotel={focusedRow?.hotel_nombre ?? undefined}
+              </div>
+
+              {/* HU-KPI-007 – Resumen Ejecutivo de IA */}
+              {activeKpi && (
+                <AiTrendSummaryCard
+                  history={history.filter((h) => h.kpi_id === activeKpiId)}
+                  kpiNombre={activeKpi.kpi_nombre}
                 />
-              ) : (
-                <EmptyChart message="Seleccione un KPI para ver tendencias" />
               )}
             </div>
             <div>

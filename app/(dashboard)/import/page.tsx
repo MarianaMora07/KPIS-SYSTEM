@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { listImportJobs } from "@/modules/import/services/import-service";
 import { ImportUploadView } from "@/modules/import/components/import-upload-view";
 import { ImportHistoryList } from "@/modules/import/components/import-history-list";
+import { listKpis } from "@/modules/kpis/services/kpi-service";
 
 export default async function ImportPage() {
   if (!isSupabaseConfigured()) {
@@ -25,6 +26,13 @@ export default async function ImportPage() {
   } = await supabase.auth.getUser();
 
   const history = user ? await listImportJobs(user.id).catch(() => []) : [];
+  const kpis = await listKpis().catch(() => []);
+
+  const { data: variablesData } = await supabase
+    .from("kpi_variables")
+    .select("codigo, nombre")
+    .order("codigo");
+  const variables = variablesData ?? [];
 
   return (
     <div className="space-y-6">
@@ -43,9 +51,10 @@ export default async function ImportPage() {
         <code>var_visitas_mes</code>, <code>var_reservas_web</code>). La definición de variables y
         fórmulas se gestiona en el detalle de cada KPI (solo administrador).
       </p>
-      <ImportUploadView />
+      <ImportUploadView kpis={kpis} variables={variables} />
 
       <ImportHistoryList jobs={history} />
     </div>
   );
 }
+
