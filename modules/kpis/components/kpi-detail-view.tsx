@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useMemo, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Copy } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { duplicateKpiAction, deleteKpiValueAction } from "@/modules/kpis/actions/kpi-actions";
 import { KpiEditForm } from "@/modules/kpis/components/kpi-edit-form";
 import type { KpiCreateInput } from "@/lib/validations/schemas";
 import type { KpiFormCatalogs } from "@/modules/kpis/components/kpi-form-fields";
+import { KpiReviewNotificationsPanel } from "@/modules/kpis/components/kpi-review-notifications-panel";
 import { TargetsPanel } from "@/modules/metas/components/targets-panel";
 import { TrafficLightPanel } from "@/modules/metas/components/traffic-light-panel";
-import { FormulaPanel } from "@/modules/formulas/components/formula-panel";
 import { KpiFormulaSetupPanel } from "@/modules/formulas/components/kpi-formula-setup-panel";
 import { RegisterValueForm } from "@/modules/kpis/components/register-value-form";
 import {
@@ -19,10 +19,17 @@ import {
   type KpiValueRow,
 } from "@/modules/kpis/components/kpi-values-analytics-panel";
 import { KpiRegisteredValuesPanel } from "@/modules/kpis/components/kpi-registered-values-panel";
+import {
+  KpiDetailFlowGuide,
+  type KpiDetailTab,
+} from "@/modules/kpis/components/kpi-detail-flow-guide";
 import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { formatKpiValue } from "@/modules/dashboard/types";
+import type { KpiFrequency } from "@/types/database";
 import type { DimensionCatalogs } from "@/lib/kpis/dimension-scope";
+
+export type { KpiDetailTab };
 
 interface KpiDetailViewProps {
   kpi: Record<string, unknown>;
@@ -47,9 +54,14 @@ interface KpiDetailViewProps {
   initialFormula?: string;
   formulaVariableCodes?: string[];
   initialSelectedFecha?: string;
+  initialTab?: KpiDetailTab;
   editDefaultValues?: KpiCreateInput;
   editCatalogs?: KpiFormCatalogs;
   dimensionCatalogs?: DimensionCatalogs;
+  recordatorioEmailActivo?: boolean;
+  recordatorioEmails?: string[];
+  ultimoRecordatorioAt?: string | null;
+  responsableEmail?: string | null;
 }
 
 export function KpiDetailView({
@@ -64,9 +76,14 @@ export function KpiDetailView({
   initialFormula = "",
   formulaVariableCodes = [],
   initialSelectedFecha,
+  initialTab = "seguimiento",
   editDefaultValues,
   editCatalogs,
   dimensionCatalogs = {},
+  recordatorioEmailActivo = false,
+  recordatorioEmails = [],
+  ultimoRecordatorioAt = null,
+  responsableEmail = null,
 }: KpiDetailViewProps) {
   const { can, canManageUsers } = usePermissions();
   const canEdit = can("kpis.editar");
@@ -74,12 +91,15 @@ export function KpiDetailView({
   const canConfigureMetas = can("metas.configurar");
   const { showSuccess } = useSuccessToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<KpiDetailTab>(initialTab);
   const [pending, startTransition] = useTransition();
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const [valueToDelete, setValueToDelete] = useState<KpiValueRow | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const id = kpi.id as string;
+  const kpiCodigo = kpi.codigo as string;
   const unidadMedida = (kpi.unidad_medida as string) ?? "";
 
   const kpiScopeDefaults = useMemo(
@@ -102,14 +122,23 @@ export function KpiDetailView({
   );
 
   const registerKpis = useMemo(
-    () => [
-      {
-        id,
-        codigo: kpi.codigo as string,
-        nombre: kpi.nombre as string,
-      },
-    ],
-    [id, kpi.codigo, kpi.nombre]
+    () => [{ id, codigo: kpiCodigo, nombre: kpi.nombre as string }],
+    [id, kpiCodigo, kpi.nombre]
+  );
+
+  const setTabWithUrl = useCallback(
+    (next: KpiDetailTab) => {
+      setTab(next);
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "metas") {
+        params.set("tab", "metas");
+      } else {
+        params.delete("tab");
+      }
+      const qs = params.toString();
+      router.replace(qs ? `/kpis/${id}?${qs}` : `/kpis/${id}`, { scroll: false });
+    },
+    [router, searchParams, id]
   );
 
   function handleDuplicate() {
@@ -141,6 +170,9 @@ export function KpiDetailView({
     });
   }
 
+  const showFormulaPanel =
+    canManageUsers || variables.length > 0 || Boolean(initialFormula);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -152,7 +184,7 @@ export function KpiDetailView({
           Volver a KPIs
         </Link>
         <div className="flex gap-2">
-          {canConfigureMetas && (
+          {tab === "seguimiento" && canConfigureMetas && (
             <RegisterValueForm
               kpis={registerKpis}
               defaultKpiId={id}
@@ -188,7 +220,7 @@ export function KpiDetailView({
       </div>
 
       <div className="glass rounded-xl border border-slate-200/60 p-6">
-        <p className="font-mono text-xs text-amber-600">{kpi.codigo as string}</p>
+        <p className="font-mono text-xs text-amber-600">{kpiCodigo}</p>
         <h1 className="text-2xl font-semibold text-imperial-900">{kpi.nombre as string}</h1>
         <p className="mt-2 text-sm text-slate-600">
           {kpi.area_responsable as string} · {kpi.frecuencia as string} · v
@@ -196,66 +228,118 @@ export function KpiDetailView({
         </p>
       </div>
 
-      <KpiValuesAnalyticsPanel
-        kpiId={id}
-        kpiCodigo={kpi.codigo as string}
-        kpiNombre={kpi.nombre as string}
-        unidadMedida={(kpi.unidad_medida as string) ?? ""}
-        values={values}
-        initialSelectedFecha={initialSelectedFecha}
-        trafficLightRanges={trafficLightRanges}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3 border-b border-slate-200 pb-4">
+        <div className="flex gap-2">
+          <DetailTabButton
+            active={tab === "seguimiento"}
+            onClick={() => setTabWithUrl("seguimiento")}
+          >
+            Seguimiento
+            {values.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-600">
+                {values.length}
+              </span>
+            )}
+          </DetailTabButton>
+          <DetailTabButton active={tab === "metas"} onClick={() => setTabWithUrl("metas")}>
+            Metas y semáforo
+            {targets.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-normal text-slate-600">
+                {targets.length}
+              </span>
+            )}
+          </DetailTabButton>
+        </div>
+        <KpiDetailFlowGuide tab={tab} kpiCodigo={kpiCodigo} />
+      </div>
 
-      {canConfigureMetas && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <TargetsPanel
+      {tab === "seguimiento" ? (
+        <div className="mt-2 space-y-6">
+          <KpiValuesAnalyticsPanel
             kpiId={id}
-            targets={targets}
-            regions={regions}
-            hotels={hotels}
-            campaigns={dimensionCatalogs.campaigns}
+            kpiCodigo={kpiCodigo}
+            kpiNombre={kpi.nombre as string}
+            unidadMedida={unidadMedida}
+            values={values}
+            initialSelectedFecha={initialSelectedFecha}
+            trafficLightRanges={trafficLightRanges}
           />
-          <TrafficLightPanel kpiId={id} initialRanges={trafficLightRanges} />
+
+          {showFormulaPanel && (
+            <KpiFormulaSetupPanel
+              kpiId={id}
+              kpiNombre={kpi.nombre as string}
+              kpiContext={{
+                kpi_nombre: kpi.nombre as string,
+                unidad_medida: unidadMedida,
+                area_responsable: kpi.area_responsable as string,
+                tipo_indicador: kpi.tipo_indicador as string,
+              }}
+              allVariables={variables}
+              initialExpresion={initialFormula}
+              onFormulaSaved={() => router.refresh()}
+              onRequestRegisterValue={
+                canConfigureMetas ? () => setRegisterOpen(true) : undefined
+              }
+            />
+          )}
+
+          <KpiRegisteredValuesPanel
+            values={values}
+            unidadMedida={unidadMedida}
+            pending={pending}
+            onDelete={setValueToDelete}
+          />
+
+          <section className="glass rounded-xl border border-slate-200/60 p-6">
+            <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">
+              Historial de versiones
+            </h2>
+            <ul className="space-y-2 text-sm">
+              {versions.map((v) => (
+                <li key={v.version} className="rounded bg-slate-50 px-3 py-2">
+                  v{v.version} — {new Date(v.created_at).toLocaleString("es-CO")}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      ) : (
+        <div className="mt-2 space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <TargetsPanel
+              kpiId={id}
+              targets={targets}
+              regions={regions}
+              hotels={hotels}
+              campaigns={dimensionCatalogs.campaigns}
+            />
+            <TrafficLightPanel kpiId={id} initialRanges={trafficLightRanges} />
+          </div>
+
+          <KpiReviewNotificationsPanel
+            kpiId={id}
+            kpiCodigo={kpiCodigo}
+            frecuencia={kpi.frecuencia as KpiFrequency}
+            activo={recordatorioEmailActivo}
+            emails={recordatorioEmails}
+            ultimoRecordatorioAt={ultimoRecordatorioAt}
+            responsableEmail={responsableEmail}
+          />
+
+          {!canConfigureMetas && targets.length === 0 && (
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Este indicador aún no tiene metas configuradas. Un usuario con permiso de configuración
+              de metas puede definirlas aquí.
+            </p>
+          )}
         </div>
       )}
-
-      {(canManageUsers || variables.length > 0 || initialFormula) && (
-        <KpiFormulaSetupPanel
-          kpiId={id}
-          kpiNombre={kpi.nombre as string}
-          allVariables={variables}
-          initialExpresion={initialFormula}
-          onFormulaSaved={() => router.refresh()}
-          onRequestRegisterValue={
-            canConfigureMetas ? () => setRegisterOpen(true) : undefined
-          }
-        />
-      )}
-
-      <KpiRegisteredValuesPanel
-        values={values}
-        unidadMedida={unidadMedida}
-        pending={pending}
-        onDelete={setValueToDelete}
-      />
-
-      <section className="glass rounded-xl border border-slate-200/60 p-6">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-500">
-          Historial de versiones
-        </h2>
-        <ul className="space-y-2 text-sm">
-          {versions.map((v) => (
-            <li key={v.version} className="rounded bg-slate-50 px-3 py-2">
-              v{v.version} — {new Date(v.created_at).toLocaleString("es-CO")}
-            </li>
-          ))}
-        </ul>
-      </section>
 
       <ConfirmDialog
         open={showDuplicateConfirm}
         title="Duplicar KPI"
-        description={`Se creará una copia de ${kpi.codigo as string} con metas asociadas. ¿Desea continuar?`}
+        description={`Se creará una copia de ${kpiCodigo} con metas asociadas. ¿Desea continuar?`}
         confirmLabel="Duplicar"
         cancelLabel="Cancelar"
         variant="default"
@@ -291,5 +375,29 @@ export function KpiDetailView({
         onCancel={() => setErrorMsg(null)}
       />
     </div>
+  );
+}
+
+function DetailTabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+        active
+          ? "border-imperial-900 text-imperial-900"
+          : "border-transparent text-slate-500 hover:text-slate-700"
+      }`}
+    >
+      {children}
+    </button>
   );
 }

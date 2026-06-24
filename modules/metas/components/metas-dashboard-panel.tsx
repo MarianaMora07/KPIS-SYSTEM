@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { usePermissions } from "@/components/layout/permissions-context";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { TrafficLightGlow } from "@/components/ui/traffic-light-glow";
 import { formatKpiValue } from "@/modules/dashboard/types";
 import type { MetasDashboardRow } from "@/modules/metas/types";
@@ -22,6 +23,8 @@ const PERIODO_LABELS: Record<string, string> = {
   especial: "Especial",
 };
 
+const PAGE_SIZE = 5;
+
 function scopeLabel(row: MetasDashboardRow): string {
   if (row.hotel_nombre) return row.hotel_nombre;
   if (row.region_nombre) return row.region_nombre;
@@ -31,6 +34,18 @@ function scopeLabel(row: MetasDashboardRow): string {
 export function MetasDashboardPanel({ rows }: MetasDashboardPanelProps) {
   const { can } = usePermissions();
   const canConfigure = can("metas.configurar");
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    setPage(0);
+  }, [rows]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = rows.slice(
+    safePage * PAGE_SIZE,
+    safePage * PAGE_SIZE + PAGE_SIZE
+  );
 
   const summary = useMemo(() => {
     const total = rows.length;
@@ -67,11 +82,11 @@ export function MetasDashboardPanel({ rows }: MetasDashboardPanelProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
+              {pageRows.map((row) => (
                 <tr key={row.id} className="hover:bg-slate-50/50">
                   <td className="px-4 py-3">
                     <Link
-                      href={`/kpis/${row.kpi_id}`}
+                      href={`/kpis/${row.kpi_id}?tab=metas`}
                       className="font-medium text-imperial-900 hover:text-amber-700"
                     >
                       <span className="font-mono text-xs text-amber-600">{row.kpi_codigo}</span>
@@ -121,7 +136,7 @@ export function MetasDashboardPanel({ rows }: MetasDashboardPanelProps) {
                   {canConfigure && (
                     <td className="px-4 py-3 text-right">
                       <Link
-                        href={`/kpis/${row.kpi_id}`}
+                        href={`/kpis/${row.kpi_id}?tab=metas`}
                         className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900"
                       >
                         <Settings2 className="h-3.5 w-3.5" />
@@ -144,6 +159,16 @@ export function MetasDashboardPanel({ rows }: MetasDashboardPanelProps) {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="border-t border-slate-100 px-4 pb-4">
+          <PaginationControls
+            page={safePage}
+            totalPages={totalPages}
+            totalItems={rows.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            itemLabel="metas"
+          />
         </div>
       </section>
     </div>

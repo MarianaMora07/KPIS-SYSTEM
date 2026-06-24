@@ -3,12 +3,33 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { assertPermission } from "@/lib/auth/require-permission";
+import { invalidateCache } from "@/lib/cache/dashboard-cache";
+import { registerKpiValueAction } from "@/modules/kpis/actions/kpi-actions";
 import {
   createTarget,
   deleteTarget,
   upsertTrafficLightRange,
 } from "../services/targets-service";
 import type { KpiTargetInput } from "@/lib/validations/schemas";
+import { listTargets } from "../services/targets-service";
+import {
+  splitTargetsByValueMatch,
+  type TargetRowForMatch,
+  type ValueScopeForMatch,
+} from "@/lib/metas/match-value-to-targets";
+import { mapRawTargetsForMatch } from "@/lib/metas/resolve-value-compliance";
+
+export async function previewValueTargetMatchesAction(
+  kpiId: string,
+  value: ValueScopeForMatch
+): Promise<{ matches: TargetRowForMatch[]; nonMatches: TargetRowForMatch[] }> {
+  await assertPermission("metas.configurar");
+
+  const raw = await listTargets(kpiId);
+  const targets = mapRawTargetsForMatch(raw);
+
+  return splitTargetsByValueMatch(targets, value);
+}
 
 export async function createTargetAction(kpiId: string, input: KpiTargetInput) {
   await assertPermission("metas.configurar");
@@ -18,7 +39,23 @@ export async function createTargetAction(kpiId: string, input: KpiTargetInput) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
-  await createTarget({ ...input, kpi_id: kpiId }, user.id);
+  const { valor_avance, ...targetInput } = input;
+  await createTarget({ ...targetInput, kpi_id: kpiId }, user.id);
+
+  if (valor_avance != null && !Number.isNaN(valor_avance)) {
+    await registerKpiValueAction({
+      kpi_id: kpiId,
+      fecha: targetInput.fecha_inicio,
+      valor_real: valor_avance,
+      hotel_id: targetInput.hotel_id ?? null,
+      region_id: targetInput.region_id ?? null,
+      marketing_campaign_id: targetInput.marketing_campaign_id ?? null,
+    });
+  }
+
+  invalidateCache("dashboard");
+  invalidateCache("cards");
+  revalidatePath("/dashboard");
   revalidatePath(`/kpis/${kpiId}`);
 }
 

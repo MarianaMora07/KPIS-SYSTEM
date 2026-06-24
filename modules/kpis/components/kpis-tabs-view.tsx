@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { usePermissions } from "@/components/layout/permissions-context";
 import { KpiList } from "@/modules/kpis/components/kpi-list";
 import { KpisPageToolbar } from "@/modules/kpis/components/kpis-page-toolbar";
 import { VariablesCatalogView } from "@/modules/formulas/components/variables-catalog-view";
@@ -46,7 +47,23 @@ export function KpisTabsView({
 }: KpisTabsViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<KpiTab>(initialTab);
+  const { can } = usePermissions();
+  const canManageVariables = can("kpis.editar");
+  const [tab, setTab] = useState<KpiTab>(
+    initialTab === "variables" && canManageVariables ? "variables" : "indicadores"
+  );
+
+  useEffect(() => {
+    if (!canManageVariables && tab === "variables") {
+      setTab("indicadores");
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("tab");
+      const qs = params.toString();
+      router.replace(qs ? `/kpis?${qs}` : "/kpis", { scroll: false });
+    }
+  }, [canManageVariables, tab, router, searchParams]);
+
+  const activeTab = canManageVariables ? tab : "indicadores";
 
   const setTabWithUrl = useCallback(
     (next: KpiTab) => {
@@ -64,7 +81,7 @@ export function KpisTabsView({
   );
 
   function toggleVariables() {
-    setTabWithUrl(tab === "variables" ? "indicadores" : "variables");
+    setTabWithUrl(activeTab === "variables" ? "indicadores" : "variables");
   }
 
   return (
@@ -76,12 +93,12 @@ export function KpisTabsView({
           nombre: k.nombre,
         }))}
         variables={variables}
-        activeTab={tab}
-        onOpenVariables={toggleVariables}
+        activeTab={activeTab}
+        onOpenVariables={canManageVariables ? toggleVariables : undefined}
         {...catalogs}
       />
 
-      {tab === "indicadores" ? (
+      {activeTab === "indicadores" ? (
         <KpiList kpis={kpis} />
       ) : (
         <>

@@ -81,6 +81,7 @@ export default async function KpisPage({ searchParams }: KpisPageProps) {
         users={users.map((u) => ({
           id: u.id,
           nombre: [u.nombre, u.apellido].filter(Boolean).join(" ") || u.email,
+          email: u.email,
         }))}
         businessUnits={businessUnits}
         salesChannels={salesChannels}

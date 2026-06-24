@@ -100,7 +100,9 @@ export function KpiRegisteredValuesPanel({
             <span className="font-medium">
               {formatKpiValue(Number(v.valor_real), unidadMedida)}
             </span>
-            <span className="text-slate-500">{v.cumplimiento_pct ?? "—"}%</span>
+            <span className="text-slate-500">
+              {v.cumplimiento_pct != null ? `${v.cumplimiento_pct}%` : "—"}
+            </span>
             {v.scope_label && (
               <span className="w-full text-xs text-slate-400">{v.scope_label}</span>
             )}

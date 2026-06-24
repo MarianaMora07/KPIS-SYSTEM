@@ -22,7 +22,7 @@ export interface KpiValueRow {
   valor_real: number;
   valor_meta: number | null;
   cumplimiento_pct: number | null;
-  semaforo?: TrafficLightStatus | null;
+  semaforo_calculado?: TrafficLightStatus | null;
   variable_inputs?: Record<string, number> | null;
   hotel_id?: string | null;
   region_id?: string | null;
@@ -140,7 +140,7 @@ export function KpiValuesAnalyticsPanel({
             )}
           />
           <StatCard
-            label="Meta"
+            label="Meta del periodo"
             value={
               displayRow?.valor_meta != null
                 ? formatKpiValue(Number(displayRow.valor_meta), unidadMedida)
@@ -172,6 +172,13 @@ export function KpiValuesAnalyticsPanel({
       {values.length === 0 && (
         <p className="text-sm text-slate-500">
           Registre valores para ver tendencias y comparativos.
+        </p>
+      )}
+
+      {values.length > 0 && displayRow?.valor_meta == null && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
+          Sin meta para esta fecha y alcance. Configure una en la pestaña{" "}
+          <strong>Metas y semáforo</strong> para ver cumplimiento y semáforo.
         </p>
       )}
 
@@ -278,11 +285,9 @@ function valuesToDashboardRows(
       valor_real: Number(v.valor_real),
       valor_meta: v.valor_meta != null ? Number(v.valor_meta) : null,
       cumplimiento_pct: v.cumplimiento_pct,
-      semaforo_calculado: resolveSemaforoCalculado(
-        v.semaforo,
-        v.cumplimiento_pct,
-        trafficLightRanges ?? undefined
-      ),
+      semaforo_calculado:
+        v.semaforo_calculado ??
+        resolveSemaforoCalculado(null, v.cumplimiento_pct, trafficLightRanges ?? undefined),
       fuente: "manual",
     }));
 }

@@ -64,7 +64,6 @@ export default async function KpiEditPage({ params }: PageProps) {
       frecuencia: kpi.frecuencia,
       formula: kpi.formula,
       unidad_medida: kpi.unidad_medida,
-      meta: kpi.meta,
       fuente_informacion: kpi.fuente_informacion,
       tipo_indicador: kpi.tipo_indicador,
       hotel_id: kpi.hotel_id,

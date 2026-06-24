@@ -17,7 +17,6 @@ interface KpiRow {
   area_responsable: string;
   frecuencia: string;
   unidad_medida: string;
-  meta: number | null;
   tipo_indicador: string;
   estado: string;
   kpi_categories: { nombre: string } | null;
@@ -64,7 +63,6 @@ export function KpiList({ kpis }: KpiListProps) {
               <th className="px-4 py-3">Categoría</th>
               <th className="px-4 py-3">Área</th>
               <th className="px-4 py-3">Frecuencia</th>
-              <th className="px-4 py-3">Meta</th>
               <th className="px-4 py-3">Tipo</th>
               <th className="px-4 py-3">Acciones</th>
             </tr>
@@ -87,9 +85,6 @@ export function KpiList({ kpis }: KpiListProps) {
                 <td className="px-4 py-3 text-slate-600">{kpi.area_responsable}</td>
                 <td className="px-4 py-3 capitalize text-slate-600">
                   {kpi.frecuencia}
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {kpi.meta != null ? `${kpi.meta} ${kpi.unidad_medida}` : "—"}
                 </td>
                 <td className="px-4 py-3 capitalize text-slate-600">
                   {kpi.tipo_indicador}

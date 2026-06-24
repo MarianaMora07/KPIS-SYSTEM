@@ -12,6 +12,10 @@ import { FormUnitSelect } from "@/components/ui/form-unit-select";
 import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { createVariableAction } from "@/modules/formulas/actions/variable-actions";
 import { validateFormula } from "@/modules/formulas/utils/formula-engine";
+import {
+  KpiFormulaSuggestion,
+  type FormulaSuggestionContext,
+} from "@/modules/formulas/components/kpi-formula-suggestion";
 
 export interface FormulaVariableRow {
   id: string;
@@ -24,6 +28,7 @@ export interface FormulaVariableRow {
 
 interface KpiCreateFormulaStepProps {
   kpiNombre: string;
+  kpiContext?: FormulaSuggestionContext;
   variables: FormulaVariableRow[];
   onVariablesChange: (variables: FormulaVariableRow[]) => void;
   usesFormula: boolean | null;
@@ -40,6 +45,7 @@ interface KpiCreateFormulaStepProps {
 
 export function KpiCreateFormulaStep({
   kpiNombre,
+  kpiContext,
   variables,
   onVariablesChange,
   usesFormula,
@@ -186,6 +192,24 @@ export function KpiCreateFormulaStep({
 
       {usesFormula === true && canManageUsers && (
         <>
+          <KpiFormulaSuggestion
+            context={
+              kpiContext ?? {
+                kpi_nombre: kpiNombre,
+              }
+            }
+            variables={variables}
+            currentExpresion={expresion}
+            onApply={({ expresion: nextExpresion, variableCodes }) => {
+              onExpresionChange(nextExpresion);
+              onSelectedCodesChange(
+                new Set(
+                  variableCodes.filter((code) => variables.some((v) => v.codigo === code))
+                )
+              );
+            }}
+          />
+
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-medium text-slate-500">

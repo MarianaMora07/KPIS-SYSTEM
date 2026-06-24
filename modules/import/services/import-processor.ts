@@ -9,7 +9,6 @@ interface ImportRow {
   valor_real?: number;
   variable_inputs?: Record<string, number>;
   hotel_codigo?: string;
-  valor_meta?: number;
 }
 
 interface ProcessResult {
@@ -44,7 +43,7 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
     const buffer = await fileData.arrayBuffer();
     const rows = parseFile(buffer, job.tipo_archivo as "xlsx" | "csv");
 
-    const { data: kpis } = await supabase.from("kpis").select("id, codigo, meta, hotel_id, region_id");
+    const { data: kpis } = await supabase.from("kpis").select("id, codigo, hotel_id, region_id");
     const { data: hotels } = await supabase.from("hotels").select("id, codigo, region_id");
 
     const kpiByCode = new Map((kpis ?? []).map((k) => [k.codigo.toUpperCase(), k]));
@@ -129,7 +128,7 @@ export async function processImportJob(jobId: string): Promise<ProcessResult> {
         region_id: regionId,
         fecha: row.fecha,
         valor_real: valorReal,
-        valor_meta: row.valor_meta ?? kpi.meta ?? null,
+        valor_meta: null,
         variable_inputs: variableInputs,
         fuente: "import",
       });
@@ -246,7 +245,6 @@ function parseFile(buffer: ArrayBuffer, tipo: "xlsx" | "csv"): ImportRow[] {
       hotel_codigo: normalized.hotel_codigo
         ? String(normalized.hotel_codigo).trim()
         : undefined,
-      valor_meta: normalized.valor_meta ? Number(normalized.valor_meta) : undefined,
     };
   });
 }

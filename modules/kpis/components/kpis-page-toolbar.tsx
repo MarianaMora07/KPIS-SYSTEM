@@ -24,14 +24,15 @@ export function KpisPageToolbar({
   const { can } = usePermissions();
   const showCreate = can("kpis.crear");
   const showRegister = can("metas.configurar");
+  const showVariables = can("kpis.editar") && !!onOpenVariables;
 
-  if (!showCreate && !showRegister && !onOpenVariables) return null;
+  if (!showCreate && !showRegister && !showVariables) return null;
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
       {showCreate && <KpiCreateForm variables={variables} {...catalogs} />}
       {showRegister && <RegisterValueForm kpis={kpis} />}
-      {onOpenVariables && (
+      {showVariables && (
         <button
           type="button"
           onClick={onOpenVariables}

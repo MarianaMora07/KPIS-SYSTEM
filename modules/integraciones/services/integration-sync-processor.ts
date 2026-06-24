@@ -187,7 +187,7 @@ export async function processIntegrationSync(
           region_id: kpi.region_id,
           fecha: rec.fecha,
           valor_real: valorReal,
-          valor_meta: kpi.meta,
+          valor_meta: null,
           variable_inputs: variableInputs,
           integration_id: integrationId,
           fuente: "integracion",

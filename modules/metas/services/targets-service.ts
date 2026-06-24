@@ -51,7 +51,19 @@ function matchesTargetScope(
   return dimensionMatchesTarget(target, value);
 }
 
-function findLatestValueInPeriod(
+function isGlobalTarget(target: {
+  hotel_id: string | null;
+  region_id: string | null;
+  marketing_campaign_id?: string | null;
+}): boolean {
+  return !target.hotel_id && !target.region_id && !target.marketing_campaign_id;
+}
+
+function scopeKey(value: KpiValueRow): string {
+  return `${value.hotel_id ?? ""}|${value.region_id ?? ""}|${value.marketing_campaign_id ?? ""}`;
+}
+
+function resolveTargetProgress(
   target: {
     kpi_id: string;
     hotel_id: string | null;
@@ -61,7 +73,7 @@ function findLatestValueInPeriod(
     fecha_fin: string;
   },
   values: KpiValueRow[]
-): KpiValueRow | null {
+): number | null {
   const inPeriod = values.filter(
     (v) =>
       v.kpi_id === target.kpi_id &&
@@ -70,7 +82,30 @@ function findLatestValueInPeriod(
       matchesTargetScope(target, v)
   );
   if (inPeriod.length === 0) return null;
-  return inPeriod.reduce((latest, v) => (v.fecha > latest.fecha ? v : latest));
+
+  if (!isGlobalTarget(target)) {
+    return inPeriod.reduce((latest, v) => (v.fecha > latest.fecha ? v : latest)).valor_real;
+  }
+
+  const globalValues = inPeriod.filter(
+    (v) => !v.hotel_id && !v.region_id && !v.marketing_campaign_id
+  );
+  if (globalValues.length > 0) {
+    return globalValues.reduce((latest, v) => (v.fecha > latest.fecha ? v : latest)).valor_real;
+  }
+
+  const latestByScope = new Map<string, KpiValueRow>();
+  for (const value of inPeriod) {
+    const key = scopeKey(value);
+    const existing = latestByScope.get(key);
+    if (!existing || value.fecha > existing.fecha) {
+      latestByScope.set(key, value);
+    }
+  }
+
+  const buckets = [...latestByScope.values()];
+  if (buckets.length === 1) return buckets[0]!.valor_real;
+  return buckets.reduce((sum, value) => sum + value.valor_real, 0);
 }
 
 export async function listTargetsForDashboard(
@@ -146,11 +181,11 @@ export async function listTargetsForDashboard(
       kpi_id: t.kpi_id as string,
       hotel_id: t.hotel_id as string | null,
       region_id: t.region_id as string | null,
+      marketing_campaign_id: t.marketing_campaign_id as string | null,
       fecha_inicio: t.fecha_inicio as string,
       fecha_fin: t.fecha_fin as string,
     };
-    const latest = findLatestValueInPeriod(target, valueRows);
-    const valorReal = latest?.valor_real ?? null;
+    const valorReal = resolveTargetProgress(target, valueRows);
     const valorMeta = Number(t.valor_meta);
     const cumplimientoPct =
       valorReal != null && valorMeta > 0
@@ -193,10 +228,11 @@ export async function listTargets(kpiId: string) {
 
 export async function createTarget(input: KpiTargetInput, userId: string) {
   const parsed = kpiTargetSchema.parse(input);
+  const { valor_avance: _avance, ...targetRow } = parsed;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("kpi_targets")
-    .insert({ ...parsed, created_by: userId })
+    .insert({ ...targetRow, created_by: userId })
     .select()
     .single();
 

@@ -3,10 +3,8 @@ import {
   getDashboardKpis,
   getWorstPerformers,
 } from "@/modules/dashboard/services/dashboard-service";
-import {
-  DashboardTabsView,
-  type DashboardTab,
-} from "@/modules/dashboard/components/dashboard-tabs-view";
+import { DashboardTabsView } from "@/modules/dashboard/components/dashboard-tabs-view";
+import { parseDashboardTab } from "@/modules/dashboard/dashboard-tab";
 import { DashboardSkeleton } from "@/components/ui/skeleton";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 import {
@@ -41,7 +39,7 @@ async function DashboardData({ searchParams }: PageProps) {
     fechaDesde: params.desde ?? "2026-06-01",
     fechaHasta: params.hasta ?? "2026-06-30",
   };
-  const initialTab: DashboardTab = params.tab === "metas" ? "metas" : "ejecutivo";
+  const initialTab = parseDashboardTab(params.tab);
 
   let kpiCards: DashboardKpiRow[] = [];
   let history: DashboardKpiRow[] = [];

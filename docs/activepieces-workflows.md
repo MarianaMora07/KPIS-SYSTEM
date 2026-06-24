@@ -19,6 +19,7 @@ ACTIVEPIECES_WEBHOOK_SECRET=
 # ACTIVEPIECES_WEBHOOK_URL_IMPORT_COMPLETED=
 # ACTIVEPIECES_WEBHOOK_URL_IMPORT_FAILED=
 # ACTIVEPIECES_WEBHOOK_URL_INTEGRATION_FAILED=
+# ACTIVEPIECES_WEBHOOK_URL_KPI_REVIEW_DUE=
 ```
 
 La app envía **POST JSON** a la URL configurada. El campo `event` identifica el tipo de notificación.
@@ -33,6 +34,7 @@ La app envía **POST JSON** a la URL configurada. El campo `event` identifica el
 | `import.failed` | `jobId`, `error` | Importación falla por completo | HU-KPI-004 |
 | `integration.failed` | `jobId`, `integrationId`, `integrationNombre`, `error` | Job de integración agota reintentos | HU-KPI-005 |
 | `report.scheduled` | `scheduleId`, `nombre`, `formato`, `emails`, `rowCount` | Cron ejecuta reportes programados (`POST /api/cron/reports`) | HU-KPI-010 |
+| `kpi.review.due` | `kpiId`, `kpiCodigo`, `kpiNombre`, `frecuencia`, `emails`, `mensaje`, `kpiUrl`, `lastValueDate` | Cron diario: KPI sin valor reciente según su frecuencia (`GET /api/cron/kpi-review-reminders`) | HU-KPI-008 |
 
 Todos los payloads incluyen `event` y `timestamp` (ISO 8601).
 
@@ -139,6 +141,37 @@ En el editor de expresiones de Activepieces, el cuerpo del webhook suele estar e
 1. **Send Email / Slack** — Notificar al administrador
 2. Incluir: `integrationNombre`, `integrationId`, `error`, `jobId`
 3. En Activepieces: activar **Retry on failure** (3 intentos, 5 min) en el flow o en la pieza de email
+
+---
+
+## Workflow 4: Recordatorio revisión KPI (frecuencia)
+
+**Rama:** `kpi.review.due`
+
+1. **Send Email** — Destinatarios: `{{trigger.body.emails}}` (array)
+2. Asunto: `Recordatorio KPI — {{trigger.body.kpiCodigo}}`
+3. Cuerpo sugerido:
+   - `{{trigger.body.mensaje}}`
+   - Enlace: `{{trigger.body.kpiUrl}}`
+   - Frecuencia: `{{trigger.body.frecuencia}}`
+   - Último valor: `{{trigger.body.lastValueDate}}`
+
+### Payload de ejemplo
+
+```json
+{
+  "event": "kpi.review.due",
+  "timestamp": "2026-06-21T08:00:00.000Z",
+  "kpiId": "uuid",
+  "kpiCodigo": "NPS-001",
+  "kpiNombre": "NPS",
+  "frecuencia": "mensual",
+  "emails": ["gerente@estelar.com"],
+  "mensaje": "Es momento de registrar el valor del KPI NPS-001...",
+  "kpiUrl": "https://app/kpis/uuid?tab=seguimiento",
+  "lastValueDate": null
+}
+```
 
 ---
 

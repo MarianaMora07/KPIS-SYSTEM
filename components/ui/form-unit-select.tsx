@@ -9,6 +9,8 @@ interface FormUnitSelectProps {
   required?: boolean;
   optional?: boolean;
   defaultValue?: string | null;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   placeholder?: string;
 }
 
@@ -18,9 +20,12 @@ export function FormUnitSelect({
   required = false,
   optional = false,
   defaultValue,
+  value,
+  onChange,
   placeholder = "Seleccione unidad",
 }: FormUnitSelectProps) {
-  const resolved = defaultValue ?? "";
+  const controlled = value !== undefined;
+  const resolved = controlled ? value : (defaultValue ?? "");
   const isCustom = resolved !== "" && !ALL_MEASUREMENT_UNITS.includes(resolved);
 
   return (
@@ -29,7 +34,7 @@ export function FormUnitSelect({
       <select
         name={name}
         required={required && !optional}
-        defaultValue={resolved}
+        {...(controlled ? { value, onChange } : { defaultValue: resolved })}
         className="form-input"
       >
         {optional ? (

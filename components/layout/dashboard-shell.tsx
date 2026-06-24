@@ -10,6 +10,7 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { createClient } from "@/lib/supabase/client";
 import { UserCircle } from "lucide-react";
+import { hasPermissionInList } from "@/lib/auth/role-matrix";
 import type { SessionUser } from "@/lib/auth/session-user";
 
 const PAGE_TITLES: Record<
@@ -17,8 +18,8 @@ const PAGE_TITLES: Record<
   { title: string; subtitle?: string; showFilters?: boolean }
 > = {
   "/dashboard": {
-    title: "Dashboard Ejecutivo",
-    subtitle: "Desempeño comercial y de mercadeo en tiempo real",
+    title: "Dashboard",
+    subtitle: "Resumen de indicadores y cumplimiento por meta",
     showFilters: true,
   },
   "/kpis": {
@@ -90,6 +91,9 @@ export function DashboardShell({
     ? [user.nombre, user.apellido].filter(Boolean).join(" ")
     : "Usuario";
 
+  const showNotificationBell =
+    isDemoMode || hasPermissionInList(permissions, "alertas.ver");
+
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -121,7 +125,7 @@ export function DashboardShell({
             </div>
 
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-              <NotificationBell />
+              {showNotificationBell && <NotificationBell />}
 
               {user && (
                 <Link

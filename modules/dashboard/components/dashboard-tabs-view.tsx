@@ -6,8 +6,7 @@ import { DashboardView } from "@/modules/dashboard/components/dashboard-view";
 import { MetasDashboardPanel } from "@/modules/metas/components/metas-dashboard-panel";
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import type { MetasDashboardRow } from "@/modules/metas/types";
-
-export type DashboardTab = "ejecutivo" | "metas";
+import type { DashboardTab } from "@/modules/dashboard/dashboard-tab";
 
 interface DashboardTabsViewProps {
   kpiCards: DashboardKpiRow[];
@@ -24,7 +23,7 @@ export function DashboardTabsView({
   history,
   metas,
   isDemo,
-  initialTab = "ejecutivo",
+  initialTab = "resumen",
 }: DashboardTabsViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -34,8 +33,8 @@ export function DashboardTabsView({
     (next: DashboardTab) => {
       setTab(next);
       const params = new URLSearchParams(searchParams.toString());
-      if (next === "metas") {
-        params.set("tab", "metas");
+      if (next === "cumplimiento") {
+        params.set("tab", "cumplimiento");
       } else {
         params.delete("tab");
       }
@@ -48,15 +47,15 @@ export function DashboardTabsView({
   return (
     <div className="space-y-6">
       <div className="flex gap-2 border-b border-slate-200">
-        <TabButton active={tab === "ejecutivo"} onClick={() => setTabWithUrl("ejecutivo")}>
-          Ejecutivo
+        <TabButton active={tab === "resumen"} onClick={() => setTabWithUrl("resumen")}>
+          Resumen
         </TabButton>
-        <TabButton active={tab === "metas"} onClick={() => setTabWithUrl("metas")}>
-          Metas ({metas.length})
+        <TabButton active={tab === "cumplimiento"} onClick={() => setTabWithUrl("cumplimiento")}>
+          Cumplimiento ({metas.length})
         </TabButton>
       </div>
 
-      {tab === "ejecutivo" ? (
+      {tab === "resumen" ? (
         <DashboardView
           kpiCards={kpiCards}
           worstPerformers={worstPerformers}

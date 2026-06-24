@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/escalate-alerts",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/kpi-review-reminders",
+      "schedule": "0 8 * * *"
     }
   ]
 }

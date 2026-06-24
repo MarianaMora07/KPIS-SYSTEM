@@ -7,6 +7,10 @@ import { FormModal, FormSecondaryButton } from "@/components/ui/form-modal";
 import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { saveFormulaAction } from "../actions/formula-actions";
 import { extractUsedSymbols } from "../utils/formula-engine";
+import {
+  KpiFormulaSuggestion,
+  type FormulaSuggestionContext,
+} from "./kpi-formula-suggestion";
 
 interface VariableRow {
   id: string;
@@ -29,6 +33,7 @@ const FORMULA_STEPS = [
 export function KpiFormulaSetupPanel({
   kpiId,
   kpiNombre,
+  kpiContext,
   allVariables,
   initialExpresion = "",
   onFormulaSaved,
@@ -36,6 +41,7 @@ export function KpiFormulaSetupPanel({
 }: {
   kpiId: string;
   kpiNombre: string;
+  kpiContext?: FormulaSuggestionContext;
   allVariables: VariableRow[];
   initialExpresion?: string;
   onFormulaSaved?: () => void;
@@ -157,6 +163,23 @@ export function KpiFormulaSetupPanel({
         <p className="mb-2 text-xs font-medium text-slate-500">
           1. Seleccione variables del catálogo
         </p>
+        {canManageUsers && (
+          <KpiFormulaSuggestion
+            context={
+              kpiContext ?? {
+                kpi_nombre: kpiNombre,
+              }
+            }
+            variables={allVariables}
+            currentExpresion={expresion}
+            onApply={({ expresion: nextExpresion, variableCodes }) => {
+              setExpresion(nextExpresion);
+              setSelectedCodes(
+                new Set(variableCodes.filter((code) => allVariables.some((v) => v.codigo === code)))
+              );
+            }}
+          />
+        )}
         {allVariables.length === 0 ? (
           <p className="text-sm text-slate-500">
             No hay variables en el catálogo.{" "}

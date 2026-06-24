@@ -176,6 +176,12 @@ export function KpiCreateForm({ variables: initialVariables = [], ...catalogs }:
           kpiDraft && (
             <KpiCreateFormulaStep
               kpiNombre={kpiDraft.nombre}
+              kpiContext={{
+                kpi_nombre: kpiDraft.nombre,
+                unidad_medida: kpiDraft.unidad_medida,
+                area_responsable: kpiDraft.area_responsable,
+                tipo_indicador: kpiDraft.tipo_indicador,
+              }}
               variables={variables}
               onVariablesChange={setVariables}
               usesFormula={usesFormula}

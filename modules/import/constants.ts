@@ -3,7 +3,6 @@ export const EXPECTED_COLUMNS = [
   "fecha",
   "valor_real",
   "hotel_codigo",
-  "valor_meta",
 ] as const;
 
 /** Columnas opcionales para KPIs con fórmula: var_{codigo_variable} */
@@ -11,7 +10,6 @@ export const VARIABLE_COLUMN_PREFIX = "var_";
 
 export const OPTIONAL_IMPORT_COLUMNS = [
   "hotel_codigo",
-  "valor_meta",
   "var_visitas_mes",
   "var_reservas_web",
 ] as const;

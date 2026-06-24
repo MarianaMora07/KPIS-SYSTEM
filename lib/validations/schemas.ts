@@ -35,6 +35,8 @@ export const kpiCreateSchema = z.object({
   marketing_campaign_id: z.string().uuid().optional().nullable(),
   commercial_team_id: z.string().uuid().optional().nullable(),
   estado: z.enum(["activo", "inactivo"]).optional(),
+  recordatorio_email_activo: z.boolean().optional(),
+  recordatorio_emails: z.array(z.string().email()).max(10).optional(),
 });
 
 export const kpiTargetSchema = z.object({
@@ -53,6 +55,8 @@ export const kpiTargetSchema = z.object({
   region_id: z.string().uuid().optional().nullable(),
   marketing_campaign_id: z.string().uuid().optional().nullable(),
   descripcion: z.string().max(500).optional().nullable(),
+  /** Avance inicial opcional; se guarda como valor KPI en fecha_inicio. */
+  valor_avance: z.number().optional().nullable(),
 });
 
 export const importFileSchema = z.object({
@@ -66,7 +70,6 @@ export const kpiValueSchema = z
     kpi_id: z.string().uuid(),
     fecha: z.string().date(),
     valor_real: z.number().optional(),
-    valor_meta: z.number().optional().nullable(),
   hotel_id: z.string().uuid().optional().nullable(),
   region_id: z.string().uuid().optional().nullable(),
   business_unit_id: z.string().uuid().optional().nullable(),

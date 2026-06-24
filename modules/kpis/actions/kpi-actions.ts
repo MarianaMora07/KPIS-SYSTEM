@@ -112,7 +112,7 @@ export async function registerKpiValueAction(input: KpiValueInput) {
   const { data: kpi } = await supabase
     .from("kpis")
     .select(
-      "hotel_id, region_id, business_unit_id, sales_channel_id, marketing_campaign_id, commercial_team_id, meta, formula"
+      "hotel_id, region_id, business_unit_id, sales_channel_id, marketing_campaign_id, commercial_team_id, formula"
     )
     .eq("id", parsed.kpi_id)
     .single();
@@ -134,7 +134,7 @@ export async function registerKpiValueAction(input: KpiValueInput) {
     ...dimensions,
     fecha: parsed.fecha,
     valor_real: valorReal,
-    valor_meta: parsed.valor_meta ?? kpi?.meta ?? null,
+    valor_meta: null,
     fuente: "manual" as const,
     ...(variableInputs ? { variable_inputs: variableInputs } : {}),
   };
@@ -188,4 +188,30 @@ export async function deleteKpiValueAction(kpiId: string, valueId: string) {
 export async function getKpiFormulaVariableCodesAction(kpiId: string) {
   await assertPermission("metas.configurar");
   return getRequiredInputVariableCodes(kpiId);
+}
+
+export async function updateKpiReviewNotificationsAction(
+  kpiId: string,
+  input: { recordatorio_email_activo: boolean; recordatorio_emails: string[] }
+) {
+  await assertPermission("metas.configurar");
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
+
+  const { error } = await supabase
+    .from("kpis")
+    .update({
+      recordatorio_email_activo: input.recordatorio_email_activo,
+      recordatorio_emails: input.recordatorio_emails,
+      updated_by: user.id,
+    })
+    .eq("id", kpiId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/kpis/${kpiId}`);
+  revalidatePath(`/kpis/${kpiId}/editar`);
 }

@@ -117,20 +117,27 @@ export function FormSelect({
   required,
   options,
   defaultValue,
+  value,
+  onChange,
 }: {
   label: string;
   name: string;
   required?: boolean;
   defaultValue?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   options: { id: string; nombre: string }[];
 }) {
+  const controlled = value !== undefined;
   return (
     <div>
       <label className="form-label">{label}</label>
       <select
         name={name}
         required={required}
-        defaultValue={defaultValue}
+        {...(controlled
+          ? { value, onChange }
+          : { defaultValue })}
         className="form-input"
       >
         {options.map((o) => (

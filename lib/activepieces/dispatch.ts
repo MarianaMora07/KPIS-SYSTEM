@@ -1,6 +1,7 @@
 export type ActivepiecesEvent =
   | "kpi.alert.created"
   | "kpi.alert.escalated"
+  | "kpi.review.due"
   | "import.completed"
   | "import.failed"
   | "integration.failed"
@@ -28,6 +29,7 @@ export function isActivepiecesConfigured(): boolean {
   const events: ActivepiecesEvent[] = [
     "kpi.alert.created",
     "kpi.alert.escalated",
+    "kpi.review.due",
     "import.completed",
     "import.failed",
     "integration.failed",

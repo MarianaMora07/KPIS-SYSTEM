@@ -188,7 +188,7 @@ export function DashboardView({
                 )}
               />
               <FocusStat
-                label="Meta"
+                label="Meta del periodo"
                 value={
                   focusedRow.valor_meta != null
                     ? formatKpiValue(
