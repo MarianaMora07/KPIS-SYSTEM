@@ -19,7 +19,7 @@ export function CriticalIndicatorsPanel({ items }: CriticalIndicatorsPanelProps)
   const canViewAlerts = can("alertas.ver");
 
   return (
-    <aside className="glass flex h-full flex-col rounded-xl border border-red-200/60 p-5">
+    <aside className="glass flex h-fit flex-col rounded-xl border border-red-200/60 p-5">
       <div className="mb-4 flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-red-500" />
         <h2 className="text-sm font-medium uppercase tracking-wider text-red-500">

@@ -250,13 +250,7 @@ export function DashboardView({
                 )}
               </div>
 
-              {/* HU-KPI-007 – Resumen Ejecutivo de IA */}
-              {activeKpi && (
-                <AiTrendSummaryCard
-                  history={history.filter((h) => h.kpi_id === activeKpiId)}
-                  kpiNombre={activeKpi.kpi_nombre}
-                />
-              )}
+
             </div>
             <div>
               <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
@@ -307,7 +301,16 @@ export function DashboardView({
           )}
         </div>
 
-        <CriticalIndicatorsPanel items={worstPerformers} />
+        <div className="space-y-6">
+          <CriticalIndicatorsPanel items={worstPerformers} />
+          {/* HU-KPI-007 – Resumen Ejecutivo de IA */}
+          {activeKpi && (
+            <AiTrendSummaryCard
+              history={history.filter((h) => h.kpi_id === activeKpiId)}
+              kpiNombre={activeKpi.kpi_nombre}
+            />
+          )}
+        </div>
       </motion.section>
 
       <AnimatePresence>
