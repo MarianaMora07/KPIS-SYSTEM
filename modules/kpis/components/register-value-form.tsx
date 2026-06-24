@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { UploadCloud, Paperclip, X } from "lucide-react";
 import {
   getKpiFormulaVariableCodesAction,
   registerKpiValueAction,
@@ -90,6 +92,7 @@ export function RegisterValueForm({
   const [selectedKpiId, setSelectedKpiId] = useState(
     () => defaultKpiId ?? kpis[0]?.id ?? ""
   );
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const showKpiPicker = kpis.length > 1;
   const activeKpi = kpis.find((k) => k.id === selectedKpiId) ?? kpis[0];
@@ -191,6 +194,7 @@ export function RegisterValueForm({
       setMatchedTargets([]);
       setNonMatchedTargets([]);
       setPreviewFecha("");
+      setSelectedFiles([]);
     }
   }, [open, refreshPreview]);
 
@@ -250,13 +254,55 @@ export function RegisterValueForm({
     setError(null);
     startTransition(async () => {
       try {
-        await registerKpiValueAction(pendingRegister);
+        let attachments: { name: string; url: string }[] = [];
+        if (selectedFiles.length > 0) {
+          const supabase = createClient();
+          for (const file of selectedFiles) {
+            const ext = file.name.split(".").pop();
+            const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
+            const filePath = `${pendingRegister.kpi_id}/${Date.now()}_${cleanName}`;
+            const { error: uploadError } = await supabase.storage
+              .from("kpi-evidences")
+              .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage
+              .from("kpi-evidences")
+              .getPublicUrl(filePath);
+
+            attachments.push({
+              name: file.name,
+              url: urlData.publicUrl,
+            });
+          }
+        }
+
+        const result = await registerKpiValueAction(pendingRegister, attachments);
         setConfirmOpen(false);
         setPendingRegister(null);
+        setSelectedFiles([]);
         setOpen(false);
+
+        if (result && "approvalRequired" in result && result.approvalRequired) {
+          showGuidedSuccess({
+            title: "Solicitud de medición registrada",
+            message: "El registro de valor ha sido enviado para revisión de un Director.",
+            instructions: [
+              "La medición no alimentará el dashboard ni el histórico hasta ser aprobada.",
+              "Puede revisar el estado de las aprobaciones en la sección correspondiente.",
+            ],
+          });
+          formRef.current?.reset();
+          router.refresh();
+          return;
+        }
+
         showGuidedSuccess(GUIDED_SUCCESS.valueRegistered);
         formRef.current?.reset();
-        router.push(`/kpis/${pendingRegister.kpi_id}?tab=seguimiento&valor=${pendingRegister.fecha}`);
+        router.push(
+          `/kpis/${pendingRegister.kpi_id}?tab=seguimiento&valor=${pendingRegister.fecha}`
+        );
         router.refresh();
       } catch (err) {
         setConfirmOpen(false);
@@ -364,6 +410,54 @@ export function RegisterValueForm({
               required
             />
           )}
+
+          {/* Dropzone para archivos de soporte opcionales */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
+              Documentos de soporte (Opcional)
+            </label>
+            <div className="relative border border-dashed border-slate-300 hover:border-slate-400 hover:bg-slate-50/50 rounded-xl p-4 transition-all flex flex-col items-center justify-center cursor-pointer bg-slate-50/20">
+              <input
+                type="file"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setSelectedFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                  }
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <UploadCloud className="h-6 w-6 text-slate-400 mb-1" />
+              <p className="text-xs font-medium text-slate-600">
+                Arrastre archivos aquí o haga clic para seleccionar
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                PDF, Excel, imágenes, etc. (Máx. 10MB)
+              </p>
+            </div>
+            {selectedFiles.length > 0 && (
+              <ul className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 divide-y divide-slate-100 max-h-36 overflow-y-auto">
+                {selectedFiles.map((file, idx) => (
+                  <li key={idx} className="py-1 flex items-center justify-between">
+                    <span className="truncate max-w-[200px] flex items-center gap-1.5" title={file.name}>
+                      <Paperclip className="h-3 w-3 text-slate-400 shrink-0" />
+                      <span className="truncate">{file.name}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+                      }}
+                      className="text-red-500 hover:text-red-700 ml-2"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {error && <FormError message={error} />}
           {hasSqlSource && selectedKpiId && (
             <KpiSqlLoadButton

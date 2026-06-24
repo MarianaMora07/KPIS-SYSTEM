@@ -82,6 +82,8 @@ const DIRECTOR_PERMISSIONS: PermissionCode[] = [
 const GERENTE_PERMISSIONS: PermissionCode[] = [
   "dashboard.ver",
   "kpis.ver",
+  "kpis.crear",
+  "kpis.editar",
   "metas.configurar",
   "import.cargar",
   "reportes.exportar",
@@ -92,6 +94,9 @@ const GERENTE_PERMISSIONS: PermissionCode[] = [
 const ANALISTA_PERMISSIONS: PermissionCode[] = [
   "dashboard.ver",
   "kpis.ver",
+  "kpis.crear",
+  "kpis.editar",
+  "metas.configurar",
   "import.cargar",
   "integraciones.gestionar",
   "reportes.exportar",

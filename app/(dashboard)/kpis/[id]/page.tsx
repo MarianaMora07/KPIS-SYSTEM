@@ -140,6 +140,7 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
           v.variable_inputs && typeof v.variable_inputs === "object"
             ? (v.variable_inputs as Record<string, number>)
             : null,
+        attachments: v.attachments ?? (v as any).kpi_value_attachments ?? null,
       };
       return enrichKpiValueWithTargets(base, targetsForMatch, trafficLightRanges);
     });

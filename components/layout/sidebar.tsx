@@ -19,6 +19,7 @@ import {
   LogOut,
   BrainCircuit,
   ScrollText,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -36,6 +37,12 @@ const navItems = [
     icon: ScrollText,
     perm: "auditoria.ver",
     directorAccess: true,
+  },
+  {
+    href: "/admin/aprobaciones",
+    label: "Aprobaciones",
+    icon: ClipboardCheck,
+    approverOnly: true,
   },
   { href: "/seguridad", label: "Seguridad", icon: Shield, perm: "usuarios.gestionar" },
   // ── Motores de IA: solo visible para administradores ──────────────────────
@@ -105,6 +112,13 @@ export function Sidebar({
         {navItems
           .filter((item) => {
             if (item.adminOnly && rol !== "administrador" && !isDemoMode) {
+              return false;
+            }
+            if (
+              item.approverOnly &&
+              !["administrador", "director_comercial", "director_mercadeo"].includes(rol || "") &&
+              !isDemoMode
+            ) {
               return false;
             }
             if (

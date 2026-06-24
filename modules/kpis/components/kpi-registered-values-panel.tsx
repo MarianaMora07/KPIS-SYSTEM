@@ -5,6 +5,7 @@ import { usePermissions } from "@/components/layout/permissions-context";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { formatKpiValue } from "@/modules/dashboard/types";
 import type { KpiValueRow } from "./kpi-values-analytics-panel";
+import { Paperclip } from "lucide-react";
 
 const PAGE_SIZE = 10;
 
@@ -97,9 +98,29 @@ export function KpiRegisteredValuesPanel({
             className="flex flex-wrap items-center justify-between gap-2 rounded bg-slate-50 px-3 py-2"
           >
             <span className="text-slate-600">{v.fecha}</span>
-            <span className="font-medium">
-              {formatKpiValue(Number(v.valor_real), unidadMedida)}
+            <span className="font-medium flex items-center gap-2">
+              <span>{formatKpiValue(Number(v.valor_real), unidadMedida)}</span>
             </span>
+            {v.attachments && v.attachments.length > 0 && (
+              <div className="w-full mt-1.5 flex flex-wrap items-center gap-1.5 bg-slate-100/50 p-1.5 rounded-lg border border-slate-200/40">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1 ml-1">
+                  Soportes:
+                </span>
+                {v.attachments.map((att) => (
+                  <a
+                    key={att.id}
+                    href={att.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-sm transition-all hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 active:scale-[0.98]"
+                    title={att.file_name}
+                  >
+                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    <span className="max-w-[180px] truncate">{att.file_name}</span>
+                  </a>
+                ))}
+              </div>
+            )}
             <span className="text-slate-500">
               {v.cumplimiento_pct != null ? `${v.cumplimiento_pct}%` : "—"}
             </span>

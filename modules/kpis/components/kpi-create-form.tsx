@@ -108,13 +108,32 @@ export function KpiCreateForm({ variables: initialVariables = [], ...catalogs }:
     setError(null);
     startTransition(async () => {
       try {
-        const created = await createKpiAction({ ...kpiDraft, formula: null });
-        if (usesFormula && expresion.trim() && created?.id) {
-          await saveFormulaAction(created.id as string, expresion);
+        const created = await createKpiAction({
+          ...kpiDraft,
+          formula: usesFormula ? expresion : null,
+        });
+
+        if (created && "approvalRequired" in created && created.approvalRequired) {
+          showGuidedSuccess({
+            title: "Solicitud de creación registrada",
+            message: "La propuesta de creación del KPI ha sido enviada para revisión de un Director.",
+            instructions: [
+              "El indicador no se reflejará en el catálogo ni dashboard hasta ser aprobado.",
+              "Puede dar seguimiento a la solicitud en el panel de aprobaciones.",
+            ],
+          });
+          handleClose();
+          router.refresh();
+          return;
+        }
+
+        const kpi = created as any;
+        if (usesFormula && expresion.trim() && kpi?.id) {
+          await saveFormulaAction(kpi.id as string, expresion);
         }
         showGuidedSuccess(GUIDED_SUCCESS.kpiCreated);
         handleClose();
-        router.push(`/kpis/${created.id}`);
+        router.push(`/kpis/${kpi.id}`);
         router.refresh();
       } catch (err) {
         setError(formatZodError(err));

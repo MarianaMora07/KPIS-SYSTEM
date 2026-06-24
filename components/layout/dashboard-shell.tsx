@@ -62,6 +62,11 @@ const PAGE_TITLES: Record<
     subtitle: "Bitácora de trazabilidad del sistema (HU-KPI-012)",
     showFilters: false,
   },
+  "/admin/aprobaciones": {
+    title: "Aprobaciones de KPI y Mediciones",
+    subtitle: "Revisar y procesar solicitudes de creación, edición y registro (RF-05/06)",
+    showFilters: false,
+  },
   "/admin/ai-settings": {
     title: "Motores de IA",
     subtitle: "Gestiona proveedores, API Keys cifradas y métricas de consumo",

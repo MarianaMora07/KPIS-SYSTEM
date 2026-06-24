@@ -31,6 +31,7 @@ export interface KpiValueRow {
   marketing_campaign_id?: string | null;
   commercial_team_id?: string | null;
   scope_label?: string | null;
+  attachments?: { id: string; file_name: string; file_url: string }[] | null;
 }
 
 interface KpiValuesAnalyticsPanelProps {

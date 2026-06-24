@@ -94,7 +94,13 @@ export function KpiEditForm({
     setError(null);
     startTransition(async () => {
       try {
-        await updateKpiAction(kpiId, input);
+        const result = await updateKpiAction(kpiId, input);
+        if (result && "approvalRequired" in result && result.approvalRequired) {
+          showSuccess("Solicitud de edición enviada para aprobación");
+          handleClose();
+          router.refresh();
+          return;
+        }
         showSuccess(SUCCESS_MESSAGES.updated);
         handleClose();
         router.refresh();
