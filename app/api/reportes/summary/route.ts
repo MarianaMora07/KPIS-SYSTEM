@@ -154,7 +154,7 @@ Destaca brechas críticas y tendencias. Sé conciso y profesional. Sin viñetas.
       providerCode,
       model,
       prompt,
-      { maxTokens: 300 }
+      { maxTokens: 2000 }
     );
 
     // ── Paso 3 & 4: Log silencioso de tokens (no bloquea el retorno) ─────

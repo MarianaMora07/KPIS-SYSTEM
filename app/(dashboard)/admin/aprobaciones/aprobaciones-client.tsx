@@ -27,7 +27,8 @@ type ApproverRole =
   | "administrador"
   | "director_comercial"
   | "director_mercadeo"
-  | "gerente_hotel";
+  | "gerente_hotel"
+  | "analista";
 
 interface Gerente {
   nombre: string;
@@ -79,6 +80,7 @@ export function AprobacionesClient({
 
   const isGlobalApprover = ["administrador", "director_comercial", "director_mercadeo"].includes(userRole);
   const isGerente = userRole === "gerente_hotel";
+  const isAnalista = userRole === "analista";
 
   const pendingRequests = initialRequests.filter((r) => r.estado === "pendiente");
   const historyRequests = initialRequests.filter((r) => r.estado !== "pendiente");
@@ -136,11 +138,15 @@ export function AprobacionesClient({
   }
 
   // Encabezado dinámico según rol
-  const pageTitle = isGerente
+  const pageTitle = isAnalista
+    ? "Mis Solicitudes de Aprobación"
+    : isGerente
     ? `Bandeja de Aprobaciones${gerenteHotelNombre ? ` — ${gerenteHotelNombre}` : ""}`
     : "Supervisión Global de Aprobaciones";
 
-  const pageSubtitle = isGerente
+  const pageSubtitle = isAnalista
+    ? "Consulta el estado y retroalimentación de las solicitudes que has creado."
+    : isGerente
     ? "Solicitudes de los analistas de tu hotel pendientes de tu aprobación."
     : "Revisa todas las solicitudes de aprobación de KPIs de todos los hoteles.";
 
@@ -202,7 +208,9 @@ export function AprobacionesClient({
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               {activeTab === "pending"
-                ? isGerente
+                ? isAnalista
+                  ? "No tienes solicitudes de aprobación pendientes."
+                  : isGerente
                   ? "No hay solicitudes pendientes en tu hotel."
                   : "No hay solicitudes de aprobación pendientes."
                 : "No se han procesado solicitudes de aprobación todavía."}
@@ -592,8 +600,8 @@ export function AprobacionesClient({
               )}
             </div>
 
-            {/* Footer Buttons — visibles solo si la solicitud está pendiente */}
-            {selectedRequest.estado === "pendiente" && (
+            {/* Footer Buttons — visibles solo si la solicitud está pendiente Y el rol no es analista */}
+            {selectedRequest.estado === "pendiente" && userRole !== "analista" && (
               <div className="border-t border-slate-200 bg-slate-50/50 p-6 space-y-4">
                 {showRejectForm ? (
                   <div className="space-y-3">

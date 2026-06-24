@@ -116,7 +116,7 @@ export function Sidebar({
             }
             if (
               item.approverOnly &&
-              !["administrador", "director_comercial", "director_mercadeo", "gerente_hotel"].includes(rol || "") &&
+              !["administrador", "director_comercial", "director_mercadeo", "gerente_hotel", "analista"].includes(rol || "") &&
               !isDemoMode
             ) {
               return false;

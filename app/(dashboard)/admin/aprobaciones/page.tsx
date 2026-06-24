@@ -18,12 +18,49 @@ export default async function AprobacionesPage() {
 
   const isGlobalApprover = ["administrador", "director_comercial", "director_mercadeo"].includes(rol || "");
   const isGerenteHotel = rol === "gerente_hotel";
+  const isAnalista = rol === "analista";
 
-  if (!isGlobalApprover && !isGerenteHotel) {
+  if (!isGlobalApprover && !isGerenteHotel && !isAnalista) {
     redirect("/dashboard");
   }
 
   const adminClient = createAdminClient();
+
+  if (isAnalista) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) redirect("/login");
+
+    const { data: requests, error } = await adminClient
+      .from("kpi_approval_requests")
+      .select(`
+        *,
+        solicitante:user_profiles!solicitante_id(nombre, apellido, email),
+        aprobador:user_profiles!aprobador_id(nombre, apellido, email),
+        hotel:hotels(nombre),
+        kpi:kpis(nombre, codigo)
+      `)
+      .eq("solicitante_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[AprobacionesPage] Error loading analista requests:", error);
+    }
+
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <AprobacionesClient
+          initialRequests={(requests ?? []) as any}
+          userRole="analista"
+          gerenteHotelNombre={null}
+          gerentesMap={{}}
+        />
+      </div>
+    );
+  }
 
   if (isGerenteHotel) {
     // --- Vista del Gerente: solicitudes pendientes SOLO de su hotel ---

@@ -99,8 +99,13 @@ export function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const pageConfig = PAGE_TITLES[pathname] ?? PAGE_TITLES["/dashboard"];
-  const { title, subtitle, showFilters = false } = pageConfig;
+  let { title, subtitle, showFilters = false } = pageConfig;
   const [collapsed, setCollapsed] = useState(false);
+
+  if (pathname === "/admin/aprobaciones" && user?.rol === "analista") {
+    title = "Mis Solicitudes de Aprobación";
+    subtitle = "Consulta el estado y retroalimentación de las solicitudes que has creado";
+  }
 
   const displayName = user
     ? [user.nombre, user.apellido].filter(Boolean).join(" ")

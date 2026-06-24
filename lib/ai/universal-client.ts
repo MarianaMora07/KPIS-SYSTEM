@@ -379,7 +379,23 @@ export class OpenAiCompatibleDriver implements AiDriver {
     console.log(`[OpenAiCompatibleDriver] Response JSON payload:`, JSON.stringify(result));
 
     // 4. Normalización del Retorno y Mapeo de Tokens
-    const text = result.choices?.[0]?.message?.content ?? "";
+    // IMPORTANTE: Los modelos de razonamiento (p.ej. openai/gpt-oss-120b) consumen
+    // tokens para pensar internamente ANTES de producir content. Si finish_reason=="length",
+    // significa que el modelo agotó el presupuesto sin llegar a escribir content.
+    // En ese caso lanzamos un error claro en vez de retornar el texto de razonamiento interno.
+    const choice = result.choices?.[0];
+    const finishReason = choice?.finish_reason ?? "";
+    const text: string = typeof choice?.message?.content === "string"
+      ? choice.message.content
+      : "";
+
+    if (!text.trim() && finishReason === "length") {
+      throw new Error(
+        `El modelo ${model} agotó el presupuesto de tokens (finish_reason=length) sin producir contenido. ` +
+        `Aumenta max_tokens o usa un modelo sin razonamiento extendido.`
+      );
+    }
+
     const promptTokens = result.usage?.prompt_tokens ?? 0;
     const completionTokens = result.usage?.completion_tokens ?? 0;
     const totalTokens = result.usage?.total_tokens ?? 0;
