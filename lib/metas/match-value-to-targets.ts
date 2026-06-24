@@ -16,7 +16,7 @@ export interface ValueScopeForMatch {
   fecha: string;
   hotel_id: string | null;
   region_id: string | null;
-  marketing_campaign_id?: string | null;
+  marketing_campaign_id: string | null;
 }
 
 export function targetMatchesValue(

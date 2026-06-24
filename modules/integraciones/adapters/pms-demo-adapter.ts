@@ -3,6 +3,9 @@ import type {
   IntegrationAdapter,
   IntegrationRecord,
 } from "./types";
+import { SqlDatabaseAdapter } from "./sql-database-adapter";
+
+const sqlAdapter = new SqlDatabaseAdapter();
 
 export class PmsDemoAdapter implements IntegrationAdapter {
   async fetchRecords(integration: IntegrationRecord): Promise<ExternalKpiRecord[]> {
@@ -42,6 +45,9 @@ export class PmsDemoAdapter implements IntegrationAdapter {
   }
 }
 
-export function getAdapterFor(_tipo: string): IntegrationAdapter {
+export function getAdapterFor(tipo: string): IntegrationAdapter {
+  if (tipo === "sql_database") {
+    return sqlAdapter;
+  }
   return new PmsDemoAdapter();
 }

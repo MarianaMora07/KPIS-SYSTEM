@@ -13,6 +13,7 @@ export interface ExternalKpiRecord {
   valor: number;
   fecha: string;
   variables?: Record<string, number>;
+  hotel_codigo?: string;
 }
 
 export interface IntegrationAdapter {

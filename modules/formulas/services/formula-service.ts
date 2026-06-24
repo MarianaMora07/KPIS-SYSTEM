@@ -275,3 +275,44 @@ export async function saveKpiFormula(
 
   return { formula: data, validation };
 }
+
+/** Elimina la fórmula activa; conserva versiones anteriores en kpi_formulas como historial. */
+export async function deleteKpiFormula(kpiId: string, userId: string) {
+  const supabase = await createClient();
+
+  const { data: activeFormula } = await supabase
+    .from("kpi_formulas")
+    .select("version, expresion")
+    .eq("kpi_id", kpiId)
+    .eq("es_valida", true)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!activeFormula?.expresion) {
+    throw new Error("Este indicador no tiene fórmula activa");
+  }
+
+  const nextVersion = (activeFormula.version ?? 0) + 1;
+
+  const { error: insertError } = await supabase.from("kpi_formulas").insert({
+    kpi_id: kpiId,
+    expresion: activeFormula.expresion,
+    es_valida: false,
+    validada_at: null,
+    created_by: userId,
+    version: nextVersion,
+    expresion_ast: { archived: true, previous_expresion: activeFormula.expresion },
+  });
+
+  if (insertError) throw new Error(insertError.message);
+
+  const { error: updateError } = await supabase
+    .from("kpis")
+    .update({ formula: null })
+    .eq("id", kpiId);
+
+  if (updateError) throw new Error(updateError.message);
+
+  return { archivedVersion: nextVersion, previousExpresion: activeFormula.expresion };
+}

@@ -6,6 +6,10 @@ import { usePermissions } from "@/components/layout/permissions-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import type { IntegrationDeleteImpact } from "@/modules/integraciones/services/integration-service";
+import {
+  DatabaseConnectionsPanel,
+  type DatabaseConnectionListItem,
+} from "@/modules/sql-data-sources/components/database-connections-panel";
 
 interface Integration {
   id: string;
@@ -18,16 +22,27 @@ interface Integration {
 
 interface IntegracionesViewProps {
   integrations: Integration[];
+  databaseConnections?: DatabaseConnectionListItem[];
 }
 
-export function IntegracionesView({ integrations: initial }: IntegracionesViewProps) {
+export function IntegracionesView({
+  integrations: initial,
+  databaseConnections = [],
+}: IntegracionesViewProps) {
   const [integrations, setIntegrations] = useState(initial);
   const [showForm, setShowForm] = useState(false);
   const { can } = usePermissions();
   const canManage = can("integraciones.gestionar");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
+      <DatabaseConnectionsPanel
+        initialConnections={databaseConnections}
+        canManage={canManage}
+      />
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-imperial-900">Integraciones</h2>
       {canManage && (
         <button
           type="button"
@@ -41,6 +56,7 @@ export function IntegracionesView({ integrations: initial }: IntegracionesViewPr
 
       {showForm && canManage && (
         <CreateIntegrationForm
+          databaseConnections={databaseConnections}
           onCreated={(integration) => {
             setIntegrations((prev) => [...prev, integration]);
             setShowForm(false);
@@ -68,18 +84,23 @@ export function IntegracionesView({ integrations: initial }: IntegracionesViewPr
           ))}
         </ul>
       )}
+      </div>
     </div>
   );
 }
 
 function CreateIntegrationForm({
+  databaseConnections,
   onCreated,
   onCancel,
 }: {
+  databaseConnections: DatabaseConnectionListItem[];
   onCreated: (i: Integration) => void;
   onCancel: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [sistemaTipo, setSistemaTipo] = useState("pms");
+  const isSql = sistemaTipo === "sql_database";
 
   return (
     <form
@@ -87,16 +108,25 @@ function CreateIntegrationForm({
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
+        const tipo = String(fd.get("sistema_tipo"));
+        const connectionId = fd.get("connection_id");
         startTransition(async () => {
+          const body: Record<string, unknown> = {
+            nombre: fd.get("nombre"),
+            sistema_tipo: tipo,
+            endpoint_url:
+              tipo === "sql_database"
+                ? "sql://database"
+                : fd.get("endpoint_url"),
+            frecuencia_cron: fd.get("frecuencia_cron") || null,
+          };
+          if (tipo === "sql_database" && connectionId) {
+            body.auth_config = { connection_id: connectionId };
+          }
           const res = await fetch("/api/integraciones", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              nombre: fd.get("nombre"),
-              sistema_tipo: fd.get("sistema_tipo"),
-              endpoint_url: fd.get("endpoint_url"),
-              frecuencia_cron: fd.get("frecuencia_cron") || null,
-            }),
+            body: JSON.stringify(body),
           });
           const data = await res.json();
           if (res.ok) onCreated(data);
@@ -104,13 +134,40 @@ function CreateIntegrationForm({
       }}
     >
       <input name="nombre" placeholder="Nombre" required className="rounded border px-3 py-2 text-sm" />
-      <select name="sistema_tipo" required className="rounded border px-3 py-2 text-sm">
+      <select
+        name="sistema_tipo"
+        required
+        value={sistemaTipo}
+        onChange={(e) => setSistemaTipo(e.target.value)}
+        className="rounded border px-3 py-2 text-sm"
+      >
         <option value="pms">PMS</option>
         <option value="crm">CRM</option>
         <option value="erp">ERP</option>
         <option value="api_externa">API</option>
+        <option value="sql_database">Base de datos SQL</option>
       </select>
-      <input name="endpoint_url" placeholder="URL endpoint" required className="rounded border px-3 py-2 text-sm sm:col-span-2" />
+      {isSql ? (
+        <select
+          name="connection_id"
+          required
+          className="rounded border px-3 py-2 text-sm sm:col-span-2"
+        >
+          <option value="">Conexión de base de datos…</option>
+          {databaseConnections.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          name="endpoint_url"
+          placeholder="URL endpoint"
+          required
+          className="rounded border px-3 py-2 text-sm sm:col-span-2"
+        />
+      )}
       <input name="frecuencia_cron" placeholder="Cron (ej: 0 6 * * *)" className="rounded border px-3 py-2 text-sm" />
       <div className="flex gap-2 sm:col-span-2">
         <button type="submit" disabled={pending} className="rounded bg-imperial-900 px-4 py-2 text-sm text-white">
@@ -263,7 +320,9 @@ function IntegrationCard({
               {integration.frecuencia_cron && ` · Cron: ${integration.frecuencia_cron}`}
             </p>
             <p className="mt-1 truncate text-xs text-slate-400">
-              {integration.endpoint_url}
+              {integration.sistema_tipo === "sql_database"
+                ? "Sincronización SQL estructurada"
+                : integration.endpoint_url}
             </p>
           </div>
         </div>

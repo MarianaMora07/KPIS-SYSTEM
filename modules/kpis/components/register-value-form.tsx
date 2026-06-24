@@ -28,6 +28,7 @@ import {
   FormError,
   FormSecondaryButton,
 } from "@/components/ui/form-modal";
+import { KpiSqlLoadButton } from "@/modules/sql-data-sources/components/kpi-sql-load-button";
 
 const EMPTY_VARIABLE_CODES: string[] = [];
 const EMPTY_SCOPE: Partial<KpiDimensionScope> = {};
@@ -41,6 +42,7 @@ interface RegisterValueFormProps {
   dimensionCatalogs?: DimensionCatalogs;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  hasSqlSource?: boolean;
 }
 
 export function RegisterValueForm({
@@ -51,6 +53,7 @@ export function RegisterValueForm({
   dimensionCatalogs = EMPTY_CATALOGS,
   open: controlledOpen,
   onOpenChange,
+  hasSqlSource = false,
 }: RegisterValueFormProps) {
   const { can } = usePermissions();
   const { showSuccess } = useSuccessToast();
@@ -70,6 +73,8 @@ export function RegisterValueForm({
   const [nonMatchedTargets, setNonMatchedTargets] = useState<TargetRowForMatch[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingRegister, setPendingRegister] = useState<KpiValueInput | null>(null);
+  const [prefill, setPrefill] = useState<Record<string, string>>({});
+  const [prefillFecha, setPrefillFecha] = useState<string | null>(null);
 
   const kpiId = defaultKpiId ?? kpis[0]?.id;
   const singleKpi = kpis.length === 1;
@@ -243,7 +248,8 @@ export function RegisterValueForm({
             name="fecha"
             type="date"
             required
-            defaultValue={new Date().toISOString().slice(0, 10)}
+            defaultValue={prefillFecha ?? new Date().toISOString().slice(0, 10)}
+            key={prefillFecha ?? "fecha-default"}
           />
           {singleKpi && (
             <KpiDimensionFields
@@ -266,12 +272,13 @@ export function RegisterValueForm({
             ) : (
               variableCodes.map((code) => (
                 <FormField
-                  key={code}
+                  key={`${code}-${prefill[code] ?? ""}`}
                   label={`${code} *`}
                   name={`var_${code}`}
                   type="number"
                   step="any"
                   required
+                  defaultValue={prefill[code]}
                 />
               ))
             )
@@ -285,6 +292,20 @@ export function RegisterValueForm({
             />
           )}
           {error && <FormError message={error} />}
+          {hasSqlSource && kpiId && (
+            <KpiSqlLoadButton
+              kpiId={kpiId}
+              variant="form"
+              onPrefill={({ fecha, variables }) => {
+                setPrefillFecha(fecha);
+                const next: Record<string, string> = {};
+                for (const [k, v] of Object.entries(variables)) {
+                  next[k] = String(v);
+                }
+                setPrefill(next);
+              }}
+            />
+          )}
           <FormActions
             onCancel={() => setOpen(false)}
             submitLabel="Registrar valor"

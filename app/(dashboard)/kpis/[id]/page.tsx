@@ -19,6 +19,8 @@ import {
 } from "@/lib/metas/resolve-value-compliance";
 import { listRegions, listHotels, listKpiCategories, listBusinessUnits, listSalesChannels, listMarketingCampaigns, listCommercialTeams } from "@/modules/catalog";
 import { listUsers } from "@/modules/seguridad/services/security-service";
+import { getKpiSqlSource } from "@/modules/sql-data-sources/services/sql-source-service";
+import { listDatabaseConnections } from "@/modules/sql-data-sources/services/connection-service";
 import type { KpiCreateInput } from "@/lib/validations/schemas";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
 
@@ -52,6 +54,8 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
       campaigns,
       teams,
       users,
+      sqlSource,
+      sqlConnections,
     ] = await Promise.all([
       getKpiById(id),
       listKpiVersions(id),
@@ -68,6 +72,8 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
       listMarketingCampaigns(),
       listCommercialTeams(),
       listUsers().catch(() => []),
+      getKpiSqlSource(id).catch(() => null),
+      listDatabaseConnections().catch(() => []),
     ]);
 
     const formulaVariableCodes = await getRequiredInputVariableCodes(id);
@@ -182,9 +188,18 @@ export default async function KpiDetailPage({ params, searchParams }: PageProps)
           tipo: v.tipo,
           formula_compuesta: v.formula_compuesta,
         }))}
-        initialFormula={formula?.expresion ?? ""}
+        initialFormula={formula?.es_valida ? (formula.expresion ?? "") : ""}
         formulaVariableCodes={formulaVariableCodes}
         initialSelectedFecha={initialSelectedFecha}
+        hasSqlSource={Boolean(sqlSource?.connection_id)}
+        formulaVersion={formula?.es_valida ? formula.version : undefined}
+        formulaValidatedAt={formula?.es_valida ? formula.validada_at : undefined}
+        registeredValuesCount={values.length}
+        sqlConnections={sqlConnections.map((c) => ({
+          id: c.id,
+          nombre: c.nombre,
+          tipo: c.tipo,
+        }))}
         />
       </Suspense>
     );

@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState, useTransition, useEffect } from "react";
-import { Info, X, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { Info, X, Sparkles, Loader2, AlertCircle, Pencil, Trash2, FunctionSquare } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AnimatePresence, motion } from "framer-motion";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { FormModal, FormSecondaryButton } from "@/components/ui/form-modal";
 import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
-import { saveFormulaAction } from "../actions/formula-actions";
+import { saveFormulaAction, deleteFormulaAction } from "../actions/formula-actions";
 import { extractUsedSymbols } from "../utils/formula-engine";
 import {
   KpiFormulaSuggestion,
@@ -37,6 +38,9 @@ export function KpiFormulaSetupPanel({
   kpiContext,
   allVariables,
   initialExpresion = "",
+  initialFormulaVersion,
+  initialFormulaValidatedAt,
+  registeredValuesCount = 0,
   onFormulaSaved,
   onRequestRegisterValue,
 }: {
@@ -45,6 +49,9 @@ export function KpiFormulaSetupPanel({
   kpiContext?: FormulaSuggestionContext;
   allVariables: VariableRow[];
   initialExpresion?: string;
+  initialFormulaVersion?: number;
+  initialFormulaValidatedAt?: string | null;
+  registeredValuesCount?: number;
   onFormulaSaved?: () => void;
   onRequestRegisterValue?: () => void;
 }) {
@@ -59,11 +66,32 @@ export function KpiFormulaSetupPanel({
   const [savedBanner, setSavedBanner] = useState(false);
   const [result, setResult] = useState<{ es_valida: boolean; errores: string[] } | null>(null);
   const [pending, startTransition] = useTransition();
+  const hasActiveFormula = Boolean(initialExpresion?.trim());
+  const [editing, setEditing] = useState(!hasActiveFormula);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [modifyWarnOpen, setModifyWarnOpen] = useState(false);
+
+  useEffect(() => {
+    setExpresion(initialExpresion);
+    setEditing(!initialExpresion?.trim());
+    setSelectedCodes(
+      new Set(
+        extractUsedSymbols(initialExpresion).filter((c) =>
+          allVariables.some((v) => v.codigo === c)
+        )
+      )
+    );
+  }, [initialExpresion, allVariables]);
 
   // ── AI Translator state ────────────────────────────────────────────────────
   const [aiDesc, setAiDesc] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!aiError) return;
@@ -72,6 +100,8 @@ export function KpiFormulaSetupPanel({
   }, [aiError]);
 
   const selectedVariables = allVariables.filter((v) => selectedCodes.has(v.codigo));
+  const aiTranslatorDisabled =
+    !mounted || aiLoading || selectedVariables.length === 0;
 
   async function handleTranslate() {
     if (!aiDesc.trim() || selectedVariables.length === 0) return;
@@ -130,6 +160,7 @@ export function KpiFormulaSetupPanel({
         setResult(res.validation);
         if (res.validation.es_valida) {
           setSavedBanner(true);
+          setEditing(false);
           showSuccess(SUCCESS_MESSAGES.updated);
           onFormulaSaved?.();
         }
@@ -140,6 +171,34 @@ export function KpiFormulaSetupPanel({
         });
       }
     });
+  }
+
+  function handleDeleteFormula() {
+    startTransition(async () => {
+      try {
+        await deleteFormulaAction(kpiId);
+        setDeleteOpen(false);
+        setEditing(true);
+        setExpresion("");
+        setSelectedCodes(new Set());
+        showSuccess("Fórmula eliminada. El historial de versiones se conserva.");
+        onFormulaSaved?.();
+      } catch (err) {
+        setResult({
+          es_valida: false,
+          errores: [err instanceof Error ? err.message : "Error al eliminar"],
+        });
+        setDeleteOpen(false);
+      }
+    });
+  }
+
+  function startEditing() {
+    if (registeredValuesCount > 0) {
+      setModifyWarnOpen(true);
+      return;
+    }
+    setEditing(true);
   }
 
   return (
@@ -177,36 +236,141 @@ export function KpiFormulaSetupPanel({
         </div>
       </FormModal>
 
-      {savedBanner && (
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
-          <div className="text-sm text-green-800">
-            <p className="font-medium">Fórmula guardada correctamente.</p>
-            <p className="mt-1 text-xs">
-              Para aplicarla, registre un nuevo valor con las variables requeridas. El sistema
-              calculará el resultado automáticamente.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            {onRequestRegisterValue && (
-              <button
-                type="button"
-                onClick={onRequestRegisterValue}
-                className="rounded-lg bg-imperial-900 px-3 py-1.5 text-xs text-white"
-              >
-                Registrar valor
-              </button>
+      <ConfirmDialog
+        open={deleteOpen}
+        title="¿Eliminar fórmula activa?"
+        description="La expresión dejará de aplicarse a nuevos registros. Los valores ya cargados conservan sus variables y resultado calculado en el momento del registro."
+        confirmLabel="Eliminar fórmula"
+        cancelLabel="Cancelar"
+        variant="danger"
+        loading={pending}
+        onConfirm={handleDeleteFormula}
+        onCancel={() => setDeleteOpen(false)}
+      >
+        <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          El historial de versiones en <strong>kpi_formulas</strong> se conserva (v
+          {initialFormulaVersion ?? "?"} y anteriores). Las metas existentes no se modifican; solo
+          cambia cómo se calculan valores futuros.
+        </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={modifyWarnOpen}
+        title="Modificar fórmula con valores registrados"
+        description={`Hay ${registeredValuesCount} valor(es) registrado(s) con la fórmula actual. Al guardar una nueva versión, los registros anteriores no se recalculan automáticamente.`}
+        confirmLabel="Continuar y modificar"
+        cancelLabel="Cancelar"
+        variant="warning"
+        onConfirm={() => {
+          setModifyWarnOpen(false);
+          setEditing(true);
+        }}
+        onCancel={() => setModifyWarnOpen(false)}
+      />
+
+      {hasActiveFormula && !editing ? (
+        <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-white p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-800">
+                <FunctionSquare className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-green-800">
+                  Fórmula activa
+                  {initialFormulaVersion != null && (
+                    <span className="ml-2 font-mono normal-case">v{initialFormulaVersion}</span>
+                  )}
+                </p>
+                <pre className="mt-2 overflow-x-auto font-mono text-sm text-imperial-900">
+                  {initialExpresion}
+                </pre>
+                <p className="mt-2 text-xs text-slate-600">
+                  Variables:{" "}
+                  <span className="font-mono text-amber-800">
+                    {extractUsedSymbols(initialExpresion).join(", ") || "—"}
+                  </span>
+                </p>
+                {initialFormulaValidatedAt && (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Validada el{" "}
+                    {new Date(initialFormulaValidatedAt).toLocaleString("es-CO")}
+                  </p>
+                )}
+                {registeredValuesCount > 0 && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {registeredValuesCount} valor(es) registrado(s) con esta fórmula (snapshot en
+                    cada registro).
+                  </p>
+                )}
+              </div>
+            </div>
+            {canManageUsers && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Modificar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  className="flex items-center gap-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Eliminar
+                </button>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={() => setSavedBanner(false)}
-              className="rounded p-1 text-green-700 hover:bg-green-100"
-              aria-label="Cerrar aviso"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
         </div>
-      )}
+      ) : (
+        <>
+          {savedBanner && (
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+              <div className="text-sm text-green-800">
+                <p className="font-medium">Fórmula guardada correctamente.</p>
+                <p className="mt-1 text-xs">
+                  Para aplicarla, registre un nuevo valor con las variables requeridas. El sistema
+                  calculará el resultado automáticamente.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {onRequestRegisterValue && (
+                  <button
+                    type="button"
+                    onClick={onRequestRegisterValue}
+                    className="rounded-lg bg-imperial-900 px-3 py-1.5 text-xs text-white"
+                  >
+                    Registrar valor
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSavedBanner(false)}
+                  className="rounded p-1 text-green-700 hover:bg-green-100"
+                  aria-label="Cerrar aviso"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {hasActiveFormula && editing && canManageUsers && (
+            <div className="mb-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="text-xs text-slate-500 underline"
+              >
+                Cancelar edición
+              </button>
+            </div>
+          )}
 
       <div className="mb-4">
         <p className="mb-2 text-xs font-medium text-slate-500">
@@ -285,7 +449,7 @@ export function KpiFormulaSetupPanel({
                 onChange={(e) => setAiDesc(e.target.value)}
                 rows={2}
                 placeholder="Ej: divide las reservas web entre las visitas del mes y multíplica por 100"
-                disabled={aiLoading || selectedVariables.length === 0}
+                disabled={aiTranslatorDisabled}
                 className="w-full rounded-lg border border-indigo-200 bg-white/70 px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 disabled:opacity-50"
               />
               {selectedVariables.length === 0 && (
@@ -298,7 +462,7 @@ export function KpiFormulaSetupPanel({
                   type="button"
                   id="btn-generar-formula-ia"
                   onClick={handleTranslate}
-                  disabled={aiLoading || !aiDesc.trim() || selectedVariables.length === 0}
+                  disabled={aiTranslatorDisabled || !aiDesc.trim()}
                   className="flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:from-indigo-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {aiLoading ? (
@@ -375,6 +539,8 @@ export function KpiFormulaSetupPanel({
 
       {!canManageUsers && initialExpresion && (
         <p className="mt-2 text-xs text-slate-500">Solo lectura</p>
+      )}
+        </>
       )}
     </section>
   );

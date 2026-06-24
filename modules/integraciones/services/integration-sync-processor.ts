@@ -137,6 +137,17 @@ export async function processIntegrationSync(
       .eq("id", jobId);
 
     try {
+      if (attempt === 1 && integration.sistema_tipo === "sql_database") {
+        const connectionId = (integration.auth_config as { connection_id?: string })
+          .connection_id;
+        if (connectionId) {
+          const { logSqlSyncQueries } = await import(
+            "../adapters/sql-database-adapter"
+          );
+          await logSqlSyncQueries(integrationId, jobId, connectionId);
+        }
+      }
+
       const records = await adapter.fetchRecords(integration as IntegrationRecord);
       let ok = 0;
       let err = 0;
@@ -181,9 +192,19 @@ export async function processIntegrationSync(
           continue;
         }
 
+        const hotelId = rec.hotel_codigo
+          ? (
+              await supabase
+                .from("hotels")
+                .select("id")
+                .eq("codigo", rec.hotel_codigo)
+                .maybeSingle()
+            ).data?.id ?? kpi.hotel_id
+          : kpi.hotel_id;
+
         const { error: upsertError } = await upsertIntegrationKpiValue(supabase, {
           kpi_id: kpi.id,
-          hotel_id: kpi.hotel_id,
+          hotel_id: hotelId,
           region_id: kpi.region_id,
           fecha: rec.fecha,
           valor_real: valorReal,

@@ -76,7 +76,7 @@ export function KpiFormFields({
   const [areaResponsable, setAreaResponsable] = useState(dv.area_responsable ?? "");
   const [tipoIndicador, setTipoIndicador] = useState(dv.tipo_indicador ?? "");
   const [unidadMedida, setUnidadMedida] = useState(dv.unidad_medida ?? "");
-  const [frecuencia, setFrecuencia] = useState(dv.frecuencia ?? "mensual");
+  const [frecuencia, setFrecuencia] = useState<KpiFrequency>(dv.frecuencia ?? "mensual");
   const [responsableId, setResponsableId] = useState(dv.responsable_id ?? "");
   const [recordatorioActivo, setRecordatorioActivo] = useState(
     dv.recordatorio_email_activo ?? false
@@ -169,7 +169,7 @@ export function KpiFormFields({
           required
           options={FRECUENCIAS.map((f) => ({ id: f, nombre: f }))}
           value={frecuencia}
-          onChange={(e) => setFrecuencia(e.target.value)}
+          onChange={(e) => setFrecuencia(e.target.value as KpiFrequency)}
         />
         <FormSelect
           label="Tipo *"

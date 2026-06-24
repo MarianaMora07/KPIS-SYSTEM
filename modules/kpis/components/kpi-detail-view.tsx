@@ -13,6 +13,8 @@ import { KpiReviewNotificationsPanel } from "@/modules/kpis/components/kpi-revie
 import { TargetsPanel } from "@/modules/metas/components/targets-panel";
 import { TrafficLightPanel } from "@/modules/metas/components/traffic-light-panel";
 import { KpiFormulaSetupPanel } from "@/modules/formulas/components/kpi-formula-setup-panel";
+import { KpiSqlSourceCard } from "@/modules/sql-data-sources/components/kpi-sql-source-panel";
+import { KpiSqlLoadButton } from "@/modules/sql-data-sources/components/kpi-sql-load-button";
 import { RegisterValueForm } from "@/modules/kpis/components/register-value-form";
 import {
   KpiValuesAnalyticsPanel,
@@ -62,6 +64,11 @@ interface KpiDetailViewProps {
   recordatorioEmails?: string[];
   ultimoRecordatorioAt?: string | null;
   responsableEmail?: string | null;
+  hasSqlSource?: boolean;
+  sqlConnections?: { id: string; nombre: string; tipo: string }[];
+  formulaVersion?: number;
+  formulaValidatedAt?: string | null;
+  registeredValuesCount?: number;
 }
 
 export function KpiDetailView({
@@ -84,6 +91,11 @@ export function KpiDetailView({
   recordatorioEmails = [],
   ultimoRecordatorioAt = null,
   responsableEmail = null,
+  hasSqlSource = false,
+  sqlConnections = [],
+  formulaVersion,
+  formulaValidatedAt,
+  registeredValuesCount = 0,
 }: KpiDetailViewProps) {
   const { can, canManageUsers } = usePermissions();
   const canEdit = can("kpis.editar");
@@ -185,15 +197,25 @@ export function KpiDetailView({
         </Link>
         <div className="flex gap-2">
           {tab === "seguimiento" && canConfigureMetas && (
-            <RegisterValueForm
-              kpis={registerKpis}
-              defaultKpiId={id}
-              formulaVariableCodes={formulaVariableCodes}
-              kpiScopeDefaults={kpiScopeDefaults}
-              dimensionCatalogs={dimensionCatalogs}
-              open={registerOpen}
-              onOpenChange={setRegisterOpen}
-            />
+            <>
+              {hasSqlSource && (
+                <KpiSqlLoadButton
+                  kpiId={id}
+                  unidadMedida={unidadMedida}
+                  variant="standalone"
+                />
+              )}
+              <RegisterValueForm
+                kpis={registerKpis}
+                defaultKpiId={id}
+                formulaVariableCodes={formulaVariableCodes}
+                kpiScopeDefaults={kpiScopeDefaults}
+                dimensionCatalogs={dimensionCatalogs}
+                hasSqlSource={hasSqlSource}
+                open={registerOpen}
+                onOpenChange={setRegisterOpen}
+              />
+            </>
           )}
           {canEdit && editDefaultValues && editCatalogs && (
             <KpiEditForm
@@ -267,6 +289,7 @@ export function KpiDetailView({
 
           {showFormulaPanel && (
             <KpiFormulaSetupPanel
+              key={initialFormula ?? ""}
               kpiId={id}
               kpiNombre={kpi.nombre as string}
               kpiContext={{
@@ -277,10 +300,25 @@ export function KpiDetailView({
               }}
               allVariables={variables}
               initialExpresion={initialFormula}
+              initialFormulaVersion={formulaVersion}
+              initialFormulaValidatedAt={formulaValidatedAt}
+              registeredValuesCount={registeredValuesCount}
               onFormulaSaved={() => router.refresh()}
               onRequestRegisterValue={
                 canConfigureMetas ? () => setRegisterOpen(true) : undefined
               }
+            />
+          )}
+
+          {canEdit && (
+            <KpiSqlSourceCard
+              kpiId={id}
+              kpiNombre={kpi.nombre as string}
+              formulaVariableCodes={formulaVariableCodes}
+              canEdit={canEdit}
+              initialConnections={sqlConnections}
+              initialHasSource={hasSqlSource}
+              onConfigured={() => router.refresh()}
             />
           )}
 
