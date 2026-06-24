@@ -1,8 +1,10 @@
 import { SchemaType, type ResponseSchema } from "@google/generative-ai";
 import { z } from "zod";
-import { generateJson, isGeminiConfigured } from "@/lib/gemini/client";
+import { generateJsonWithKey } from "@/lib/ai/universal-client";
 import { checkRateLimit } from "@/lib/gemini/rate-limit";
+import { resolveActiveAiKey } from "@/lib/ai/key-resolver";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 const actionPlanSchema: ResponseSchema = {
@@ -50,6 +52,41 @@ function buildFallbackPlan(
   };
 }
 
+/**
+ * Inserta un registro de uso en ai_usage_logs de forma silenciosa.
+ * Nunca bloquea ni lanza excepciones hacia el caller.
+ */
+async function logAiUsage(payload: {
+  configurationId: string;
+  usuarioId: string | null;
+  moduloOrigen: string;
+  tokensEntrada: number;
+  tokensSalida: number;
+  tokensTotal: number;
+}): Promise<void> {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) return;
+
+    const adminClient = createServiceClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    await adminClient.from("ai_usage_logs").insert({
+      configuration_id: payload.configurationId,
+      usuario_id: payload.usuarioId,
+      modulo_origen: payload.moduloOrigen,
+      prompt_tokens: payload.tokensEntrada,
+      completion_tokens: payload.tokensSalida,
+      total_tokens: payload.tokensTotal,
+    });
+  } catch (err) {
+    // Error silencioso: el logging nunca debe interrumpir la respuesta al usuario
+    console.error("[ai_usage_logs] Fallo silencioso al registrar uso:", err);
+  }
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -65,10 +102,48 @@ export async function POST(request: Request) {
 
   const { kpi_nombre, hotel, valor_real, valor_meta, semaforo } = parsed.data;
 
-  if (!isGeminiConfigured()) {
+  // ── Paso 1: Obtener la API Key activa desde la base de datos ──────────────
+  let apiKey: string;
+  let configurationId: string;
+  let providerCode: string;
+  let modeloDefecto: string;
+
+  try {
+    const resolved = await resolveActiveAiKey();
+    apiKey = resolved.apiKey;
+    configurationId = resolved.configurationId;
+    providerCode = resolved.providerCode;
+    modeloDefecto = resolved.modeloDefecto;
+    console.log("providerCode:", providerCode, "modeloDefecto:", modeloDefecto);
+  } catch (keyError) {
+    console.error("[suggest-plan] No se pudo resolver la API Key de IA:", keyError);
     return NextResponse.json(buildFallbackPlan(kpi_nombre, hotel, semaforo));
   }
 
+  // Fallback seguro si modeloDefecto llega vacío o nulo
+  let model = modeloDefecto;
+  if (!model) {
+    switch (providerCode) {
+      case "groq":
+        model = "llama3-8b-8192";
+        break;
+      case "google_gemini":
+        model = "gemini-1.5-flash";
+        break;
+      case "openai":
+        model = "gpt-4o-mini";
+        break;
+      case "anthropic":
+        model = "claude-3-5-sonnet-latest";
+        break;
+      default:
+        model = "gemini-1.5-flash";
+        break;
+    }
+  }
+
+
+  // ── Obtener usuario de la sesión Supabase ─────────────────────────────────
   const supabase = await createClient();
   const {
     data: { user },
@@ -98,11 +173,24 @@ Responde ÚNICAMENTE con este JSON:
 Incluye 3 a 5 ítems accionables. No inventes cifras ni datos no proporcionados.`;
 
   try {
-    const plan = await generateJson<{
+    // ── Paso 2: Generar sugerencia con API Key dinámica ───────────────────
+    const { data: plan, usage } = await generateJsonWithKey<{
       titulo: string;
       descripcion: string;
       items: { descripcion: string }[];
-    }>(prompt, actionPlanSchema, { maxTokens: 1024 });
+    }>(apiKey, providerCode, model, prompt, actionPlanSchema, { maxTokens: 1024 });
+
+    // ── Paso 3 & 4: Log silencioso de tokens (no bloquea el retorno) ──────
+    logAiUsage({
+      configurationId,
+      usuarioId: user?.id ?? null,
+      moduloOrigen: "generacion_planes_accion",
+      tokensEntrada: usage.promptTokenCount,
+      tokensSalida: usage.candidatesTokenCount,
+      tokensTotal: usage.totalTokenCount,
+    }).catch(() => {
+      // Silencioso: ya manejado dentro de logAiUsage
+    });
 
     return NextResponse.json({
       titulo: String(plan.titulo).slice(0, 200),
@@ -112,9 +200,8 @@ Incluye 3 a 5 ítems accionables. No inventes cifras ni datos no proporcionados.
       })),
       fallback: false,
     });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Error al generar sugerencia";
-    console.error("[alertas/suggest-plan] Gemini error:", message);
+  } catch (error) {
+    console.error("AI Generation Error:", error);
     return NextResponse.json(buildFallbackPlan(kpi_nombre, hotel, semaforo));
   }
 }

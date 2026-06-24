@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  BrainCircuit,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -29,6 +30,8 @@ const navItems = [
   { href: "/reportes", label: "Reportes", icon: FileBarChart, perm: "reportes.exportar" },
   { href: "/catalogo", label: "Catálogo", icon: Building2, perm: "catalogo.ver" },
   { href: "/seguridad", label: "Seguridad", icon: Shield, perm: "usuarios.gestionar" },
+  // ── Motores de IA: solo visible para administradores ──────────────────────
+  { href: "/admin/ai-settings", label: "Motores de IA", icon: BrainCircuit, adminOnly: true },
   { href: "/perfil", label: "Mi perfil", icon: UserCircle },
 ];
 
@@ -38,6 +41,7 @@ interface SidebarProps {
   onLogout: () => void;
   permissions?: string[];
   isDemoMode?: boolean;
+  rol?: string | null;
 }
 
 export function Sidebar({
@@ -46,6 +50,7 @@ export function Sidebar({
   onLogout,
   permissions = [],
   isDemoMode = false,
+  rol,
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -91,6 +96,11 @@ export function Sidebar({
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {navItems
           .filter((item) => {
+            // Ítems exclusivos de administrador
+            if (item.adminOnly && rol !== "administrador" && !isDemoMode) {
+              return false;
+            }
+            // Ítems con permiso explícito
             if (
               item.perm &&
               !isDemoMode &&

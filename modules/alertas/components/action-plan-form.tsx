@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { createActionPlanAction } from "@/modules/alertas/actions/alert-actions";
 import { FormField, FormActions } from "@/components/ui/form-modal";
 import type { AlertSeverity } from "../types";
@@ -20,6 +21,8 @@ interface ActionPlanFormProps {
   severidad?: AlertSeverity;
   defaultTitulo?: string;
   users?: UserOption[];
+  valorReal?: number | null;
+  valorMeta?: number | null;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -39,6 +42,8 @@ export function ActionPlanForm({
   severidad = "riesgo",
   defaultTitulo,
   users = [],
+  valorReal,
+  valorMeta,
   onSuccess,
   onCancel,
 }: ActionPlanFormProps) {
@@ -46,12 +51,20 @@ export function ActionPlanForm({
   const [pending, startTransition] = useTransition();
   const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [suggestNote, setSuggestNote] = useState<string | null>(null);
+
+  // Auto-dismiss AI error toast after 5s
+  useEffect(() => {
+    if (!aiError) return;
+    const t = setTimeout(() => setAiError(null), 5000);
+    return () => clearTimeout(t);
+  }, [aiError]);
   const [titulo, setTitulo] = useState(
     defaultTitulo ?? `Plan de mejora — ${kpiNombre}${hotelNombre ? ` (${hotelNombre})` : ""}`
   );
   const [descripcion, setDescripcion] = useState("");
-  const [fechaCompromiso, setFechaCompromiso] = useState(
+  const [fechaCompromiso, setFechaCompromiso] = useState(() =>
     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   );
   const [responsableId, setResponsableId] = useState(users[0]?.id ?? "");
@@ -59,7 +72,7 @@ export function ActionPlanForm({
 
   async function handleSuggest() {
     setSuggesting(true);
-    setError(null);
+    setAiError(null);
     setSuggestNote(null);
     try {
       const res = await fetch("/api/alertas/suggest-plan", {
@@ -68,6 +81,8 @@ export function ActionPlanForm({
         body: JSON.stringify({
           kpi_nombre: kpiNombre,
           hotel: hotelNombre,
+          valor_real: valorReal ?? undefined,
+          valor_meta: valorMeta ?? undefined,
           semaforo: severidad === "critico" ? "incumplimiento" : "riesgo",
         }),
       });
@@ -94,12 +109,12 @@ export function ActionPlanForm({
       if (data.fallback || !res.ok) {
         setSuggestNote(
           res.ok
-            ? "Plantilla local aplicada (Gemini no disponible). Puede editar el texto antes de guardar."
-            : "Sugerencia local aplicada. Gemini no respondió; puede editar antes de guardar."
+            ? "Plantilla local aplicada (Servicio de IA no disponible). Puede editar el texto antes de guardar."
+            : "Sugerencia local aplicada. El servicio de IA no respondió; puede editar antes de guardar."
         );
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al sugerir plan");
+      setAiError(e instanceof Error ? e.message : "Error al contactar el servicio de IA. Puede escribir su plan manualmente.");
     } finally {
       setSuggesting(false);
     }
@@ -142,21 +157,23 @@ export function ActionPlanForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleSuggest}
-          disabled={suggesting}
-          className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100 disabled:opacity-60"
-        >
-          {suggesting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5" />
-          )}
-          Sugerir con IA
-        </button>
-      </div>
+      {/* AI Error Toast */}
+      <AnimatePresence>
+        {aiError && (
+          <motion.div
+            role="alert"
+            aria-live="assertive"
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+            <span>{aiError} Puede escribir el plan manualmente.</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {suggestNote && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -174,15 +191,33 @@ export function ActionPlanForm({
         />
       </FormField>
 
-      <FormField label="Acciones correctivas">
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className="text-sm font-medium text-slate-700">Descripción del Plan</label>
+          <button
+            type="button"
+            id="btn-generar-sugerencia-ia"
+            onClick={handleSuggest}
+            disabled={suggesting}
+            className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-1.5 text-xs font-semibold text-amber-800 shadow-sm transition-all hover:border-amber-400 hover:from-amber-100 hover:to-yellow-100 hover:shadow-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {suggesting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            )}
+            {suggesting ? "Generando…" : "Generar Sugerencia IA"}
+          </button>
+        </div>
         <textarea
+          id="descripcion-plan"
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
-          rows={3}
-          placeholder="Describa las acciones para revertir el incumplimiento…"
+          rows={4}
+          placeholder="Describa las acciones para revertir el incumplimiento… o presione 'Generar Sugerencia IA'"
           className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
         />
-      </FormField>
+      </div>
 
       <FormField label="Ítems del plan (uno por línea)">
         <textarea

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Info, X } from "lucide-react";
+import { useMemo, useState, useTransition, useEffect } from "react";
+import { Info, X, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { usePermissions } from "@/components/layout/permissions-context";
 import { FormModal, FormSecondaryButton } from "@/components/ui/form-modal";
 import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
@@ -59,7 +60,55 @@ export function KpiFormulaSetupPanel({
   const [result, setResult] = useState<{ es_valida: boolean; errores: string[] } | null>(null);
   const [pending, startTransition] = useTransition();
 
+  // ── AI Translator state ────────────────────────────────────────────────────
+  const [aiDesc, setAiDesc] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!aiError) return;
+    const t = setTimeout(() => setAiError(null), 5000);
+    return () => clearTimeout(t);
+  }, [aiError]);
+
   const selectedVariables = allVariables.filter((v) => selectedCodes.has(v.codigo));
+
+  async function handleTranslate() {
+    if (!aiDesc.trim() || selectedVariables.length === 0) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/kpis/translate-formula", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          descripcion: aiDesc.trim(),
+          variables: selectedVariables.map((v) => ({
+            codigo: v.codigo,
+            nombre: v.nombre,
+          })),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        formula?: string;
+        error?: string;
+      };
+      if (!res.ok || data.error) {
+        throw new Error(data.error ?? "Error al generar fórmula");
+      }
+      if (data.formula) {
+        setExpresion(data.formula);
+        setAiDesc("");
+      }
+    } catch (e) {
+      setAiError(
+        e instanceof Error ? e.message : "No se pudo generar la fórmula. Intente de nuevo."
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
 
   function toggleVariable(code: string) {
     setSelectedCodes((prev) => {
@@ -219,6 +268,69 @@ export function KpiFormulaSetupPanel({
 
       <div>
         <p className="mb-2 text-xs font-medium text-slate-500">2. Construya la expresión</p>
+
+        {/* ── AI Formula Translator (HU-KPI-003) ───────────────────────── */}
+        {canManageUsers && (
+          <div className="mb-3 overflow-hidden rounded-xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/80 to-violet-50/60">
+            <div className="flex items-center gap-2 border-b border-indigo-100/60 px-3 py-2">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
+              <span className="text-xs font-semibold text-indigo-800">
+                Traductor de Fórmulas con IA
+              </span>
+            </div>
+            <div className="space-y-2 px-3 py-2.5">
+              <textarea
+                id="ai-formula-desc"
+                value={aiDesc}
+                onChange={(e) => setAiDesc(e.target.value)}
+                rows={2}
+                placeholder="Ej: divide las reservas web entre las visitas del mes y multíplica por 100"
+                disabled={aiLoading || selectedVariables.length === 0}
+                className="w-full rounded-lg border border-indigo-200 bg-white/70 px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 disabled:opacity-50"
+              />
+              {selectedVariables.length === 0 && (
+                <p className="text-[10px] text-indigo-500">
+                  Seleccione al menos una variable en el paso 1 para habilitar el traductor.
+                </p>
+              )}
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  id="btn-generar-formula-ia"
+                  onClick={handleTranslate}
+                  disabled={aiLoading || !aiDesc.trim() || selectedVariables.length === 0}
+                  className="flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:from-indigo-700 hover:to-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {aiLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  {aiLoading ? "Generando…" : "Generar Fórmula con IA"}
+                </button>
+                <span className="text-[10px] text-indigo-400">
+                  La fórmula generada se inyectará en el campo principal
+                </span>
+              </div>
+              <AnimatePresence>
+                {aiError && (
+                  <motion.div
+                    role="alert"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -2 }}
+                    transition={{ duration: 0.18 }}
+                    className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-700"
+                  >
+                    <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span>{aiError}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+
         <textarea
           value={expresion}
           onChange={(e) => setExpresion(e.target.value)}
