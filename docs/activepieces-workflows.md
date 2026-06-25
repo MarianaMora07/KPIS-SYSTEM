@@ -1,6 +1,6 @@
 # Workflows Activepieces — Sistema KPIs Estelar
 
-Automatización de notificaciones para **HU-KPI-005** (errores de integración) y **HU-KPI-008** (alertas automáticas, correos y escalamiento).
+Automatización de notificaciones para **HU-KPI-005** (errores de integración), **HU-KPI-008** (alertas automáticas, correos y escalamiento) y **RF-05/06** (flujo de aprobaciones KPI).
 
 ## Configuración en la app
 
@@ -20,6 +20,9 @@ ACTIVEPIECES_WEBHOOK_SECRET=
 # ACTIVEPIECES_WEBHOOK_URL_IMPORT_FAILED=
 # ACTIVEPIECES_WEBHOOK_URL_INTEGRATION_FAILED=
 # ACTIVEPIECES_WEBHOOK_URL_KPI_REVIEW_DUE=
+# ACTIVEPIECES_WEBHOOK_URL_KPI_APPROVAL_REQUESTED=
+# ACTIVEPIECES_WEBHOOK_URL_KPI_APPROVAL_APPROVED=
+# ACTIVEPIECES_WEBHOOK_URL_KPI_APPROVAL_REJECTED=
 ```
 
 La app envía **POST JSON** a la URL configurada. El campo `event` identifica el tipo de notificación.
@@ -35,6 +38,9 @@ La app envía **POST JSON** a la URL configurada. El campo `event` identifica el
 | `integration.failed` | `jobId`, `integrationId`, `integrationNombre`, `error` | Job de integración agota reintentos | HU-KPI-005 |
 | `report.scheduled` | `scheduleId`, `nombre`, `formato`, `emails`, `rowCount` | Cron ejecuta reportes programados (`POST /api/cron/reports`) | HU-KPI-010 |
 | `kpi.review.due` | `kpiId`, `kpiCodigo`, `kpiNombre`, `frecuencia`, `emails`, `mensaje`, `kpiUrl`, `lastValueDate` | Cron diario: KPI sin valor reciente según su frecuencia (`GET /api/cron/kpi-review-reminders`) | HU-KPI-008 |
+| `kpi.approval.requested` | `requestId`, `tipo`, `tipoLabel`, `hotelNombre`, `kpiCodigo`, `kpiNombre`, `solicitanteNombre`, `notifyEmails`, `resumen`, `approvalUrl` | Analista envía solicitud de creación, edición o medición | RF-05/06 |
+| `kpi.approval.approved` | `requestId`, `tipoLabel`, `kpiCodigo`, `solicitanteEmail`, `aprobadorNombre`, `mensaje`, `kpiUrl` | Aprobador aprueba la solicitud | RF-05/06 |
+| `kpi.approval.rejected` | `requestId`, `tipoLabel`, `kpiCodigo`, `solicitanteEmail`, `aprobadorNombre`, `observaciones`, `resumen`, `approvalUrl` | Aprobador rechaza con observaciones | RF-05/06 |
 
 Todos los payloads incluyen `event` y `timestamp` (ISO 8601).
 
@@ -61,6 +67,9 @@ Añadir pieza **Router** con ramas según `trigger.body.event`:
 | Integración fallida | `event` = `integration.failed` | Ver [activepieces-import-integracion.md](./activepieces-import-integracion.md) §3 |
 | Reporte programado | `event` = `report.scheduled` | Ver [activepieces-report-scheduled.md](./activepieces-report-scheduled.md) |
 | Recordatorio KPI | `event` = `kpi.review.due` | Ver workflow 4 |
+| Aprobación pendiente | `event` = `kpi.approval.requested` | Ver [activepieces-aprobaciones.md](./activepieces-aprobaciones.md) §1 |
+| Aprobación aprobada | `event` = `kpi.approval.approved` | Ver [activepieces-aprobaciones.md](./activepieces-aprobaciones.md) §2 |
+| Aprobación rechazada | `event` = `kpi.approval.rejected` | Ver [activepieces-aprobaciones.md](./activepieces-aprobaciones.md) §3 |
 
 En el editor de expresiones de Activepieces, el cuerpo del webhook suele estar en `{{trigger.body}}` o `{{step_1.body}}` según la versión.
 
@@ -69,6 +78,12 @@ En el editor de expresiones de Activepieces, el cuerpo del webhook suele estar e
 ## Workflows de alertas (HU-KPI-008)
 
 Toda la configuración paso a paso (Webhook → Router → Gmail Crítico / Riesgo / Escalada) está en **[activepieces-alertas.md](./activepieces-alertas.md)**.
+
+---
+
+## Workflows de aprobaciones (RF-05/06)
+
+Tres ramas para notificar aprobadores y analistas (solicitud pendiente, aprobada, rechazada) están en **[activepieces-aprobaciones.md](./activepieces-aprobaciones.md)** — incluye JSON de prueba PowerShell y plantillas HTML por rama.
 
 ---
 
