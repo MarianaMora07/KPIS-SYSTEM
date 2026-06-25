@@ -54,49 +54,21 @@ Añadir pieza **Router** con ramas según `trigger.body.event`:
 
 | Rama | Condición | Acción |
 |------|-----------|--------|
-| Alerta creada | `event` = `kpi.alert.created` | Ver workflow 1 |
-| Alerta escalada | `event` = `kpi.alert.escalated` | Ver workflow 1b |
-| Import OK | `event` = `import.completed` | Ver workflow 2 |
-| Import fallido | `event` = `import.failed` | Ver workflow 2b |
-| Integración fallida | `event` = `integration.failed` | Ver workflow 3 |
+| Alerta creada | `event` = `kpi.alert.created` | Ver [activepieces-alertas.md](./activepieces-alertas.md) (pasos 3–5) |
+| Alerta escalada | `event` = `kpi.alert.escalated` | Ver [activepieces-alertas.md](./activepieces-alertas.md) (paso 6) |
+| Import OK | `event` = `import.completed` | Ver [activepieces-import-integracion.md](./activepieces-import-integracion.md) §1 |
+| Import fallido | `event` = `import.failed` | Ver [activepieces-import-integracion.md](./activepieces-import-integracion.md) §2 |
+| Integración fallida | `event` = `integration.failed` | Ver [activepieces-import-integracion.md](./activepieces-import-integracion.md) §3 |
+| Reporte programado | `event` = `report.scheduled` | Ver [activepieces-report-scheduled.md](./activepieces-report-scheduled.md) |
+| Recordatorio KPI | `event` = `kpi.review.due` | Ver workflow 4 |
 
 En el editor de expresiones de Activepieces, el cuerpo del webhook suele estar en `{{trigger.body}}` o `{{step_1.body}}` según la versión.
 
 ---
 
-## Workflow 1: Alerta KPI creada (HU-KPI-008)
+## Workflows de alertas (HU-KPI-008)
 
-**Rama:** `kpi.alert.created`
-
-1. **Branch (IF)** — `{{trigger.body.severidad}}` equals `critico`
-2. **Gmail / Send Email / Slack** — Asunto: `Alerta KPI — {{trigger.body.mensaje}}`
-3. Cuerpo sugerido:
-   - KPI / hotel / severidad / mensaje / `alertId`
-4. **Opcional:** rama `severidad` = `riesgo` → notificación a canal de operaciones (menor prioridad)
-
-### Payload de ejemplo
-
-```json
-{
-  "event": "kpi.alert.created",
-  "timestamp": "2026-06-15T10:00:00.000Z",
-  "alertId": "uuid",
-  "kpiId": "uuid",
-  "hotelId": "uuid",
-  "severidad": "critico",
-  "mensaje": "KPI \"Ocupación\" en estado incumplimiento..."
-}
-```
-
----
-
-## Workflow 1b: Alerta escalada (HU-KPI-008)
-
-**Rama:** `kpi.alert.escalated`
-
-1. **Send Email / Slack** — Asunto: `ESCALAMIENTO — {{trigger.body.mensaje}}`
-2. Destinatarios: director comercial o lista de escalamiento
-3. Activar notificación push si tienes pieza configurada (Teams, Slack mobile, etc.)
+Toda la configuración paso a paso (Webhook → Router → Gmail Crítico / Riesgo / Escalada) está en **[activepieces-alertas.md](./activepieces-alertas.md)**.
 
 ---
 
