@@ -5,6 +5,7 @@ const FIELD_LABELS: Record<string, string> = {
   codigo: "Código",
   categoria_id: "Categoría",
   area_responsable: "Área responsable",
+  responsable_id: "Responsable",
   frecuencia: "Frecuencia",
   unidad_medida: "Unidad de medida",
   fuente_informacion: "Fuente de información",

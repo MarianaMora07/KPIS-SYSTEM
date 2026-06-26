@@ -14,7 +14,7 @@ export const kpiCreateSchema = z.object({
   codigo: z.string().min(1).max(50).regex(/^[A-Z0-9_-]+$/i),
   categoria_id: z.string().uuid(),
   area_responsable: z.string().min(1).max(150),
-  responsable_id: z.string().uuid().optional().nullable(),
+  responsable_id: z.string().uuid({ message: "Seleccione un responsable" }),
   frecuencia: z.enum([
     "diaria",
     "semanal",

@@ -98,7 +98,7 @@ export function KpiFormFields({
       codigo: hideCodigo ? "" : (fd.get("codigo") as string),
       categoria_id: fd.get("categoria_id") as string,
       area_responsable: fd.get("area_responsable") as string,
-      responsable_id: (fd.get("responsable_id") as string) || null,
+      responsable_id: fd.get("responsable_id") as string,
       frecuencia: frecuencia as KpiCreateInput["frecuencia"],
       unidad_medida: fd.get("unidad_medida") as string,
       fuente_informacion: fd.get("fuente_informacion") as string,
@@ -154,8 +154,9 @@ export function KpiFormFields({
       />
       {catalogs.users && catalogs.users.length > 0 && (
         <FormSelect
-          label="Responsable"
+          label="Responsable *"
           name="responsable_id"
+          required
           options={[emptyOption, ...catalogs.users]}
           defaultValue={dv.responsable_id ?? ""}
           value={responsableId}

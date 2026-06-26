@@ -79,7 +79,8 @@ function buildRecommendations(rows: DashboardKpiRow[]): string[] {
       r.semaforo_calculado === "riesgo"
   );
 
-  for (const r of critical.slice(0, 3)) {
+  for (const r of critical) {
+    if (bullets.length >= MAX_RECOMMENDATIONS) break;
     const hotel = r.hotel_nombre ?? "la cadena";
     if (r.semaforo_calculado === "incumplimiento") {
       bullets.push(
@@ -93,7 +94,7 @@ function buildRecommendations(rows: DashboardKpiRow[]): string[] {
   }
 
   const good = rows.filter((r) => r.semaforo_calculado === "cumplimiento");
-  if (good.length > 0) {
+  if (bullets.length < MAX_RECOMMENDATIONS && good.length > 0) {
     bullets.push(
       `Replicar las prácticas exitosas asociadas al desempeño de ${good[0].kpi_nombre} (${good[0].hotel_nombre ?? "cadena"}).`
     );
@@ -103,7 +104,7 @@ function buildRecommendations(rows: DashboardKpiRow[]): string[] {
     bullets.push("Mantener el seguimiento periódico de los indicadores clave.");
   }
 
-  return bullets.slice(0, 4);
+  return bullets.slice(0, MAX_RECOMMENDATIONS);
 }
 
 export interface ResponsibleContact {
@@ -204,6 +205,7 @@ const PDF_TABLE_CELL_PADDING = 3.5;
 const PDF_BODY_FONT_SIZE = 10;
 const PDF_SECTION_TITLE_SIZE = 11;
 const PDF_FILTER_LINE_SIZE = 10;
+const MAX_RECOMMENDATIONS = 6;
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   if (items.length === 0) return [];
@@ -295,6 +297,51 @@ function drawPdfWrappedSection(
     }
   }
   return currentY;
+}
+
+function drawPdfSplitSections(
+  doc: jsPDF,
+  left: { title: string; text: string },
+  right: { title: string; text: string },
+  y: number,
+  margin: number,
+  contentW: number,
+  pageH: number
+): number {
+  const gap = 6;
+  const colW = (contentW - gap) / 2;
+  const innerPad = 5;
+  const lineH = 4.8;
+  const titleH = 5;
+  const bottomLimit = pdfBottomLimit(pageH);
+  let currentY = ensurePdfSpace(doc, y, 48, pageH);
+  const boxH = Math.max(36, bottomLimit - currentY - titleH - 6);
+  const leftX = margin;
+  const rightX = margin + colW + gap;
+  const maxLines = Math.max(1, Math.floor((boxH - innerPad * 2) / lineH));
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(PDF_SECTION_TITLE_SIZE);
+  doc.setTextColor(...PDF.black);
+  doc.text(left.title, leftX, currentY);
+  doc.text(right.title, rightX, currentY);
+  currentY += titleH;
+
+  doc.setDrawColor(...PDF.border);
+  doc.setFillColor(...PDF.light);
+  doc.roundedRect(leftX, currentY, colW, boxH, 1.5, 1.5, "FD");
+  doc.roundedRect(rightX, currentY, colW, boxH, 1.5, 1.5, "FD");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(PDF_BODY_FONT_SIZE);
+  doc.setTextColor(...PDF.dark);
+
+  const leftLines = doc.splitTextToSize(left.text, colW - innerPad * 2).slice(0, maxLines);
+  const rightLines = doc.splitTextToSize(right.text, colW - innerPad * 2).slice(0, maxLines);
+  doc.text(leftLines, leftX + innerPad, currentY + innerPad + 4);
+  doc.text(rightLines, rightX + innerPad, currentY + innerPad + 4);
+
+  return currentY + boxH + 7;
 }
 
 function buildDetailTableBody(rows: DashboardKpiRow[]) {
@@ -553,21 +600,17 @@ export function exportToPdf(
     (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY +
     7;
 
-  y = drawPdfWrappedSection(
+  y = drawPdfSplitSections(
     doc,
-    "Recomendaciones",
-    recommendations.map((item) => `• ${item}`).join("\n"),
-    ensurePdfSpace(doc, y, 20, pageH),
-    margin,
-    contentW,
-    pageH
-  );
-
-  y = drawPdfWrappedSection(
-    doc,
-    "Contactos responsables",
-    contactsText,
-    ensurePdfSpace(doc, y, 20, pageH),
+    {
+      title: "Recomendaciones",
+      text: recommendations.map((item) => `• ${item}`).join("\n"),
+    },
+    {
+      title: "Contactos responsables",
+      text: contactsText,
+    },
+    ensurePdfSpace(doc, y, 48, pageH),
     margin,
     contentW,
     pageH
@@ -863,107 +906,84 @@ export async function exportToPptx(
     );
   }
 
-  const recommendationChunks = chunkArray(recommendations, 3);
-  recommendationChunks.forEach((chunk, index) => {
-    const recSlide = pptx.addSlide();
-    recSlide.background = { color: "FFFFFF" };
-    recSlide.addText(
-      index === 0
-        ? "Recomendaciones"
-        : `Recomendaciones (continuación ${index + 1})`,
-      {
-        x: px,
-        y: 0.35,
-        w: pw,
-        fontSize: 18,
-        bold: true,
-        color: "0B3061",
-      }
-    );
+  const contactsText = formatResponsibleContactsText(responsibleContacts);
+  const recommendationsText = recommendations.map((item) => `• ${item}`).join("\n\n");
 
-    const recBoxY = 0.9;
-    const recBoxH = 4.4;
-    recSlide.addShape(pptx.ShapeType.roundRect, {
-      x: px,
-      y: recBoxY,
-      w: pw,
-      h: recBoxH,
-      fill: { color: "E8F0F8" },
-      line: { color: "CBD5E1", width: 0.5 },
-      rectRadius: 0.04,
-    });
-    recSlide.addText(chunk.map((item) => `• ${item}`).join("\n\n"), {
-      x: textX,
-      y: recBoxY + 0.2,
-      w: textW,
-      h: recBoxH - 0.35,
-      fontSize: bodyFontSize,
-      color: "334155",
-      valign: "top",
-      breakLine: true,
-      fit: "shrink",
-    });
+  const recContactSlide = pptx.addSlide();
+  recContactSlide.background = { color: "FFFFFF" };
+  recContactSlide.addText("Recomendaciones y contactos", {
+    x: px,
+    y: 0.35,
+    w: pw,
+    fontSize: 18,
+    bold: true,
+    color: "0B3061",
   });
 
-  const contactChunks =
-    responsibleContacts.length > 0
-      ? chunkArray(responsibleContacts, 6)
-      : [[] as ResponsibleContact[]];
-  contactChunks.forEach((chunk, index) => {
-    const contactSlide = pptx.addSlide();
-    contactSlide.background = { color: "FFFFFF" };
-    contactSlide.addText(
-      index === 0
-        ? "Contactos responsables"
-        : `Contactos responsables (continuación ${index + 1})`,
-      {
-        x: px,
-        y: 0.35,
-        w: pw,
-        fontSize: 18,
-        bold: true,
-        color: "0B3061",
-      }
-    );
-    contactSlide.addText(
-      "Indicadores en incumplimiento — personas a contactar según el alcance del reporte",
-      {
-        x: px,
-        y: 0.72,
-        w: pw,
-        fontSize: 9,
-        color: "64748B",
-      }
-    );
+  const splitBoxY = 0.9;
+  const splitBoxH = 4.4;
+  const colGap = 0.12;
+  const colW = (pw - colGap) / 2;
+  const leftX = px;
+  const rightX = px + colW + colGap;
 
-    const contactBoxY = 1.05;
-    const contactBoxH = 4.25;
-    contactSlide.addShape(pptx.ShapeType.roundRect, {
-      x: px,
-      y: contactBoxY,
-      w: pw,
-      h: contactBoxH,
-      fill: { color: "F8FAFC" },
-      line: { color: "CBD5E1", width: 0.5 },
-      rectRadius: 0.04,
-    });
-    contactSlide.addText(
-      (chunk.length > 0
-        ? formatResponsibleContactsText(chunk)
-        : formatResponsibleContactsText(responsibleContacts)
-      ).replace(/\n/g, "\n\n"),
-      {
-        x: textX,
-        y: contactBoxY + 0.2,
-        w: textW,
-        h: contactBoxH - 0.35,
-        fontSize: bodyFontSize,
-        color: "334155",
-        valign: "top",
-        breakLine: true,
-        fit: "shrink",
-      }
-    );
+  recContactSlide.addText("Recomendaciones", {
+    x: leftX,
+    y: splitBoxY - 0.18,
+    w: colW,
+    fontSize: 10,
+    bold: true,
+    color: "0B3061",
+  });
+  recContactSlide.addText("Contactos responsables", {
+    x: rightX,
+    y: splitBoxY - 0.18,
+    w: colW,
+    fontSize: 10,
+    bold: true,
+    color: "0B3061",
+  });
+
+  recContactSlide.addShape(pptx.ShapeType.roundRect, {
+    x: leftX,
+    y: splitBoxY,
+    w: colW,
+    h: splitBoxH,
+    fill: { color: "E8F0F8" },
+    line: { color: "CBD5E1", width: 0.5 },
+    rectRadius: 0.04,
+  });
+  recContactSlide.addShape(pptx.ShapeType.roundRect, {
+    x: rightX,
+    y: splitBoxY,
+    w: colW,
+    h: splitBoxH,
+    fill: { color: "F8FAFC" },
+    line: { color: "CBD5E1", width: 0.5 },
+    rectRadius: 0.04,
+  });
+
+  recContactSlide.addText(recommendationsText, {
+    x: leftX + pad,
+    y: splitBoxY + 0.15,
+    w: colW - pad * 2,
+    h: splitBoxH - 0.25,
+    fontSize: bodyFontSize,
+    color: "334155",
+    valign: "top",
+    breakLine: true,
+    fit: "shrink",
+  });
+  recContactSlide.addText(contactsText.replace(/\n/g, "\n\n"), {
+    x: rightX + pad,
+    y: splitBoxY + 0.15,
+    w: colW - pad * 2,
+    h: splitBoxH - 0.25,
+    fontSize: bodyFontSize,
+    color: "334155",
+    valign: "top",
+    breakLine: true,
+    fit: "shrink",
   });
 
   await pptx.writeFile({ fileName: `${filename}.pptx` });
