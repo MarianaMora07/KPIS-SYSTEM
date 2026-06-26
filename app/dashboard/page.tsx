@@ -1,7 +1,5 @@
 import {
-  getLatestKpiCards,
-  getDashboardKpis,
-  getWorstPerformers,
+  getExecutiveDashboardData,
 } from "@/modules/dashboard/services/dashboard-service";
 import { DashboardTabsView } from "@/modules/dashboard/components/dashboard-tabs-view";
 import { parseDashboardTab } from "@/modules/dashboard/dashboard-tab";
@@ -16,7 +14,6 @@ import {
 } from "@/modules/dashboard/data/demo-data";
 import { getWorstPerformers as getWorstFromCards } from "@/modules/dashboard/utils/chart-data";
 import { listTargetsForDashboard } from "@/modules/metas/services/targets-service";
-import { syncAllAlerts } from "@/modules/alertas/services/alert-sync-service";
 import type { DashboardKpiRow } from "@/modules/dashboard/types";
 import type { MetasDashboardRow } from "@/modules/metas/types";
 import { Suspense } from "react";
@@ -49,19 +46,18 @@ async function DashboardData({ searchParams }: PageProps) {
 
   if (isSupabaseConfigured()) {
     try {
-      await syncAllAlerts().catch(() => {});
       const results = await Promise.allSettled([
-        getLatestKpiCards(filters),
-        getDashboardKpis(filters),
-        getWorstPerformers(filters),
+        getExecutiveDashboardData(filters),
         listTargetsForDashboard(filters),
       ]);
 
       const failed = results.some((r) => r.status === "rejected");
-      if (results[0].status === "fulfilled") kpiCards = results[0].value;
-      if (results[1].status === "fulfilled") history = results[1].value;
-      if (results[2].status === "fulfilled") worstPerformers = results[2].value;
-      if (results[3].status === "fulfilled") metas = results[3].value;
+      if (results[0].status === "fulfilled") {
+        kpiCards = results[0].value.kpiCards;
+        history = results[0].value.history;
+        worstPerformers = results[0].value.worstPerformers;
+      }
+      if (results[1].status === "fulfilled") metas = results[1].value;
 
       if (failed || kpiCards.length === 0) {
         const demoFilters = {
@@ -75,7 +71,7 @@ async function DashboardData({ searchParams }: PageProps) {
           history = demo;
           worstPerformers = getWorstFromCards(demo);
         }
-        if (metas.length === 0 && results[3].status === "rejected") {
+        if (metas.length === 0 && results[1].status === "rejected") {
           metas = filterDemoMetas(DEMO_METAS_DATA, demoFilters);
         }
       }

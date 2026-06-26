@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { DashboardFilters, DashboardKpiRow } from "../types";
 import { withCache } from "@/lib/cache/dashboard-cache";
@@ -70,40 +71,94 @@ async function fetchExecutiveRows(
   return buildExecutiveDashboardRows(values, targets ?? [], ranges ?? []);
 }
 
+/** Una sola query pesada por request; deduplicada con React.cache + TTL en memoria. */
+const getExecutiveRowsForRequest = cache(async (filtersKey: string) => {
+  const filters = JSON.parse(filtersKey) as DashboardFilters;
+  return withCache(cacheKey("executive", filters), () => fetchExecutiveRows(filters));
+});
+
+async function getCachedExecutiveRows(
+  filters: DashboardFilters = {}
+): Promise<DashboardKpiRow[]> {
+  return getExecutiveRowsForRequest(JSON.stringify(filters));
+}
+
+const getKpiCreationOrder = cache(async () => {
+  const supabase = await createClient();
+  const { data: kpis } = await supabase
+    .from("kpis")
+    .select("id, created_at")
+    .eq("estado", "activo")
+    .order("created_at", { ascending: true });
+
+  return new Map((kpis ?? []).map((kpi, index) => [kpi.id as string, index]));
+});
+
+function deriveLatestKpiCards(
+  rows: DashboardKpiRow[],
+  order: Map<string, number>
+): DashboardKpiRow[] {
+  const latestByKpi = new Map<string, DashboardKpiRow>();
+  for (const row of rows) {
+    if (!latestByKpi.has(row.kpi_id)) {
+      latestByKpi.set(row.kpi_id, row);
+    }
+  }
+  const cards = Array.from(latestByKpi.values());
+  cards.sort(
+    (a, b) =>
+      (order.get(a.kpi_id) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(b.kpi_id) ?? Number.MAX_SAFE_INTEGER)
+  );
+  return cards;
+}
+
+function deriveWorstPerformers(
+  rows: DashboardKpiRow[],
+  limit = 3
+): DashboardKpiRow[] {
+  const latest = new Map<string, DashboardKpiRow>();
+  for (const row of rows) {
+    const key = `${row.hotel_id ?? row.hotel_nombre}-${row.kpi_id}`;
+    const existing = latest.get(key);
+    if (!existing || row.fecha > existing.fecha) latest.set(key, row);
+  }
+  return Array.from(latest.values())
+    .filter(
+      (k) =>
+        k.semaforo_calculado === "incumplimiento" || k.semaforo_calculado === "riesgo"
+    )
+    .sort((a, b) => (a.cumplimiento_pct ?? 0) - (b.cumplimiento_pct ?? 0))
+    .slice(0, limit);
+}
+
+/** Carga unificada del dashboard: una query a BD y derivación en memoria. */
+export async function getExecutiveDashboardData(filters: DashboardFilters = {}) {
+  const [rows, order] = await Promise.all([
+    getCachedExecutiveRows(filters),
+    getKpiCreationOrder(),
+  ]);
+
+  return {
+    history: rows,
+    kpiCards: deriveLatestKpiCards(rows, order),
+    worstPerformers: deriveWorstPerformers(rows),
+  };
+}
+
 export async function getDashboardKpis(
   filters: DashboardFilters = {}
 ): Promise<DashboardKpiRow[]> {
-  return withCache(cacheKey("dashboard", filters), () => fetchExecutiveRows(filters));
+  return getCachedExecutiveRows(filters);
 }
 
 /** Último valor por KPI (para tarjetas principales), ordenados por fecha de creación del KPI */
 export async function getLatestKpiCards(filters: DashboardFilters = {}) {
-  return withCache(cacheKey("cards", filters), async () => {
-    const rows = await fetchExecutiveRows(filters);
-    const latestByKpi = new Map<string, DashboardKpiRow>();
-    for (const row of rows) {
-      if (!latestByKpi.has(row.kpi_id)) {
-        latestByKpi.set(row.kpi_id, row);
-      }
-    }
-    const cards = Array.from(latestByKpi.values());
-
-    const supabase = await createClient();
-    const { data: kpis } = await supabase
-      .from("kpis")
-      .select("id, created_at")
-      .eq("estado", "activo")
-      .order("created_at", { ascending: true });
-
-    const order = new Map((kpis ?? []).map((kpi, index) => [kpi.id, index]));
-    cards.sort(
-      (a, b) =>
-        (order.get(a.kpi_id) ?? Number.MAX_SAFE_INTEGER) -
-        (order.get(b.kpi_id) ?? Number.MAX_SAFE_INTEGER)
-    );
-
-    return cards;
-  });
+  const [rows, order] = await Promise.all([
+    getCachedExecutiveRows(filters),
+    getKpiCreationOrder(),
+  ]);
+  return deriveLatestKpiCards(rows, order);
 }
 
 export async function getKpiHistory(kpiId: string, limit = 12) {
@@ -153,18 +208,6 @@ export async function getWorstPerformers(
   filters: DashboardFilters = {},
   limit = 3
 ) {
-  const rows = await fetchExecutiveRows(filters);
-  const latest = new Map<string, DashboardKpiRow>();
-  for (const row of rows) {
-    const key = `${row.hotel_id ?? row.hotel_nombre}-${row.kpi_id}`;
-    const existing = latest.get(key);
-    if (!existing || row.fecha > existing.fecha) latest.set(key, row);
-  }
-  return Array.from(latest.values())
-    .filter(
-      (k) =>
-        k.semaforo_calculado === "incumplimiento" || k.semaforo_calculado === "riesgo"
-    )
-    .sort((a, b) => (a.cumplimiento_pct ?? 0) - (b.cumplimiento_pct ?? 0))
-    .slice(0, limit);
+  const rows = await getCachedExecutiveRows(filters);
+  return deriveWorstPerformers(rows, limit);
 }

@@ -1,14 +1,15 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/lib/auth/session-user";
 import type { AppRole } from "@/types/database";
+import { getAuthUser } from "@/lib/auth/cached-auth";
 
-export async function getSessionUser(): Promise<SessionUser | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+async function fetchSessionUser(): Promise<SessionUser | null> {
+  const user = await getAuthUser();
 
   if (!user) return null;
+
+  const supabase = await createClient();
 
   const { data: profile } = await supabase
     .from("user_profiles")
@@ -39,3 +40,5 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     rol,
   };
 }
+
+export const getSessionUser = cache(fetchSessionUser);

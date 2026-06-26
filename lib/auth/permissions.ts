@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/types/database";
 import {
@@ -7,17 +8,17 @@ import {
   getPermissionsForRole,
   hasPermissionInList,
 } from "./role-matrix";
+import { getAuthUser } from "@/lib/auth/cached-auth";
 
-export async function getUserPermissions(): Promise<{
+async function fetchUserPermissions(): Promise<{
   rol: AppRole | null;
   permissions: string[];
 }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
 
   if (!user) return { rol: null, permissions: [] };
+
+  const supabase = await createClient();
 
   const { data: roles, error: rolesError } = await supabase
     .from("user_roles")
@@ -54,6 +55,8 @@ export async function getUserPermissions(): Promise<{
 
   return { rol, permissions };
 }
+
+export const getUserPermissions = cache(fetchUserPermissions);
 
 export function hasPermission(
   permissions: string[],
