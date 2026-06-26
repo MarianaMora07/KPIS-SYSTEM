@@ -198,10 +198,19 @@ export function KpiCreateFormulaStep({
                 kpi_nombre: kpiNombre,
               }
             }
-            variables={variables}
+            variables={selectedVariables}
             currentExpresion={expresion}
+            currentSelectedCodes={selectedVariables.map((v) => v.codigo)}
             onApply={({ expresion: nextExpresion, variableCodes }) => {
               onExpresionChange(nextExpresion);
+              onSelectedCodesChange(
+                new Set(
+                  variableCodes.filter((code) => variables.some((v) => v.codigo === code))
+                )
+              );
+            }}
+            onRestore={({ expresion: prevExpresion, variableCodes }) => {
+              onExpresionChange(prevExpresion);
               onSelectedCodesChange(
                 new Set(
                   variableCodes.filter((code) => variables.some((v) => v.codigo === code))
