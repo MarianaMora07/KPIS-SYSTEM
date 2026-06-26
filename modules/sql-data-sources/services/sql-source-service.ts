@@ -134,7 +134,7 @@ async function resolveHotelId(
 
 export async function previewKpiSqlQuery(
   kpiId: string,
-  overrides?: Partial<KpiSqlSourceInput>
+  overrides?: Partial<KpiSqlSourceInput> & { limit?: number }
 ) {
   const supabase = await createClient();
   const { data: kpi } = await supabase
@@ -169,12 +169,13 @@ export async function previewKpiSqlQuery(
   };
 
   const formulaVariableCodes = await getRequiredInputVariableCodes(kpiId);
+  const previewLimit = overrides?.limit ?? 20;
   const { sql, rows, records } = await runKpiSqlSourceQuery(
     connection,
     source,
     kpi.codigo,
     formulaVariableCodes,
-    { limit: 20 }
+    { limit: previewLimit }
   );
 
   const enrichedRecords = await Promise.all(
@@ -192,7 +193,13 @@ export async function previewKpiSqlQuery(
     })
   );
 
-  return { sql, rows, records: enrichedRecords };
+  return {
+    sql,
+    rows,
+    records: enrichedRecords,
+    truncated: records.length >= previewLimit,
+    limit: previewLimit,
+  };
 }
 
 export async function previewAdHocSqlQuery(
@@ -225,7 +232,16 @@ export async function previewAdHocSqlQuery(
   return { sql, rows, records };
 }
 
-type LoadMode = "single" | "all";
+type LoadMode = "single" | "all" | "selected";
+
+export interface SqlRecordSelection {
+  fecha: string;
+  hotel_codigo?: string;
+}
+
+export function sqlRecordSelectionKey(selection: SqlRecordSelection): string {
+  return `${selection.fecha}|${selection.hotel_codigo ?? ""}`;
+}
 
 export interface SqlLoadResult {
   sql: string;
@@ -281,7 +297,8 @@ async function upsertSqlKpiValue(
 export async function loadKpiSqlData(
   kpiId: string,
   mode: LoadMode = "single",
-  integrationId?: string | null
+  integrationId?: string | null,
+  selections?: SqlRecordSelection[]
 ): Promise<SqlLoadResult> {
   const supabase = await createClient();
   const sourceDto = await getKpiSqlSource(kpiId);
@@ -320,7 +337,23 @@ export async function loadKpiSqlData(
     formulaVariableCodes
   );
 
-  const toProcess = mode === "single" ? records.slice(0, 1) : records;
+  let toProcess: typeof records;
+  if (mode === "single") {
+    toProcess = records.slice(0, 1);
+  } else if (mode === "selected") {
+    if (!selections?.length) {
+      throw new Error("Seleccione al menos un registro para importar");
+    }
+    const selectionKeys = new Set(selections.map(sqlRecordSelectionKey));
+    toProcess = records.filter((rec) =>
+      selectionKeys.has(sqlRecordSelectionKey({ fecha: rec.fecha, hotel_codigo: rec.hotel_codigo }))
+    );
+    if (toProcess.length === 0) {
+      throw new Error("Ningún registro seleccionado coincide con la consulta actual");
+    }
+  } else {
+    toProcess = records;
+  }
   let loaded = 0;
   const errors: string[] = [];
 

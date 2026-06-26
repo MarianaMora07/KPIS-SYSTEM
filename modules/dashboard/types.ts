@@ -16,6 +16,10 @@ export interface DashboardKpiRow {
   cumplimiento_pct: number | null;
   semaforo_calculado: TrafficLightStatus | null;
   fuente: string;
+  area_responsable?: string | null;
+  responsable_id?: string | null;
+  responsable_nombre?: string | null;
+  responsable_email?: string | null;
 }
 
 export interface DashboardFilters {

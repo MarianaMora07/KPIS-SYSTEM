@@ -14,8 +14,14 @@ export async function POST(
   try {
     await assertPermission("metas.configurar");
     const body = await request.json().catch(() => ({}));
-    const mode = body.mode === "all" ? "all" : "single";
-    const result = await loadKpiSqlData(id, mode, body.integration_id ?? null);
+    const mode =
+      body.mode === "all"
+        ? "all"
+        : body.mode === "selected"
+          ? "selected"
+          : "single";
+    const selections = Array.isArray(body.selections) ? body.selections : undefined;
+    const result = await loadKpiSqlData(id, mode, body.integration_id ?? null, selections);
     return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json(

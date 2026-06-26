@@ -106,6 +106,67 @@ function buildRecommendations(rows: DashboardKpiRow[]): string[] {
   return bullets.slice(0, 4);
 }
 
+export interface ResponsibleContact {
+  kpi_nombre: string;
+  hotel_nombre: string | null;
+  area_responsable: string | null;
+  responsable_nombre: string | null;
+  responsable_email: string | null;
+}
+
+/** Indicadores en incumplimiento con su responsable (único por KPI + hotel). */
+export function buildResponsibleContacts(rows: DashboardKpiRow[]): ResponsibleContact[] {
+  const seen = new Set<string>();
+  const contacts: ResponsibleContact[] = [];
+
+  for (const row of rows) {
+    if (row.semaforo_calculado !== "incumplimiento") continue;
+    const key = `${row.kpi_id}|${row.hotel_id ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    contacts.push({
+      kpi_nombre: row.kpi_nombre,
+      hotel_nombre: row.hotel_nombre,
+      area_responsable: row.area_responsable ?? null,
+      responsable_nombre: row.responsable_nombre ?? null,
+      responsable_email: row.responsable_email ?? null,
+    });
+  }
+
+  return contacts.sort(
+    (a, b) =>
+      a.kpi_nombre.localeCompare(b.kpi_nombre, "es") ||
+      (a.hotel_nombre ?? "").localeCompare(b.hotel_nombre ?? "", "es")
+  );
+}
+
+export function formatResponsibleContactsText(contacts: ResponsibleContact[]): string {
+  if (contacts.length === 0) {
+    return "No hay indicadores en incumplimiento en el alcance de este reporte.";
+  }
+
+  const lines = contacts
+    .map((contact) => {
+      const hotel = contact.hotel_nombre ?? "Cadena";
+      if (contact.responsable_nombre && contact.responsable_email) {
+        return `• ${contact.kpi_nombre} (${hotel}): ${contact.responsable_nombre} — ${contact.responsable_email}`;
+      }
+      if (contact.responsable_nombre) {
+        return `• ${contact.kpi_nombre} (${hotel}): ${contact.responsable_nombre}`;
+      }
+      if (contact.area_responsable) {
+        return `• ${contact.kpi_nombre} (${hotel}): contactar área ${contact.area_responsable}`;
+      }
+      return `• ${contact.kpi_nombre} (${hotel}): sin responsable asignado`;
+    })
+    .join("\n");
+
+  return (
+    "Para dar seguimiento a los indicadores en fase de incumplimiento, contacte a:\n\n" +
+    lines
+  );
+}
+
 function formatFilterLine(
   filters: { region?: string; hotel?: string; periodo?: string },
   now: string
@@ -314,11 +375,26 @@ export function exportToExcel(rows: DashboardKpiRow[], filename = "reporte-kpis"
     "Cumplimiento %": r.cumplimiento_pct ?? "",
     Estado: SEMAFORO_LABELS[r.semaforo_calculado ?? ""] ?? "—",
     Fuente: r.fuente,
+    "Área responsable": r.area_responsable ?? "",
+    Responsable: r.responsable_nombre ?? "",
+    "Email responsable": r.responsable_email ?? "",
   }));
+
+  const contacts = buildResponsibleContacts(rows);
+  const contactSheet = XLSX.utils.json_to_sheet(
+    contacts.map((c) => ({
+      KPI: c.kpi_nombre,
+      Hotel: c.hotel_nombre ?? "Cadena",
+      "Área responsable": c.area_responsable ?? "",
+      Responsable: c.responsable_nombre ?? "",
+      Email: c.responsable_email ?? "",
+    }))
+  );
 
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "KPIs");
+  XLSX.utils.book_append_sheet(wb, contactSheet, "Contactos incumplimiento");
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
@@ -363,6 +439,8 @@ export function exportToPdf(
   y += 8;
   const stats = computeReportStats(rows);
   const recommendations = buildRecommendations(rows);
+  const responsibleContacts = buildResponsibleContacts(rows);
+  const contactsText = formatResponsibleContactsText(responsibleContacts);
   const summaryRaw =
     executiveSummary ??
     `Durante el período analizado se registraron ${stats.total} indicadores. ` +
@@ -485,6 +563,16 @@ export function exportToPdf(
     pageH
   );
 
+  y = drawPdfWrappedSection(
+    doc,
+    "Contactos responsables",
+    contactsText,
+    ensurePdfSpace(doc, y, 20, pageH),
+    margin,
+    contentW,
+    pageH
+  );
+
   drawPdfFooters(doc, margin, pageW, pageH);
   doc.save(`${filename}.pdf`);
 }
@@ -506,6 +594,7 @@ export async function exportToPptx(
   });
   const stats = computeReportStats(rows);
   const recommendations = buildRecommendations(rows);
+  const responsibleContacts = buildResponsibleContacts(rows);
   const summaryText = plainSummaryText(
     executiveSummary ??
       `Durante el período analizado se registraron ${stats.total} indicadores con desempeño mixto.`
@@ -814,6 +903,67 @@ export async function exportToPptx(
       breakLine: true,
       fit: "shrink",
     });
+  });
+
+  const contactChunks =
+    responsibleContacts.length > 0
+      ? chunkArray(responsibleContacts, 6)
+      : [[] as ResponsibleContact[]];
+  contactChunks.forEach((chunk, index) => {
+    const contactSlide = pptx.addSlide();
+    contactSlide.background = { color: "FFFFFF" };
+    contactSlide.addText(
+      index === 0
+        ? "Contactos responsables"
+        : `Contactos responsables (continuación ${index + 1})`,
+      {
+        x: px,
+        y: 0.35,
+        w: pw,
+        fontSize: 18,
+        bold: true,
+        color: "0B3061",
+      }
+    );
+    contactSlide.addText(
+      "Indicadores en incumplimiento — personas a contactar según el alcance del reporte",
+      {
+        x: px,
+        y: 0.72,
+        w: pw,
+        fontSize: 9,
+        color: "64748B",
+      }
+    );
+
+    const contactBoxY = 1.05;
+    const contactBoxH = 4.25;
+    contactSlide.addShape(pptx.ShapeType.roundRect, {
+      x: px,
+      y: contactBoxY,
+      w: pw,
+      h: contactBoxH,
+      fill: { color: "F8FAFC" },
+      line: { color: "CBD5E1", width: 0.5 },
+      rectRadius: 0.04,
+    });
+    contactSlide.addText(
+      (chunk.length > 0
+        ? formatResponsibleContactsText(chunk)
+        : formatResponsibleContactsText(responsibleContacts)
+      ).replace(/\n/g, "\n\n"),
+      {
+        x: textX,
+        y: contactBoxY + 0.2,
+        w: textW,
+        h: contactBoxH - 0.35,
+        fontSize: bodyFontSize,
+        color: "334155",
+        valign: "top",
+        breakLine: true,
+        fit: "shrink",
+      }
+    );
   });
 
   await pptx.writeFile({ fileName: `${filename}.pptx` });

@@ -12,8 +12,30 @@ type RawValueRow = {
   region_id: string | null;
   marketing_campaign_id: string | null;
   kpis:
-    | { nombre: string; codigo: string; unidad_medida: string; estado?: string }
-    | { nombre: string; codigo: string; unidad_medida: string; estado?: string }[]
+    | {
+        nombre: string;
+        codigo: string;
+        unidad_medida: string;
+        estado?: string;
+        area_responsable?: string;
+        responsable_id?: string | null;
+        responsable?:
+          | { nombre: string; apellido: string | null; email: string }
+          | { nombre: string; apellido: string | null; email: string }[]
+          | null;
+      }
+    | {
+        nombre: string;
+        codigo: string;
+        unidad_medida: string;
+        estado?: string;
+        area_responsable?: string;
+        responsable_id?: string | null;
+        responsable?:
+          | { nombre: string; apellido: string | null; email: string }
+          | { nombre: string; apellido: string | null; email: string }[]
+          | null;
+      }[]
     | null;
   hotels: { nombre: string } | { nombre: string }[] | null;
   regions: { nombre: string } | { nombre: string }[] | null;
@@ -68,6 +90,10 @@ export function buildExecutiveDashboardRows(
     const kpi = unwrapOne(row.kpis);
     const hotel = unwrapOne(row.hotels);
     const region = unwrapOne(row.regions);
+    const responsable = unwrapOne(kpi?.responsable ?? null);
+    const responsableNombre = responsable
+      ? [responsable.nombre, responsable.apellido].filter(Boolean).join(" ").trim()
+      : null;
     const kpiTargets = mapRawTargetsForMatch(targetsByKpi.get(row.kpi_id) ?? []);
     const compliance = resolveValueCompliance(
       {
@@ -97,6 +123,10 @@ export function buildExecutiveDashboardRows(
       cumplimiento_pct: compliance.cumplimiento_pct,
       semaforo_calculado: compliance.semaforo_calculado,
       fuente: row.fuente,
+      area_responsable: kpi?.area_responsable ?? null,
+      responsable_id: kpi?.responsable_id ?? null,
+      responsable_nombre: responsableNombre,
+      responsable_email: responsable?.email ?? null,
     };
   });
 }

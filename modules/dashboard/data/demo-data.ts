@@ -20,6 +20,9 @@ type KpiDef = {
   kpi_nombre: string;
   kpi_codigo: string;
   unidad_medida: string;
+  area_responsable: string;
+  responsable_nombre: string;
+  responsable_email: string;
   /** valores por mes para cada hotel [bogota, cartagena, cali] */
   values: { real: number[]; meta: number }[];
   semaforos: ("cumplimiento" | "riesgo" | "incumplimiento")[][];
@@ -31,6 +34,9 @@ const KPI_DEFS: KpiDef[] = [
     kpi_nombre: "Ocupación",
     kpi_codigo: "OCP-001",
     unidad_medida: "%",
+    area_responsable: "Operaciones",
+    responsable_nombre: "Laura Méndez",
+    responsable_email: "laura.mendez@estelar.com",
     values: [
       { real: [76.2, 68.5, 71.0], meta: 82 },
       { real: [79.1, 70.2, 73.5], meta: 82 },
@@ -49,6 +55,9 @@ const KPI_DEFS: KpiDef[] = [
     kpi_nombre: "RevPAR",
     kpi_codigo: "RVP-001",
     unidad_medida: "COP",
+    area_responsable: "Revenue",
+    responsable_nombre: "Carlos Ruiz",
+    responsable_email: "carlos.ruiz@estelar.com",
     values: [
       { real: [128000, 195000, 112000], meta: 138000 },
       { real: [135000, 202000, 118000], meta: 138000 },
@@ -67,6 +76,9 @@ const KPI_DEFS: KpiDef[] = [
     kpi_nombre: "Conversión web",
     kpi_codigo: "CNV-001",
     unidad_medida: "%",
+    area_responsable: "Marketing Digital",
+    responsable_nombre: "Ana Torres",
+    responsable_email: "ana.torres@estelar.com",
     values: [
       { real: [1.8, 2.4, 1.5], meta: 2.5 },
       { real: [1.9, 2.3, 1.7], meta: 2.5 },
@@ -85,6 +97,9 @@ const KPI_DEFS: KpiDef[] = [
     kpi_nombre: "NPS",
     kpi_codigo: "NPS-001",
     unidad_medida: "pts",
+    area_responsable: "Experiencia del huésped",
+    responsable_nombre: "Patricia Gómez",
+    responsable_email: "patricia.gomez@estelar.com",
     values: [
       { real: [68, 74, 65], meta: 70 },
       { real: [70, 75, 68], meta: 70 },
@@ -131,6 +146,9 @@ function buildDemoRows(): DashboardKpiRow[] {
           cumplimiento_pct: cumplimiento,
           semaforo_calculado: kpi.semaforos[m][h],
           fuente: "manual",
+          area_responsable: kpi.area_responsable,
+          responsable_nombre: kpi.responsable_nombre,
+          responsable_email: kpi.responsable_email,
         });
       }
     }

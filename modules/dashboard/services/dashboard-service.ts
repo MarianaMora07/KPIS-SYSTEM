@@ -20,7 +20,10 @@ async function fetchExecutiveRows(
     .select(
       `
       id, kpi_id, fecha, valor_real, fuente, hotel_id, region_id, marketing_campaign_id,
-      kpis!inner(nombre, codigo, unidad_medida, estado),
+      kpis!inner(
+        nombre, codigo, unidad_medida, estado, area_responsable, responsable_id,
+        responsable:user_profiles!fk_kpis_responsable(nombre, apellido, email)
+      ),
       hotels(nombre),
       regions(nombre)
     `
@@ -168,7 +171,10 @@ export async function getKpiHistory(kpiId: string, limit = 12) {
     .select(
       `
       id, kpi_id, fecha, valor_real, fuente, hotel_id, region_id, marketing_campaign_id,
-      kpis!inner(nombre, codigo, unidad_medida, estado),
+      kpis!inner(
+        nombre, codigo, unidad_medida, estado, area_responsable, responsable_id,
+        responsable:user_profiles!fk_kpis_responsable(nombre, apellido, email)
+      ),
       hotels(nombre),
       regions(nombre)
     `

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Database, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { FormModal } from "@/components/ui/form-modal";
 import { SUCCESS_MESSAGES, useSuccessToast } from "@/components/ui/success-toast";
 import { formatKpiValue } from "@/modules/dashboard/types";
+import { SQL_QUERY_LIMIT } from "@/lib/sql/build-structured-query";
 
 interface PreviewRecord {
   fecha: string;
@@ -25,94 +27,19 @@ interface KpiSqlLoadButtonProps {
   }) => void;
 }
 
-function formatPreviewSummary(
-  records: PreviewRecord[],
-  mode: "single" | "all",
-  unidadMedida?: string
-): { title: string; description: string; detail: ReactNode } {
-  if (records.length === 0) {
-    return {
-      title: "Sin datos para cargar",
-      description: "La consulta no devolvió filas. Revise la fuente SQL.",
-      detail: null,
-    };
-  }
+function recordKey(rec: PreviewRecord): string {
+  return `${rec.fecha}|${rec.hotel_codigo ?? ""}`;
+}
 
-  const first = records[0]!;
-  const valor =
-    first.valor_calculado ?? first.valor ?? Object.values(first.variables ?? {})[0];
-  const varsText = first.variables
-    ? Object.entries(first.variables)
-        .map(([k, v]) => `${k} = ${v}`)
-        .join(", ")
-    : null;
+function formatVariables(rec: PreviewRecord): string {
+  if (!rec.variables || Object.keys(rec.variables).length === 0) return "—";
+  return Object.entries(rec.variables)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(", ");
+}
 
-  if (mode === "single") {
-    return {
-      title: "Confirmar carga desde base de datos",
-      description: "Se importará el registro más reciente según el ORDER BY de su consulta.",
-      detail: (
-        <dl className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-slate-500">Fecha</dt>
-            <dd className="font-medium text-imperial-900">{first.fecha}</dd>
-          </div>
-          {first.hotel_codigo && (
-            <div className="flex justify-between gap-4">
-              <dt className="text-slate-500">Hotel</dt>
-              <dd className="font-mono text-xs text-imperial-900">{first.hotel_codigo}</dd>
-            </div>
-          )}
-          {varsText && (
-            <div>
-              <dt className="text-slate-500">Variables</dt>
-              <dd className="mt-0.5 font-mono text-xs text-slate-800">{varsText}</dd>
-            </div>
-          )}
-          {valor != null && (
-            <div className="flex justify-between gap-4 border-t border-slate-200 pt-2">
-              <dt className="text-slate-500">Valor calculado</dt>
-              <dd className="font-semibold text-imperial-900">
-                {formatKpiValue(valor, unidadMedida ?? "")}
-              </dd>
-            </div>
-          )}
-        </dl>
-      ),
-    };
-  }
-
-  const fechas = records.map((r) => r.fecha).sort();
-  const minFecha = fechas[0];
-  const maxFecha = fechas[fechas.length - 1];
-
-  return {
-    title: "Confirmar importación masiva",
-    description: `Se importarán hasta ${records.length} fila(s) visibles en la vista previa (máx. 1000 en servidor).`,
-    detail: (
-      <dl className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm">
-        <div className="flex justify-between gap-4">
-          <dt className="text-slate-500">Filas en preview</dt>
-          <dd className="font-medium text-imperial-900">{records.length}</dd>
-        </div>
-        {minFecha && maxFecha && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-slate-500">Rango de fechas</dt>
-            <dd className="font-medium text-imperial-900">
-              {minFecha === maxFecha ? minFecha : `${minFecha} → ${maxFecha}`}
-            </dd>
-          </div>
-        )}
-        <div>
-          <dt className="text-slate-500">Primera fila (más reciente)</dt>
-          <dd className="mt-0.5 text-xs text-slate-700">
-            {first.fecha}
-            {valor != null && ` · ${formatKpiValue(valor, unidadMedida ?? "")}`}
-          </dd>
-        </div>
-      </dl>
-    ),
-  };
+function recordValue(rec: PreviewRecord): number | undefined {
+  return rec.valor_calculado ?? rec.valor ?? Object.values(rec.variables ?? {})[0];
 }
 
 export function KpiSqlLoadButton({
@@ -125,58 +52,44 @@ export function KpiSqlLoadButton({
   const { showSuccess } = useSuccessToast();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingMode, setPendingMode] = useState<"single" | "all">("single");
+  const [selectOpen, setSelectOpen] = useState(false);
+  const [confirmAllOpen, setConfirmAllOpen] = useState(false);
   const [previewRecords, setPreviewRecords] = useState<PreviewRecord[]>([]);
+  const [previewTruncated, setPreviewTruncated] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  async function fetchPreview(): Promise<PreviewRecord[]> {
+  async function fetchPreview(limit = SQL_QUERY_LIMIT): Promise<{
+    records: PreviewRecord[];
+    truncated: boolean;
+  }> {
     const res = await fetch(`/api/kpis/${kpiId}/sql-source/preview`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ limit }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Error al obtener vista previa");
-    return (data.records ?? []) as PreviewRecord[];
+    return {
+      records: (data.records ?? []) as PreviewRecord[],
+      truncated: Boolean(data.truncated),
+    };
   }
 
-  function requestLoad(mode: "single" | "all") {
+  function openSelectionDialog() {
     setError(null);
-    if (variant === "form" && mode === "single" && onPrefill) {
-      setPreviewLoading(true);
-      startTransition(async () => {
-        try {
-          const records = await fetchPreview();
-          const first = records[0];
-          if (!first?.variables) {
-            setError("La consulta no devolvió variables numéricas");
-            return;
-          }
-          onPrefill({ fecha: first.fecha, variables: first.variables });
-          showSuccess(
-            `Datos del ${first.fecha} cargados en el formulario (${Object.keys(first.variables).length} variable(s))`
-          );
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "Error al cargar");
-        } finally {
-          setPreviewLoading(false);
-        }
-      });
-      return;
-    }
-
-    setPendingMode(mode);
     setPreviewLoading(true);
     startTransition(async () => {
       try {
-        const records = await fetchPreview();
+        const { records, truncated } = await fetchPreview();
         if (records.length === 0) {
           setError("La consulta no devolvió filas para importar");
           return;
         }
         setPreviewRecords(records);
-        setConfirmOpen(true);
+        setPreviewTruncated(truncated);
+        setSelectedKeys(new Set());
+        setSelectOpen(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Error al cargar");
       } finally {
@@ -185,15 +98,86 @@ export function KpiSqlLoadButton({
     });
   }
 
-  function executeLoad() {
+  function requestImportAll() {
+    setError(null);
+    setPreviewLoading(true);
+    startTransition(async () => {
+      try {
+        const { records } = await fetchPreview(1);
+        if (records.length === 0) {
+          setError("La consulta no devolvió filas para importar");
+          return;
+        }
+        setConfirmAllOpen(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Error al cargar");
+      } finally {
+        setPreviewLoading(false);
+      }
+    });
+  }
+
+  function requestFormPrefill() {
+    setError(null);
+    setPreviewLoading(true);
+    startTransition(async () => {
+      try {
+        const { records } = await fetchPreview(1);
+        const first = records[0];
+        if (!first?.variables) {
+          setError("La consulta no devolvió variables numéricas");
+          return;
+        }
+        onPrefill?.({ fecha: first.fecha, variables: first.variables });
+        showSuccess(
+          `Datos del ${first.fecha} cargados en el formulario (${Object.keys(first.variables).length} variable(s))`
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Error al cargar");
+      } finally {
+        setPreviewLoading(false);
+      }
+    });
+  }
+
+  function toggleRow(key: string) {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (selectedKeys.size === previewRecords.length) {
+      setSelectedKeys(new Set());
+      return;
+    }
+    setSelectedKeys(new Set(previewRecords.map(recordKey)));
+  }
+
+  const selectedSelections = useMemo(
+    () =>
+      previewRecords
+        .filter((rec) => selectedKeys.has(recordKey(rec)))
+        .map((rec) => ({
+          fecha: rec.fecha,
+          hotel_codigo: rec.hotel_codigo,
+        })),
+    [previewRecords, selectedKeys]
+  );
+
+  function executeLoad(mode: "all" | "selected", selections?: { fecha: string; hotel_codigo?: string }[]) {
     startTransition(async () => {
       const res = await fetch(`/api/kpis/${kpiId}/sql-source/load`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: pendingMode }),
+        body: JSON.stringify({ mode, selections }),
       });
       const data = await res.json();
-      setConfirmOpen(false);
+      setSelectOpen(false);
+      setConfirmAllOpen(false);
       if (!res.ok) {
         setError(data.error ?? "Error al cargar");
         return;
@@ -202,10 +186,10 @@ export function KpiSqlLoadButton({
       if (data.loaded > 0) {
         const first = (data.preview ?? data.records?.[0]) as PreviewRecord | undefined;
         showSuccess(
-          pendingMode === "all"
+          mode === "all"
             ? `${data.loaded} valor(es) importados desde SQL`
             : first
-              ? `Valor del ${first.fecha} importado correctamente`
+              ? `${data.loaded} valor(es) importados correctamente`
               : SUCCESS_MESSAGES.created
         );
         router.refresh();
@@ -216,8 +200,9 @@ export function KpiSqlLoadButton({
     });
   }
 
-  const summary = formatPreviewSummary(previewRecords, pendingMode, unidadMedida);
   const isBusy = pending || previewLoading;
+  const allSelected =
+    previewRecords.length > 0 && selectedKeys.size === previewRecords.length;
 
   const btnClass =
     variant === "form"
@@ -230,7 +215,7 @@ export function KpiSqlLoadButton({
         <button
           type="button"
           disabled={isBusy}
-          onClick={() => requestLoad("single")}
+          onClick={variant === "form" ? requestFormPrefill : openSelectionDialog}
           className={btnClass}
         >
           {isBusy ? (
@@ -244,7 +229,7 @@ export function KpiSqlLoadButton({
           <button
             type="button"
             disabled={isBusy}
-            onClick={() => requestLoad("all")}
+            onClick={requestImportAll}
             className="text-xs text-slate-500 underline"
           >
             Importar todas las filas
@@ -253,19 +238,108 @@ export function KpiSqlLoadButton({
         {error && <span className="text-xs text-red-600">{error}</span>}
       </div>
 
+      <FormModal
+        open={selectOpen}
+        onClose={() => setSelectOpen(false)}
+        title="Seleccionar registros a importar"
+        subtitle="Marque las filas devueltas por la consulta SQL que desea cargar al indicador."
+        maxWidth="xl"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            {previewRecords.length} fila(s) disponible(s)
+            {previewTruncated ? ` (máximo ${SQL_QUERY_LIMIT} por consulta)` : ""}.
+          </p>
+
+          <div className="max-h-[50vh] overflow-auto rounded-xl border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="w-10 px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      aria-label="Seleccionar todas las filas"
+                      className="rounded border-slate-300"
+                    />
+                  </th>
+                  <th className="px-3 py-2.5">Fecha</th>
+                  <th className="px-3 py-2.5">Hotel</th>
+                  <th className="px-3 py-2.5">Variables</th>
+                  <th className="px-3 py-2.5">Valor calculado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewRecords.map((rec) => {
+                  const key = recordKey(rec);
+                  const valor = recordValue(rec);
+                  return (
+                    <tr
+                      key={key}
+                      className="cursor-pointer border-t border-slate-100 hover:bg-slate-50/80"
+                      onClick={() => toggleRow(key)}
+                    >
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedKeys.has(key)}
+                          onChange={() => toggleRow(key)}
+                          aria-label={`Seleccionar ${rec.fecha}`}
+                          className="rounded border-slate-300"
+                        />
+                      </td>
+                      <td className="px-3 py-2 font-medium text-imperial-900">{rec.fecha}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-slate-700">
+                        {rec.hotel_codigo ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-slate-600">
+                        {formatVariables(rec)}
+                      </td>
+                      <td className="px-3 py-2 text-slate-800">
+                        {valor != null ? formatKpiValue(valor, unidadMedida ?? "") : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4">
+            <button
+              type="button"
+              onClick={() => setSelectOpen(false)}
+              disabled={pending}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => executeLoad("selected", selectedSelections)}
+              disabled={pending || selectedKeys.size === 0}
+              className="rounded-xl bg-imperial-900 px-4 py-2 text-sm font-medium text-white hover:bg-imperial-800 disabled:opacity-50"
+            >
+              {pending
+                ? "Importando…"
+                : `Importar ${selectedKeys.size} registro(s)`}
+            </button>
+          </div>
+        </div>
+      </FormModal>
+
       <ConfirmDialog
-        open={confirmOpen}
-        title={summary.title}
-        description={summary.description}
-        confirmLabel={pendingMode === "all" ? "Importar filas" : "Importar registro"}
+        open={confirmAllOpen}
+        title="Confirmar importación masiva"
+        description={`Se importarán todas las filas devueltas por la consulta SQL (hasta ${SQL_QUERY_LIMIT} registros según los filtros definidos).`}
+        confirmLabel="Importar todas las filas"
         cancelLabel="Cancelar"
         variant="default"
         loading={pending}
-        onConfirm={executeLoad}
-        onCancel={() => setConfirmOpen(false)}
-      >
-        {summary.detail}
-      </ConfirmDialog>
+        onConfirm={() => executeLoad("all")}
+        onCancel={() => setConfirmAllOpen(false)}
+      />
     </>
   );
 }
