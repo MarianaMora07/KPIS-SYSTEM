@@ -141,31 +141,91 @@ export function buildResponsibleContacts(rows: DashboardKpiRow[]): ResponsibleCo
   );
 }
 
+export interface ResponsibleContactFormattedLine {
+  parts: Array<{ text: string; bold?: boolean }>;
+}
+
+export function buildResponsibleContactLines(
+  contacts: ResponsibleContact[]
+): ResponsibleContactFormattedLine[] {
+  if (contacts.length === 0) return [];
+
+  return contacts.map((contact) => {
+    const hotel = contact.hotel_nombre ?? "Cadena";
+    const prefix = `• ${contact.kpi_nombre} (${hotel}): `;
+    if (contact.responsable_nombre && contact.responsable_email) {
+      return {
+        parts: [
+          { text: prefix },
+          { text: contact.responsable_nombre, bold: true },
+          { text: ` — ${contact.responsable_email}` },
+        ],
+      };
+    }
+    if (contact.responsable_nombre) {
+      return {
+        parts: [{ text: prefix }, { text: contact.responsable_nombre, bold: true }],
+      };
+    }
+    if (contact.area_responsable) {
+      return {
+        parts: [{ text: `${prefix}contactar área ${contact.area_responsable}` }],
+      };
+    }
+    return {
+      parts: [{ text: `${prefix}sin responsable asignado` }],
+    };
+  });
+}
+
 export function formatResponsibleContactsText(contacts: ResponsibleContact[]): string {
   if (contacts.length === 0) {
     return "No hay indicadores en incumplimiento en el alcance de este reporte.";
   }
 
-  const lines = contacts
-    .map((contact) => {
-      const hotel = contact.hotel_nombre ?? "Cadena";
-      if (contact.responsable_nombre && contact.responsable_email) {
-        return `• ${contact.kpi_nombre} (${hotel}): ${contact.responsable_nombre} — ${contact.responsable_email}`;
-      }
-      if (contact.responsable_nombre) {
-        return `• ${contact.kpi_nombre} (${hotel}): ${contact.responsable_nombre}`;
-      }
-      if (contact.area_responsable) {
-        return `• ${contact.kpi_nombre} (${hotel}): contactar área ${contact.area_responsable}`;
-      }
-      return `• ${contact.kpi_nombre} (${hotel}): sin responsable asignado`;
-    })
+  const lines = buildResponsibleContactLines(contacts)
+    .map((line) => line.parts.map((part) => part.text).join(""))
     .join("\n");
 
   return (
     "Para dar seguimiento a los indicadores en fase de incumplimiento, contacte a:\n\n" +
     lines
   );
+}
+
+function buildPptContactRuns(
+  contactLines: ResponsibleContactFormattedLine[],
+  emptyMessage: string
+): Array<{ text: string; options?: { bold?: boolean; fontSize?: number; color?: string } }> {
+  if (contactLines.length === 0) {
+    return [{ text: emptyMessage, options: { fontSize: 9, color: "334155" } }];
+  }
+
+  const runs: Array<{ text: string; options?: { bold?: boolean; fontSize?: number; color?: string } }> =
+    [
+      {
+        text: "Para dar seguimiento a los indicadores en fase de incumplimiento, contacte a:\n\n",
+        options: { fontSize: 9, color: "334155" },
+      },
+    ];
+
+  contactLines.forEach((line, index) => {
+    line.parts.forEach((part) => {
+      runs.push({
+        text: part.text,
+        options: {
+          fontSize: 9,
+          color: "334155",
+          ...(part.bold ? { bold: true } : {}),
+        },
+      });
+    });
+    if (index < contactLines.length - 1) {
+      runs.push({ text: "\n", options: { fontSize: 9, color: "334155" } });
+    }
+  });
+
+  return runs;
 }
 
 function formatFilterLine(
@@ -299,10 +359,58 @@ function drawPdfWrappedSection(
   return currentY;
 }
 
+function drawPdfRichLines(
+  doc: jsPDF,
+  lines: ResponsibleContactFormattedLine[],
+  x: number,
+  y: number,
+  maxW: number,
+  lineH: number,
+  maxLines: number,
+  intro?: string
+) {
+  let lineY = y;
+  let drawn = 0;
+
+  if (intro) {
+    doc.setFont("helvetica", "normal");
+    const introLines = doc.splitTextToSize(intro, maxW);
+    for (const introLine of introLines) {
+      if (drawn >= maxLines) return;
+      doc.text(introLine, x, lineY);
+      lineY += lineH;
+      drawn += 1;
+    }
+    if (drawn < maxLines) {
+      lineY += lineH * 0.4;
+      drawn += 1;
+    }
+  }
+
+  for (const line of lines) {
+    if (drawn >= maxLines) break;
+    let xPos = x;
+    for (const part of line.parts) {
+      doc.setFont("helvetica", part.bold ? "bold" : "normal");
+      const chunks = doc.splitTextToSize(part.text, maxW - (xPos - x));
+      if (chunks.length === 0) continue;
+      doc.text(chunks[0]!, xPos, lineY);
+      xPos += doc.getTextWidth(chunks[0]!);
+    }
+    lineY += lineH;
+    drawn += 1;
+  }
+}
+
 function drawPdfSplitSections(
   doc: jsPDF,
   left: { title: string; text: string },
-  right: { title: string; text: string },
+  right: {
+    title: string;
+    text: string;
+    richLines?: ResponsibleContactFormattedLine[];
+    intro?: string;
+  },
   y: number,
   margin: number,
   contentW: number,
@@ -337,9 +445,23 @@ function drawPdfSplitSections(
   doc.setTextColor(...PDF.dark);
 
   const leftLines = doc.splitTextToSize(left.text, colW - innerPad * 2).slice(0, maxLines);
-  const rightLines = doc.splitTextToSize(right.text, colW - innerPad * 2).slice(0, maxLines);
   doc.text(leftLines, leftX + innerPad, currentY + innerPad + 4);
-  doc.text(rightLines, rightX + innerPad, currentY + innerPad + 4);
+
+  if (right.richLines && right.richLines.length > 0) {
+    drawPdfRichLines(
+      doc,
+      right.richLines,
+      rightX + innerPad,
+      currentY + innerPad + 4,
+      colW - innerPad * 2,
+      lineH,
+      maxLines,
+      right.intro
+    );
+  } else {
+    const rightLines = doc.splitTextToSize(right.text, colW - innerPad * 2).slice(0, maxLines);
+    doc.text(rightLines, rightX + innerPad, currentY + innerPad + 4);
+  }
 
   return currentY + boxH + 7;
 }
@@ -487,6 +609,7 @@ export function exportToPdf(
   const stats = computeReportStats(rows);
   const recommendations = buildRecommendations(rows);
   const responsibleContacts = buildResponsibleContacts(rows);
+  const contactLines = buildResponsibleContactLines(responsibleContacts);
   const contactsText = formatResponsibleContactsText(responsibleContacts);
   const summaryRaw =
     executiveSummary ??
@@ -609,6 +732,11 @@ export function exportToPdf(
     {
       title: "Contactos responsables",
       text: contactsText,
+      richLines: contactLines,
+      intro:
+        contactLines.length > 0
+          ? "Para dar seguimiento a los indicadores en fase de incumplimiento, contacte a:"
+          : undefined,
     },
     ensurePdfSpace(doc, y, 48, pageH),
     margin,
@@ -638,6 +766,7 @@ export async function exportToPptx(
   const stats = computeReportStats(rows);
   const recommendations = buildRecommendations(rows);
   const responsibleContacts = buildResponsibleContacts(rows);
+  const contactLines = buildResponsibleContactLines(responsibleContacts);
   const summaryText = plainSummaryText(
     executiveSummary ??
       `Durante el período analizado se registraron ${stats.total} indicadores con desempeño mixto.`
@@ -906,7 +1035,10 @@ export async function exportToPptx(
     );
   }
 
-  const contactsText = formatResponsibleContactsText(responsibleContacts);
+  const contactPptRuns = buildPptContactRuns(
+    contactLines,
+    "No hay indicadores en incumplimiento en el alcance de este reporte."
+  );
   const recommendationsText = recommendations.map((item) => `• ${item}`).join("\n\n");
 
   const recContactSlide = pptx.addSlide();
@@ -974,13 +1106,11 @@ export async function exportToPptx(
     breakLine: true,
     fit: "shrink",
   });
-  recContactSlide.addText(contactsText.replace(/\n/g, "\n\n"), {
+  recContactSlide.addText(contactPptRuns, {
     x: rightX + pad,
     y: splitBoxY + 0.15,
     w: colW - pad * 2,
     h: splitBoxH - 0.25,
-    fontSize: bodyFontSize,
-    color: "334155",
     valign: "top",
     breakLine: true,
     fit: "shrink",

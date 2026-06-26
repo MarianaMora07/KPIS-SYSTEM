@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { listImportJobs } from "@/modules/import/services/import-service";
 import { ImportUploadView } from "@/modules/import/components/import-upload-view";
+import { ImportGuideCard } from "@/modules/import/components/import-guide-card";
 import { ImportHistoryList } from "@/modules/import/components/import-history-list";
 import { listKpis } from "@/modules/kpis/services/kpi-service";
 
@@ -39,18 +40,12 @@ export default async function ImportPage() {
       <div className="flex flex-wrap items-center gap-3">
         <a
           href="/api/import/template"
-          className="rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-lg border border-imperial-900/15 bg-white px-4 py-2 text-sm font-medium text-imperial-900 shadow-sm transition-colors hover:bg-slate-50"
         >
           Descargar plantilla Excel
         </a>
       </div>
-      <p className="text-sm text-slate-600">
-        Carga masiva de <strong>valores KPI</strong> (<code>kpi_values</code>) para KPIs ya
-        existentes. Use <code>valor_real</code> para KPIs sin fórmula, o columnas{" "}
-        <code>var_&#123;codigo&#125;</code> cuando el KPI tenga fórmula configurada (ej.{" "}
-        <code>var_visitas_mes</code>, <code>var_reservas_web</code>). La definición de variables y
-        fórmulas se gestiona en el detalle de cada KPI (solo administrador).
-      </p>
+      <ImportGuideCard />
       <ImportUploadView kpis={kpis} variables={variables} />
 
       <ImportHistoryList jobs={history} />

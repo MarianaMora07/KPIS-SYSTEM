@@ -376,23 +376,6 @@ export function KpiFormulaSetupPanel({
         <p className="mb-2 text-xs font-medium text-slate-500">
           1. Seleccione variables del catálogo
         </p>
-        {canManageUsers && (
-          <KpiFormulaSuggestion
-            context={
-              kpiContext ?? {
-                kpi_nombre: kpiNombre,
-              }
-            }
-            variables={allVariables}
-            currentExpresion={expresion}
-            onApply={({ expresion: nextExpresion, variableCodes }) => {
-              setExpresion(nextExpresion);
-              setSelectedCodes(
-                new Set(variableCodes.filter((code) => allVariables.some((v) => v.codigo === code)))
-              );
-            }}
-          />
-        )}
         {allVariables.length === 0 ? (
           <p className="text-sm text-slate-500">
             No hay variables en el catálogo.{" "}
@@ -428,6 +411,30 @@ export function KpiFormulaSetupPanel({
             Seleccionadas: {selectedVariables.map((v) => v.codigo).join(", ")}
           </p>
         )}
+        {canManageUsers && (
+          <KpiFormulaSuggestion
+            context={
+              kpiContext ?? {
+                kpi_nombre: kpiNombre,
+              }
+            }
+            variables={selectedVariables}
+            currentExpresion={expresion}
+            currentSelectedCodes={selectedVariables.map((v) => v.codigo)}
+            onApply={({ expresion: nextExpresion, variableCodes }) => {
+              setExpresion(nextExpresion);
+              setSelectedCodes(
+                new Set(variableCodes.filter((code) => allVariables.some((v) => v.codigo === code)))
+              );
+            }}
+            onRestore={({ expresion: prevExpresion, variableCodes }) => {
+              setExpresion(prevExpresion);
+              setSelectedCodes(
+                new Set(variableCodes.filter((code) => allVariables.some((v) => v.codigo === code)))
+              );
+            }}
+          />
+        )}
       </div>
 
       <div>
@@ -448,13 +455,23 @@ export function KpiFormulaSetupPanel({
                 value={aiDesc}
                 onChange={(e) => setAiDesc(e.target.value)}
                 rows={2}
-                placeholder="Ej: divide las reservas web entre las visitas del mes y multíplica por 100"
-                disabled={aiTranslatorDisabled}
-                className="w-full rounded-lg border border-indigo-200 bg-white/70 px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 disabled:opacity-50"
+                placeholder={
+                  selectedVariables.length === 0
+                    ? "Seleccione variables en el paso 1 para habilitar el contexto del traductor"
+                    : "Ej: divide las reservas web entre las visitas del mes y multíplica por 100"
+                }
+                readOnly={selectedVariables.length === 0}
+                disabled={aiLoading}
+                className="w-full rounded-lg border border-indigo-200 bg-white/70 px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 read-only:cursor-not-allowed read-only:bg-slate-100/80 read-only:text-slate-500 disabled:opacity-50"
               />
-              {selectedVariables.length === 0 && (
+              {selectedVariables.length === 0 ? (
+                <p className="rounded-lg border border-indigo-100 bg-indigo-50/80 px-2.5 py-2 text-[11px] text-indigo-700">
+                  Seleccione al menos una variable en el paso 1. Sin variables, no puede escribir el
+                  contexto ni generar una fórmula con el traductor.
+                </p>
+              ) : (
                 <p className="text-[10px] text-indigo-500">
-                  Seleccione al menos una variable en el paso 1 para habilitar el traductor.
+                  Variables disponibles: {selectedVariables.map((v) => v.codigo).join(", ")}
                 </p>
               )}
               <div className="flex items-center justify-between gap-2">
