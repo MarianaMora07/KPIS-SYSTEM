@@ -5,7 +5,6 @@ import {
   listActionPlans,
   type AlertListFilters,
 } from "@/modules/alertas/services/alert-service";
-import { syncAllAlerts } from "@/modules/alertas/services/alert-sync-service";
 import { filterAlertsClient } from "@/modules/alertas/utils/filter-alerts";
 import { listUsers } from "@/modules/seguridad/services/security-service";
 import { DEMO_ALERTS } from "@/modules/alertas/data/demo-alerts";
@@ -50,7 +49,6 @@ export default async function AlertasPage({ searchParams }: AlertasPageProps) {
 
   if (!isDemo) {
     try {
-      await syncAllAlerts().catch(() => {});
       const [alertsData, plansData, usersData] = await Promise.all([
         listOpenAlerts(alertFilters),
         listActionPlans(),

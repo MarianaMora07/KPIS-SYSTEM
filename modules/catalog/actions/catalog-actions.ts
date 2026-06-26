@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { assertPermission } from "@/lib/auth/require-permission";
+import { invalidateCache } from "@/lib/cache/dashboard-cache";
 import { createRegion, createHotel } from "../services/catalog-service";
 
 export async function createRegionAction(input: {
@@ -11,6 +12,7 @@ export async function createRegionAction(input: {
 }) {
   await assertPermission("catalogo.gestionar");
   await createRegion(input);
+  invalidateCache("catalog:");
   revalidatePath("/catalogo");
 }
 
@@ -22,5 +24,6 @@ export async function createHotelAction(input: {
 }) {
   await assertPermission("catalogo.gestionar");
   await createHotel(input);
+  invalidateCache("catalog:");
   revalidatePath("/catalogo");
 }

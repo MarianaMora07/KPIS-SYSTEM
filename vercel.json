@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/target-expiry",
+      "schedule": "0 */2 * * *"
+    },
+    {
       "path": "/api/cron/reports",
       "schedule": "0 8 * * 1"
     },

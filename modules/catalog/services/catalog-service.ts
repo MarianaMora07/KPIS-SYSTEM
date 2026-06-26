@@ -1,27 +1,43 @@
 import { createClient } from "@/lib/supabase/server";
+import { withCache } from "@/lib/cache/dashboard-cache";
+
+const CATALOG_TTL_MS = 5 * 60_000;
 
 export async function listRegions() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("regions")
-    .select("id, codigo, nombre")
-    .eq("estado", "activo")
-    .order("nombre");
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  return withCache(
+    "catalog:regions",
+    async () => {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from("regions")
+        .select("id, codigo, nombre")
+        .eq("estado", "activo")
+        .order("nombre");
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    CATALOG_TTL_MS
+  );
 }
 
 export async function listHotels(regionId?: string) {
-  const supabase = await createClient();
-  let query = supabase
-    .from("hotels")
-    .select("id, codigo, nombre, region_id")
-    .eq("estado", "activo")
-    .order("nombre");
-  if (regionId) query = query.eq("region_id", regionId);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const cacheKey = regionId ? `catalog:hotels:${regionId}` : "catalog:hotels:all";
+  return withCache(
+    cacheKey,
+    async () => {
+      const supabase = await createClient();
+      let query = supabase
+        .from("hotels")
+        .select("id, codigo, nombre, region_id")
+        .eq("estado", "activo")
+        .order("nombre");
+      if (regionId) query = query.eq("region_id", regionId);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    CATALOG_TTL_MS
+  );
 }
 
 export async function listKpiCategories() {
