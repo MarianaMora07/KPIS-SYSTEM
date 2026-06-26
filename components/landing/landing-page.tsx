@@ -13,6 +13,11 @@ import {
   ChevronRight,
   ArrowRight,
   CheckCircle2,
+  Sparkles,
+  ClipboardList,
+  Calculator,
+  TrendingUp,
+  FileSpreadsheet,
 } from "lucide-react";
 import { SiriWavesBackground } from "@/components/landing/siri-waves-background";
 
@@ -48,6 +53,41 @@ const FEATURES = [
   "Semaforización automática con alertas",
   "Importación masiva Excel / CSV",
   "Análisis histórico y proyecciones",
+];
+
+const AI_CAPABILITIES = [
+  {
+    code: "HU-KPI-009",
+    title: "Copiloto de Planes de Acción",
+    description:
+      "Cuando un indicador cae a rojo, el Director Comercial puede presionar «Generar Sugerencia IA» en el plan de acción. La IA recibe el KPI, valor actual, meta y hotel, y propone 3 acciones correctivas tácticas ejecutables esa misma semana.",
+    icon: ClipboardList,
+    badge: "Seguro",
+  },
+  {
+    code: "HU-KPI-003",
+    title: "Traductor de Fórmulas Matemáticas",
+    description:
+      "En la configuración de fórmulas compuestas, escriba en lenguaje natural —por ejemplo, «dividir ingresos totales entre habitaciones disponibles y multiplicar por 100»— y la IA lo convierte en la expresión matemática usando solo las variables disponibles del catálogo.",
+    icon: Calculator,
+    badge: "Probable",
+  },
+  {
+    code: "HU-KPI-007",
+    title: "Analista de Tendencias",
+    description:
+      "Desde el Dashboard Ejecutivo, genere un «Resumen Ejecutivo Narrado» con un clic. La IA analiza los últimos 6 meses del KPI activo, resume la tendencia, identifica el mes más crítico y señala si la proyección requiere atención inmediata.",
+    icon: TrendingUp,
+    badge: "Seguro",
+  },
+  {
+    code: "HU-KPI-004",
+    title: "Mapeo Inteligente de Columnas",
+    description:
+      "Al importar Excel, si los encabezados no coinciden exactamente con el catálogo (p. ej. «Rev_Par_Mayo_Final»), la IA intenta emparejarlos automáticamente con los códigos de KPI antes de rechazar el archivo.",
+    icon: FileSpreadsheet,
+    badge: "Probable",
+  },
 ];
 
 export function LandingPage() {
@@ -188,6 +228,67 @@ export function LandingPage() {
               </p>
             </motion.div>
           ))}
+        </div>
+      </section>
+
+      {/* Capacidades de IA */}
+      <section className="border-b border-slate-200 bg-gradient-to-b from-white to-slate-50 py-14 lg:py-16">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-10 text-center">
+            <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-imperial-900">
+              <Sparkles className="h-4 w-4" />
+              Inteligencia artificial
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-imperial-900 sm:text-3xl">
+              Cuatro asistentes IA para decidir más rápido
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+              Funciones integradas que reducen fricción operativa: desde planes de
+              acción en crisis hasta importación de Excel con columnas no estándar.
+            </p>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            {AI_CAPABILITIES.map((cap, i) => {
+              const CapIcon = cap.icon;
+              const isSecure = cap.badge === "Seguro";
+              return (
+                <motion.article
+                  key={cap.code}
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.08 }}
+                  whileHover={{ y: -3 }}
+                  className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:border-imperial-700/25 hover:shadow-md hover:shadow-imperial-900/5"
+                >
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-imperial-900/10">
+                      <CapIcon className="h-5 w-5 text-imperial-900" />
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        isSecure
+                          ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                          : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                      }`}
+                    >
+                      {cap.badge}
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    {cap.code}
+                  </p>
+                  <h3 className="mt-1 text-base font-bold text-imperial-900">
+                    {cap.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                    {cap.description}
+                  </p>
+                </motion.article>
+              );
+            })}
+          </div>
         </div>
       </section>
 
